@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Workspace Setup – ROS 2 + PX4 Dev Guide</title>
+<title>Arming and Offboard Mode – ROS 2 + PX4 Dev Guide</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -373,7 +373,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Workspace Setup</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/control/qos-profiles.html">Control</a></li><li class="breadcrumb-item"><a href="../../docs/control/arming-offboard.html">Arming and Offboard Mode</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -413,7 +413,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/workspace-setup.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../docs/setup/workspace-setup.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Workspace Setup</span></a>
   </div>
 </li>
@@ -483,7 +483,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/control/arming-offboard.html" class="sidebar-item-text sidebar-link">
+  <a href="../../docs/control/arming-offboard.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Arming and Offboard Mode</span></a>
   </div>
 </li>
@@ -511,32 +511,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#project-structure" id="toc-project-structure" class="nav-link active" data-scroll-target="#project-structure">Project structure</a></li>
-  <li><a href="#pixi.toml" id="toc-pixi.toml" class="nav-link" data-scroll-target="#pixi.toml">pixi.toml</a>
-  <ul class="collapse">
-  <li><a href="#workspace-metadata" id="toc-workspace-metadata" class="nav-link" data-scroll-target="#workspace-metadata">Workspace metadata</a></li>
-  <li><a href="#dependencies" id="toc-dependencies" class="nav-link" data-scroll-target="#dependencies">Dependencies</a></li>
-  <li><a href="#pypi-only-packages" id="toc-pypi-only-packages" class="nav-link" data-scroll-target="#pypi-only-packages">PyPI-only packages</a></li>
-  <li><a href="#activation-script" id="toc-activation-script" class="nav-link" data-scroll-target="#activation-script">Activation script</a></li>
-  </ul></li>
-  <li><a href="#workspace-activation" id="toc-workspace-activation" class="nav-link" data-scroll-target="#workspace-activation">Workspace activation</a></li>
-  <li><a href="#px4-message-definitions-submodule" id="toc-px4-message-definitions-submodule" class="nav-link" data-scroll-target="#px4-message-definitions-submodule">PX4 message definitions (submodule)</a>
-  <ul class="collapse">
-  <li><a href="#adding-the-submodule" id="toc-adding-the-submodule" class="nav-link" data-scroll-target="#adding-the-submodule">Adding the submodule</a></li>
-  <li><a href="#restoring-on-a-fresh-clone" id="toc-restoring-on-a-fresh-clone" class="nav-link" data-scroll-target="#restoring-on-a-fresh-clone">Restoring on a fresh clone</a></li>
-  <li><a href="#gitmodules-entry" id="toc-gitmodules-entry" class="nav-link" data-scroll-target="#gitmodules-entry">.gitmodules entry</a></li>
-  <li><a href="#versioned-topic-names" id="toc-versioned-topic-names" class="nav-link" data-scroll-target="#versioned-topic-names">Versioned topic names</a></li>
-  <li><a href="#diagnosing-version-mismatches" id="toc-diagnosing-version-mismatches" class="nav-link" data-scroll-target="#diagnosing-version-mismatches">Diagnosing version mismatches</a></li>
-  </ul></li>
-  <li><a href="#build-tasks" id="toc-build-tasks" class="nav-link" data-scroll-target="#build-tasks">Build tasks</a></li>
-  <li><a href="#daily-workflow" id="toc-daily-workflow" class="nav-link" data-scroll-target="#daily-workflow">Daily workflow</a></li>
+  <li><a href="#required-sequence" id="toc-required-sequence" class="nav-link active" data-scroll-target="#required-sequence">Required sequence</a></li>
+  <li><a href="#vehiclecommand-helper" id="toc-vehiclecommand-helper" class="nav-link" data-scroll-target="#vehiclecommand-helper">VehicleCommand helper</a></li>
+  <li><a href="#switching-to-offboard-mode" id="toc-switching-to-offboard-mode" class="nav-link" data-scroll-target="#switching-to-offboard-mode">Switching to offboard mode</a></li>
+  <li><a href="#arming" id="toc-arming" class="nav-link" data-scroll-target="#arming">Arming</a></li>
+  <li><a href="#disarming" id="toc-disarming" class="nav-link" data-scroll-target="#disarming">Disarming</a></li>
+  <li><a href="#monitoring-vehicle-state" id="toc-monitoring-vehicle-state" class="nav-link" data-scroll-target="#monitoring-vehicle-state">Monitoring vehicle state</a></li>
+  <li><a href="#full-arming-state-machine" id="toc-full-arming-state-machine" class="nav-link" data-scroll-target="#full-arming-state-machine">Full arming state machine</a></li>
+  <li><a href="#takeoff-after-arming" id="toc-takeoff-after-arming" class="nav-link" data-scroll-target="#takeoff-after-arming">Takeoff after arming</a></li>
+  <li><a href="#safety-continuous-stream-requirement" id="toc-safety-continuous-stream-requirement" class="nav-link" data-scroll-target="#safety-continuous-stream-requirement">Safety: continuous stream requirement</a></li>
   <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
   <ul class="collapse">
-  <li><a href="#package-xxx-not-found-after-adding-a-new-ros-package" id="toc-package-xxx-not-found-after-adding-a-new-ros-package" class="nav-link" data-scroll-target="#package-xxx-not-found-after-adding-a-new-ros-package"><code>package 'xxx' not found</code> after adding a new ROS package</a></li>
-  <li><a href="#ros2-command-not-found-inside-pixi-shell" id="toc-ros2-command-not-found-inside-pixi-shell" class="nav-link" data-scroll-target="#ros2-command-not-found-inside-pixi-shell"><code>ros2: command not found</code> inside pixi shell</a></li>
-  <li><a href="#cuda-compiler-nvcc-not-found" id="toc-cuda-compiler-nvcc-not-found" class="nav-link" data-scroll-target="#cuda-compiler-nvcc-not-found">CUDA compiler (<code>nvcc</code>) not found</a></li>
-  <li><a href="#colcon-picks-up-system-python-instead-of-pixi-python" id="toc-colcon-picks-up-system-python-instead-of-pixi-python" class="nav-link" data-scroll-target="#colcon-picks-up-system-python-instead-of-pixi-python">colcon picks up system Python instead of pixi Python</a></li>
-  <li><a href="#pixi.lock-conflicts-on-git-pull" id="toc-pixi.lock-conflicts-on-git-pull" class="nav-link" data-scroll-target="#pixi.lock-conflicts-on-git-pull">pixi.lock conflicts on <code>git pull</code></a></li>
+  <li><a href="#vehicle-never-arms" id="toc-vehicle-never-arms" class="nav-link" data-scroll-target="#vehicle-never-arms">Vehicle never arms</a></li>
+  <li><a href="#offboard-mode-switch-is-accepted-but-vehicle-falls" id="toc-offboard-mode-switch-is-accepted-but-vehicle-falls" class="nav-link" data-scroll-target="#offboard-mode-switch-is-accepted-but-vehicle-falls">Offboard mode switch is accepted but vehicle falls</a></li>
+  <li><a href="#vehicle-disarms-immediately-after-takeoff" id="toc-vehicle-disarms-immediately-after-takeoff" class="nav-link" data-scroll-target="#vehicle-disarms-immediately-after-takeoff">Vehicle disarms immediately after takeoff</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -545,9 +533,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Workspace Setup</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/control/qos-profiles.html">Control</a></li><li class="breadcrumb-item"><a href="../../docs/control/arming-offboard.html">Arming and Offboard Mode</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Workspace Setup</h1>
+<h1 class="title">Arming and Offboard Mode</h1>
 </div>
 
 
@@ -564,80 +552,89 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using <strong>pixi</strong> as the environment and package manager.</p>
-<section id="project-structure" class="level2">
-<h2 class="anchored" data-anchor-id="project-structure">Project structure</h2>
-<pre><code>my_ros2_ws/
-+-- src/
-|   +-- my_package/             # your ROS 2 packages
-|   +-- px4_msgs/               # git submodule (PX4 message definitions)
-+-- pixi.toml                   # environment + task definitions
-+-- pixi.lock                   # committed; pins all resolved versions
-+-- activate.sh                 # sources install/setup.bash on shell entry
-+-- pyrightconfig.json          # basedpyright config (see Type Checking)
-+-- install/                    # colcon output     (gitignored)
-+-- build/                      # colcon build tree (gitignored)
-+-- log/                        # colcon logs       (gitignored)</code></pre>
+<p>Before a ROS 2 node can send setpoints to PX4, the vehicle must be <strong>armed</strong> and PX4 must be in <strong>offboard mode</strong>. Both transitions are triggered by publishing <code>VehicleCommand</code> messages. The sequence has strict ordering requirements and timing constraints.</p>
+<hr>
+<section id="required-sequence" class="level2">
+<h2 class="anchored" data-anchor-id="required-sequence">Required sequence</h2>
+<pre><code>1. Start streaming OffboardControlMode heartbeat  (&gt;=2 Hz, before switching)
+2. Start streaming setpoints                       (same rate as control loop)
+3. Send VehicleCommand: VEHICLE_CMD_DO_SET_MODE -&gt; OFFBOARD
+4. Send VehicleCommand: VEHICLE_CMD_COMPONENT_ARM_DISARM -&gt; ARM</code></pre>
+<p>Steps 1–2 must begin <strong>before</strong> step 3. PX4 rejects the offboard mode switch if it has not already seen a recent <code>OffboardControlMode</code> message. Keep both streams running continuously thereafter.</p>
 <hr>
 </section>
-<section id="pixi.toml" class="level2">
-<h2 class="anchored" data-anchor-id="pixi.toml">pixi.toml</h2>
-<section id="workspace-metadata" class="level3">
-<h3 class="anchored" data-anchor-id="workspace-metadata">Workspace metadata</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[workspace]</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">name</span>     <span class="op">=</span> <span class="st">"my_ros2_ws"</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span>  <span class="op">=</span> <span class="st">"0.1.0"</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="dt">channels</span> <span class="op">=</span> <span class="op">[</span><span class="st">"robostack-jazzy"</span><span class="op">,</span> <span class="st">"conda-forge"</span><span class="op">]</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dt">platforms</span> <span class="op">=</span> <span class="op">[</span><span class="st">"linux-64"</span><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><strong>Channel order matters.</strong> <code>robostack-jazzy</code> must come <strong>before</strong> <code>conda-forge</code>. Reversing the order causes the solver to pick incompatible <code>libstdc++</code> builds and break ROS package resolution.</p>
-</div>
-</div>
+<section id="vehiclecommand-helper" class="level2">
+<h2 class="anchored" data-anchor-id="vehiclecommand-helper">VehicleCommand helper</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* vehicle_command.hpp */</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#pragma once</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;rclcpp/rclcpp.hpp&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;px4_msgs/msg/vehicle_command.hpp&gt;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="dt">void</span> send_vehicle_command<span class="op">(</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>Publisher<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleCommand<span class="op">&gt;::</span>SharedPtr<span class="op">&amp;</span> pub<span class="op">,</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>Node<span class="op">*</span> node<span class="op">,</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint32_t</span> command<span class="op">,</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">float</span> param1 <span class="op">=</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">float</span> param2 <span class="op">=</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">)</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleCommand msg<span class="op">{};</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>timestamp       <span class="op">=</span> node<span class="op">-&gt;</span>get_clock<span class="op">()-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">/</span> <span class="dv">1000</span><span class="op">;</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>command         <span class="op">=</span> command<span class="op">;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>param1          <span class="op">=</span> param1<span class="op">;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>param2          <span class="op">=</span> param2<span class="op">;</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>target_system   <span class="op">=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>target_component <span class="op">=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>source_system   <span class="op">=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>source_component <span class="op">=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">.</span>from_external   <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    pub<span class="op">-&gt;</span>publish<span class="op">(</span>msg<span class="op">);</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
 </section>
-<section id="dependencies" class="level3">
-<h3 class="anchored" data-anchor-id="dependencies">Dependencies</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[dependencies]</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># --- ROS 2 Jazzy ---</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-ros-base</span>             <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-ament-cmake</span>          <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-rclcpp</span>               <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-std-msgs</span>             <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-geometry-msgs</span>        <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-sensor-msgs</span>          <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-nav-msgs</span>             <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-tf2</span>                  <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-tf2-ros</span>              <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-tf2-geometry-msgs</span>    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-ros2launch</span>           <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-launch-ros</span>           <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-rosbag2</span>              <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-rosbag2-storage-mcap</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-plotjuggler-ros</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Build tooling ---</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="dt">colcon-common-extensions</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="dt">cmake</span>                    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="dt">ninja</span>                    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="dt">compilers</span>                <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="co"># --- C++ libraries ---</span></span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="dt">eigen</span>    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="dt">yaml-cpp</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Python ---</span></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="dt">python</span>     <span class="op">=</span> <span class="st">"&gt;=3.11"</span></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="dt">numpy</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="dt">scipy</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="dt">matplotlib</span> <span class="op">=</span> <span class="st">"*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="switching-to-offboard-mode" class="level2">
+<h2 class="anchored" data-anchor-id="switching-to-offboard-mode">Switching to offboard mode</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;px4_msgs/msg/vehicle_command.hpp&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">/* PX4_CUSTOM_MAIN_MODE_OFFBOARD = 6 */</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>send_vehicle_command<span class="op">(</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="va">vehicle_cmd_pub_</span><span class="op">,</span> <span class="kw">this</span><span class="op">,</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleCommand<span class="op">::</span>VEHICLE_CMD_DO_SET_MODE<span class="op">,</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="fl">1.0</span><span class="bu">f</span><span class="op">,</span>   <span class="co">// base mode: custom</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="fl">6.0</span><span class="bu">f</span><span class="op">);</span>  <span class="co">// custom main mode: offboard</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>PX4 switches only if it has received <code>OffboardControlMode</code> messages recently. If the switch fails, <code>VehicleStatus.nav_state</code> stays at its prior value.</p>
+<hr>
+</section>
+<section id="arming" class="level2">
+<h2 class="anchored" data-anchor-id="arming">Arming</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>send_vehicle_command<span class="op">(</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">vehicle_cmd_pub_</span><span class="op">,</span> <span class="kw">this</span><span class="op">,</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleCommand<span class="op">::</span>VEHICLE_CMD_COMPONENT_ARM_DISARM<span class="op">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="fl">1.0</span><span class="bu">f</span><span class="op">);</span>  <span class="co">// 1.0 = arm, 0.0 = disarm</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="disarming" class="level2">
+<h2 class="anchored" data-anchor-id="disarming">Disarming</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>send_vehicle_command<span class="op">(</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">vehicle_cmd_pub_</span><span class="op">,</span> <span class="kw">this</span><span class="op">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleCommand<span class="op">::</span>VEHICLE_CMD_COMPONENT_ARM_DISARM<span class="op">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="fl">0.0</span><span class="bu">f</span><span class="op">);</span>  <span class="co">// disarm</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="monitoring-vehicle-state" class="level2">
+<h2 class="anchored" data-anchor-id="monitoring-vehicle-state">Monitoring vehicle state</h2>
+<p>Subscribe to <code>VehicleStatus</code> to read the current arming and nav state:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;px4_msgs/msg/vehicle_status.hpp&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> qos <span class="op">=</span> rclcpp<span class="op">::</span>QoS<span class="op">(</span><span class="dv">10</span><span class="op">).</span>best_effort<span class="op">();</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="va">status_sub_</span> <span class="op">=</span> create_subscription<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">&gt;(</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"/fmu/out/vehicle_status_v1"</span><span class="op">,</span> qos<span class="op">,</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">[</span><span class="kw">this</span><span class="op">](</span><span class="at">const</span> px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">::</span>SharedPtr msg<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">armed_</span>       <span class="op">=</span> <span class="op">(</span>msg<span class="op">-&gt;</span>arming_state <span class="op">==</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>                        px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">::</span>ARMING_STATE_ARMED<span class="op">);</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">in_offboard_</span> <span class="op">=</span> <span class="op">(</span>msg<span class="op">-&gt;</span>nav_state <span class="op">==</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>                        px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">::</span>NAVIGATION_STATE_OFFBOARD<span class="op">);</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">});</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -648,196 +645,110 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><strong>GPU-accelerated nodes (optional)</strong>: add <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> under <code>[dependencies]</code> if your workspace includes CUDA nodes. The host driver must already be installed (<code>nvidia-smi</code> should report &gt;= 525 for CUDA 12).</p>
+<p>The topic is <code>/fmu/out/vehicle_status_v1</code> (versioned) from PX4 v1.14 onward. See <a href="../../docs/setup/workspace-setup.html#versioned-topic-names">Versioned topic names</a>.</p>
 </div>
 </div>
-</section>
-<section id="pypi-only-packages" class="level3">
-<h3 class="anchored" data-anchor-id="pypi-only-packages">PyPI-only packages</h3>
-<p>For packages not on conda channels, use <code>[pypi-dependencies]</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[pypi-dependencies]</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">scienceplots</span> <span class="op">=</span> <span class="st">"*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="activation-script" class="level3">
-<h3 class="anchored" data-anchor-id="activation-script">Activation script</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[activation]</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="dt">scripts</span> <span class="op">=</span> <span class="op">[</span><span class="st">"activate.sh"</span><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Relevant <code>VehicleStatus</code> constants:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Constant</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>arming_state</code></td>
+<td><code>ARMING_STATE_DISARMED</code></td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td><code>arming_state</code></td>
+<td><code>ARMING_STATE_ARMED</code></td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td><code>nav_state</code></td>
+<td><code>NAVIGATION_STATE_OFFBOARD</code></td>
+<td>14</td>
+</tr>
+</tbody>
+</table>
 <hr>
 </section>
-</section>
-<section id="workspace-activation" class="level2">
-<h2 class="anchored" data-anchor-id="workspace-activation">Workspace activation</h2>
-<p>Every time pixi launches a shell or runs a task it sources the scripts listed under <code>[activation]</code>. Use this to overlay the colcon install tree.</p>
-<p><strong><code>activate.sh</code></strong> (project root):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSTALL_DIR</span><span class="op">=</span><span class="st">"</span><span class="va">${PIXI_PROJECT_ROOT}</span><span class="st">/install"</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="ot">-f</span> <span class="st">"</span><span class="va">${INSTALL_DIR}</span><span class="st">/setup.bash"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="bu">source</span> <span class="st">"</span><span class="va">${INSTALL_DIR}</span><span class="st">/setup.bash"</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>PIXI_PROJECT_ROOT</code> is set automatically to the directory containing <code>pixi.toml</code>. The <code>if</code> guard prevents errors on a clean checkout before the first build.</p>
+<section id="full-arming-state-machine" class="level2">
+<h2 class="anchored" data-anchor-id="full-arming-state-machine">Full arming state machine</h2>
+<p>A typical controller node follows this pattern on startup:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* Called at ~10 Hz in the main control timer */</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> control_loop<span class="op">()</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* 1. Always publish heartbeat first */</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    publish_offboard_control_mode<span class="op">();</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* 2. Always publish a setpoint (zeros are fine pre-arm) */</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    publish_setpoint<span class="op">();</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* 3. After a short warm-up, switch mode and arm */</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(!</span><span class="va">mode_sent_</span> <span class="op">&amp;&amp;</span> <span class="op">++</span><span class="va">tick_</span> <span class="op">&gt;</span> <span class="dv">10</span><span class="op">)</span> <span class="op">{</span>   <span class="co">// ~1 s at 10 Hz</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        switch_to_offboard<span class="op">();</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        arm<span class="op">();</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        <span class="va">mode_sent_</span> <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The tick counter gives PX4 time to receive a few heartbeats before the mode switch is requested.</p>
 <hr>
 </section>
-<section id="px4-message-definitions-submodule" class="level2">
-<h2 class="anchored" data-anchor-id="px4-message-definitions-submodule">PX4 message definitions (submodule)</h2>
-<p><code>px4_msgs</code> must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.</p>
-<section id="adding-the-submodule" class="level3">
-<h3 class="anchored" data-anchor-id="adding-the-submodule">Adding the submodule</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule add <span class="at">-b</span> release/1.16 <span class="dt">\</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    https://github.com/PX4/px4_msgs.git src/px4_msgs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="restoring-on-a-fresh-clone" class="level3">
-<h3 class="anchored" data-anchor-id="restoring-on-a-fresh-clone">Restoring on a fresh clone</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone <span class="at">--recurse-submodules</span> <span class="op">&lt;</span>repo-url<span class="op">&gt;</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or, after a plain clone:</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="gitmodules-entry" class="level3">
-<h3 class="anchored" data-anchor-id="gitmodules-entry">.gitmodules entry</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[submodule "src/px4_msgs"]</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">    path   </span><span class="ot">=</span><span class="st"> src/px4_msgs</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="dt">    url    </span><span class="ot">=</span><span class="st"> https://github.com/PX4/px4_msgs.git</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="dt">    branch </span><span class="ot">=</span><span class="st"> release/1.16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Always pin <code>px4_msgs</code> to the same release branch as the PX4 firmware used for SITL (<code>release/1.14</code>, <code>release/1.15</code>, <code>release/1.16</code>, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.</p>
-</div>
-</div>
-</section>
-<section id="versioned-topic-names" class="level3">
-<h3 class="anchored" data-anchor-id="versioned-topic-names">Versioned topic names</h3>
-<p>From PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is <code>VehicleStatus</code>, which moved from:</p>
-<pre><code>/fmu/out/vehicle_status      # pre-v1.14
-/fmu/out/vehicle_status_v1   # v1.14+</code></pre>
-<p>If your subscriber listens on the wrong topic name it receives <strong>no data at all</strong> — the subscription simply never fires. Auto-arming logic that waits for <code>arming_state == ARMING_STATE_ARMED</code> blocks forever, and the vehicle never arms.</p>
-<p>The fix is to subscribe to the versioned topic:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// px4_interface.cpp / px4_manager_node.cpp</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="va">status_sub_</span> <span class="op">=</span> <span class="va">node_</span><span class="op">-&gt;</span>create_subscription<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">&gt;(</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"/fmu/out/vehicle_status_v1"</span><span class="op">,</span> qos<span class="op">,</span> callback<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Check which topics are actually being published by the running firmware:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> vehicle_status</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Use whichever name appears — it tells you exactly what the firmware is advertising.</p>
-</section>
-<section id="diagnosing-version-mismatches" class="level3">
-<h3 class="anchored" data-anchor-id="diagnosing-version-mismatches">Diagnosing version mismatches</h3>
-<p>If the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># commit that your workspace px4_msgs is pinned to</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> src/px4_msgs rev-parse HEAD</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># PX4 version string printed at SITL startup, e.g. "PX4 v1.15.2"</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co"># must correspond to the same release branch</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>To fix, update the submodule to the branch matching your firmware:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> src/px4_msgs</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout release/1.16   <span class="co"># match PX4 firmware version</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ../..</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--symlink-install</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add src/px4_msgs</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">"chore: pin px4_msgs to release/1.16"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="takeoff-after-arming" class="level2">
+<h2 class="anchored" data-anchor-id="takeoff-after-arming">Takeoff after arming</h2>
+<p>After arming, the vehicle is on the ground with motors spinning at idle. Command a TrajectorySetpoint with a target altitude to begin the takeoff:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>px4_msgs<span class="op">::</span>msg<span class="op">::</span>TrajectorySetpoint traj<span class="op">{};</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>timestamp <span class="op">=</span> get_clock<span class="op">()-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">/</span> <span class="dv">1000</span><span class="op">;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">/* NED frame: negative z = above ground */</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>position  <span class="op">=</span> <span class="op">{</span><span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span> <span class="op">-</span><span class="fl">2.0</span><span class="bu">f</span><span class="op">};</span>  <span class="co">// 2 m above ground</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>yaw       <span class="op">=</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">;</span>                  <span class="co">// North-facing</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="va">traj_pub_</span><span class="op">-&gt;</span>publish<span class="op">(</span>traj<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Use <code>OffboardControlMode</code> with <code>position = true</code> while climbing:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>position <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>velocity <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>attitude <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Switch <code>OffboardControlMode</code> fields to match whichever control mode you activate once at altitude. See <a href="../../docs/control/low-level-control.html">Low-Level Offboard Control</a>.</p>
 <hr>
 </section>
-</section>
-<section id="build-tasks" class="level2">
-<h2 class="anchored" data-anchor-id="build-tasks">Build tasks</h2>
-<p>Define all build and launch operations as pixi tasks. Every task runs inside the activated environment, so <code>ros2</code>, <code>colcon</code>, <code>cmake</code>, and <code>nvcc</code> are all on <code>PATH</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all packages with symlink install and compile commands export</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="dt">build</span> <span class="op">=</span> <span class="st">"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1"</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove all colcon output</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="dt">clean</span> <span class="op">=</span> <span class="st">"rm -rf build install log"</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Run all tests with live console output</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="dt">test</span> <span class="op">=</span> <span class="st">"colcon test --event-handlers console_direct+"</span></span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Launch control nodes only (PX4 running externally)</span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="dt">launch</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup sitl.launch.py"</span><span class="op">,</span></span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="op">           </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-sitl</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="op">                     </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">record_bag</span><span class="op">:=</span><span class="cn">false</span><span class="dt">",</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Canned trajectories</span></span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="dt">hover</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">hover</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="op"> </span><span class="dt">duration</span><span class="op">:=</span><span class="fl">90.0</span><span class="dt">",</span></span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="op">          </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="dt">lemniscate</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">lemniscate</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
-<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a><span class="op">               </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="dt">circular</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">circular</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
-<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Run any task with:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run px4-sitl</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run hover</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>depends-on</code> field guarantees the workspace is rebuilt before launching.</p>
-<hr>
-</section>
-<section id="daily-workflow" class="level2">
-<h2 class="anchored" data-anchor-id="daily-workflow">Daily workflow</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># After adding or updating packages in pixi.toml</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> install</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all ROS 2 packages</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run test</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Interactive shell with the full environment active</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> shell</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean rebuild</span></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run clean</span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="safety-continuous-stream-requirement" class="level2">
+<h2 class="anchored" data-anchor-id="safety-continuous-stream-requirement">Safety: continuous stream requirement</h2>
+<p>PX4 exits offboard mode if the <code>OffboardControlMode</code> stream stops for more than ~500 ms. It also disarms if the vehicle is commanded with zero throttle while on the ground in offboard mode for more than ~1 s.</p>
+<p>Keep two independent timers:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Heartbeat: 10 Hz is safe margin above the 2 Hz minimum</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="va">offboard_timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span><span class="dv">100</span><span class="bu">ms</span><span class="op">,</span> <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    publish_offboard_control_mode<span class="op">();</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="op">});</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Control output: 100 Hz</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="va">control_timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span><span class="dv">10</span><span class="bu">ms</span><span class="op">,</span> <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    publish_setpoint<span class="op">();</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="op">});</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The timers are independent so a slow control computation does not starve the heartbeat.</p>
 <hr>
 </section>
 <section id="troubleshooting" class="level2">
 <h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<section id="package-xxx-not-found-after-adding-a-new-ros-package" class="level3">
-<h3 class="anchored" data-anchor-id="package-xxx-not-found-after-adding-a-new-ros-package"><code>package 'xxx' not found</code> after adding a new ROS package</h3>
-<p>The colcon install overlay is stale. Run <code>pixi run build</code>.</p>
-</section>
-<section id="ros2-command-not-found-inside-pixi-shell" class="level3">
-<h3 class="anchored" data-anchor-id="ros2-command-not-found-inside-pixi-shell"><code>ros2: command not found</code> inside pixi shell</h3>
-<p>The activation script did not run. Verify:</p>
+<section id="vehicle-never-arms" class="level3">
+<h3 class="anchored" data-anchor-id="vehicle-never-arms">Vehicle never arms</h3>
 <ol type="1">
-<li><code>activate.sh</code> exists at the project root.</li>
-<li><code>pixi.toml</code> contains <code>[activation] scripts = ["activate.sh"]</code>.</li>
-<li>You entered the environment with <code>pixi shell</code> or <code>pixi run &lt;task&gt;</code>.</li>
+<li>Check pre-arm checks: <code>ros2 topic echo /fmu/out/vehicle_status_v1 | grep arming</code>.</li>
+<li>In SITL, the EKF2 estimator must be healthy before arming. Wait ~5 s after SITL starts.</li>
+<li>Ensure <code>OffboardControlMode</code> is being published before sending the arm command — PX4 refuses to arm for offboard if no heartbeat has arrived.</li>
 </ol>
 </section>
-<section id="cuda-compiler-nvcc-not-found" class="level3">
-<h3 class="anchored" data-anchor-id="cuda-compiler-nvcc-not-found">CUDA compiler (<code>nvcc</code>) not found</h3>
-<p>Only needed if your workspace has GPU-accelerated nodes.</p>
-<ol type="1">
-<li>Add <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> to <code>[dependencies]</code> in <code>pixi.toml</code>.</li>
-<li>Run <code>pixi install</code> to fetch it.</li>
-<li>Inside <code>pixi shell</code>, <code>which nvcc</code> should resolve to <code>.pixi/envs/default/bin/nvcc</code>.</li>
-</ol>
+<section id="offboard-mode-switch-is-accepted-but-vehicle-falls" class="level3">
+<h3 class="anchored" data-anchor-id="offboard-mode-switch-is-accepted-but-vehicle-falls">Offboard mode switch is accepted but vehicle falls</h3>
+<p>The <code>OffboardControlMode</code> was set with <code>position = true</code> but no <code>TrajectorySetpoint</code> is being published. The position controller has no target and commands zero thrust. Always publish a setpoint at the current position immediately after arming.</p>
 </section>
-<section id="colcon-picks-up-system-python-instead-of-pixi-python" class="level3">
-<h3 class="anchored" data-anchor-id="colcon-picks-up-system-python-instead-of-pixi-python">colcon picks up system Python instead of pixi Python</h3>
-<p>pixi prepends its environment to <code>PATH</code>, but a stale shell may still resolve system Python. Exit and re-enter with <code>pixi shell</code>.</p>
-</section>
-<section id="pixi.lock-conflicts-on-git-pull" class="level3">
-<h3 class="anchored" data-anchor-id="pixi.lock-conflicts-on-git-pull">pixi.lock conflicts on <code>git pull</code></h3>
-<p><code>pixi.lock</code> is a committed file. If it conflicts, accept the incoming version and run <code>pixi install</code> to re-sync your local environment.</p>
+<section id="vehicle-disarms-immediately-after-takeoff" class="level3">
+<h3 class="anchored" data-anchor-id="vehicle-disarms-immediately-after-takeoff">Vehicle disarms immediately after takeoff</h3>
+<p>The motor output stream (<code>ActuatorMotors</code>) stopped. PX4 exits offboard mode and auto-disarms. Check that your control timer is running without exceptions.</p>
 
 
 </section>

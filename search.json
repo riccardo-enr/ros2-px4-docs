@@ -48,291 +48,219 @@
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html",
-    "href": "docs/tooling/clangd.html",
-    "title": "C++ Tooling with clangd",
+    "objectID": "docs/tooling/basedpyright.html",
+    "href": "docs/tooling/basedpyright.html",
+    "title": "Type Checking with basedpyright",
     "section": "",
-    "text": "This guide covers the .clangd configuration used across uav_control and related ROS 2 C++ packages. The setup gives accurate clangd completions and clang-tidy diagnostics inside a colcon workspace without false positives from GPU or ROS-specific compiler flags.",
+    "text": "This guide covers how to configure basedpyright for a ROS 2 workspace managed with pixi. basedpyright is a stricter fork of pyright with better defaults and improved error messages.",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#how-clangd-finds-headers",
-    "href": "docs/tooling/clangd.html#how-clangd-finds-headers",
-    "title": "C++ Tooling with clangd",
-    "section": "How clangd finds headers",
-    "text": "How clangd finds headers\nclangd reads compile_commands.json to know which flags were used to build each translation unit. colcon generates this file at the workspace root when you pass --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThe .clangd file then tells clangd where to look:\nCompileFlags:\n    CompilationDatabase: \".\"\n\".\" resolves to the directory containing .clangd, which should be the workspace root (the directory that contains src/, build/, install/).",
+    "objectID": "docs/tooling/basedpyright.html#why-basedpyright",
+    "href": "docs/tooling/basedpyright.html#why-basedpyright",
+    "title": "Type Checking with basedpyright",
+    "section": "Why basedpyright",
+    "text": "Why basedpyright\nStandard pyright works fine for general Python, but ROS 2 introduces friction:\n\nrclpy, px4_msgs, and most ROS packages ship no type stubs.\nGenerated message classes have loose constructors that trigger false-positive argument-type errors.\nThe install tree lives in install/ (a colcon artifact), not in the standard site-packages location.\n\nbasedpyright provides more granular per-rule configuration so you can silence ROS-specific false positives while still catching real errors in your own code.",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#base-configuration",
-    "href": "docs/tooling/clangd.html#base-configuration",
-    "title": "C++ Tooling with clangd",
-    "section": "Base configuration",
-    "text": "Base configuration\nCompileFlags:\n    CompilationDatabase: \".\"\n    Add: [\"-std=c++17\", \"-Wno-unknown-argument\"]\n    Remove:\n        [\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n        ]\nThe Remove list strips NVCC-specific flags that clang does not understand. Without this, clangd crashes or emits spurious errors on any package that links against CUDA.\n-Wno-unknown-argument suppresses the resulting unknown-flag warnings for any flags not caught by the Remove list.",
+    "objectID": "docs/tooling/basedpyright.html#installation",
+    "href": "docs/tooling/basedpyright.html#installation",
+    "title": "Type Checking with basedpyright",
+    "section": "Installation",
+    "text": "Installation\n\nInside the pixi environment (recommended)\nAdd basedpyright to a dev feature so it is not bundled into production builds:\n# pixi.toml\n[feature.dev.pypi-dependencies]\nbasedpyright = \"*\"\n\n[environments]\ndev = { features = [\"dev\"], solve-group = \"default\" }\nInstall and run:\npixi install -e dev\npixi run -e dev basedpyright src/\n\n\nGlobal install (for the LSP / editor)\n# via pip\npip install basedpyright\n\n# via npm (also installs the language server)\nnpm install -g basedpyright\nThe VSCode extension is basedpyright (detachhead.basedpyright). Do not mix an npm install with the VSCode extension – let the extension manage its own binary.",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#clang-tidy-checks",
-    "href": "docs/tooling/clangd.html#clang-tidy-checks",
-    "title": "C++ Tooling with clangd",
-    "section": "clang-tidy checks",
-    "text": "clang-tidy checks\nThe project runs the full clang-tidy suite (Add: [\"*\"]) with a focused suppress list. The suppressed checks fall into two categories:\nStyle preferences — rules that conflict with the project’s conventions:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ngoogle-build-*, google-readability-*\nGoogle style not used\n\n\nmodernize-use-trailing-return-type\nTrailing return types add noise for simple functions\n\n\nmodernize-use-nodiscard\nOverly noisy for internal helpers\n\n\nreadability-identifier-length\nShort names (e.g. dt, u) are idiomatic in control code\n\n\nreadability-magic-numbers, cppcoreguidelines-avoid-magic-numbers\nPhysical constants and gains are fine inline\n\n\nreadability-function-cognitive-complexity\nMPPI kernels are inherently long\n\n\n\nFalse positives in ROS 2 / robotics code:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ncppcoreguidelines-avoid-non-const-global-variables\nROS node handles and parameter servers are globals by convention\n\n\ncppcoreguidelines-pro-type-vararg\nSome ROS logging macros use varargs\n\n\ncppcoreguidelines-pro-bounds-array-to-pointer-decay\nCommon in Eigen / low-level math\n\n\ncppcoreguidelines-special-member-functions, hicpp-special-member-functions\nRule-of-five is not required for RAII wrappers with shared_ptr\n\n\nmisc-non-private-member-variables-in-classes, cppcoreguidelines-non-private-member-variables-in-classes\nParameter structs use public fields intentionally\n\n\ncppcoreguidelines-prefer-member-initializer\nConflicts with complex constructor delegation patterns\n\n\nmisc-include-cleaner\nGenerates excessive noise from transitively included ROS headers\n\n\n\nVendor-specific suites (llvmlibc-*, fuchsia-*, altera-*) are suppressed wholesale as they target entirely different platforms.",
+    "objectID": "docs/tooling/basedpyright.html#pyrightconfig.json",
+    "href": "docs/tooling/basedpyright.html#pyrightconfig.json",
+    "title": "Type Checking with basedpyright",
+    "section": "pyrightconfig.json",
+    "text": "pyrightconfig.json\nPlace pyrightconfig.json at the workspace root (same directory as pixi.toml).\n{\n  \"typeCheckingMode\": \"basic\",\n  \"pythonVersion\": \"3.11\",\n  \"pythonPlatform\": \"Linux\",\n\n  \"include\": [\"src\"],\n  \"exclude\": [\n    \"**/node_modules\",\n    \"**/__pycache__\",\n    \"**/.*\",\n    \"build\",\n    \"install\",\n    \"log\"\n  ],\n\n  \"reportMissingImports\": true,\n  \"reportMissingTypeStubs\": false,\n\n  \"reportUnusedImport\": true,\n  \"reportUnusedVariable\": true,\n\n  \"reportGeneralTypeIssues\": true,\n  \"reportOptionalMemberAccess\": true,\n  \"reportOptionalSubscript\": true,\n  \"reportOptionalOperand\": true,\n  \"reportOptionalIterable\": true,\n  \"reportOptionalContextManager\": true,\n  \"reportOptionalCallOperand\": true,\n\n  \"reportArgumentType\": false\n}\n\nSettings explained\n\n\n\n\n\n\n\n\nSetting\nValue\nReason\n\n\n\n\ntypeCheckingMode\n\"basic\"\nAvoids false positives from untyped ROS packages. Upgrade to \"standard\" once stubs improve.\n\n\npythonVersion\n\"3.11\"\nMust match the Python version in pixi.toml.\n\n\ninclude\n[\"src\"]\nOnly analyse your packages; ignore colcon build artefacts.\n\n\nexclude\nbuild, install, log\nColcon output contains generated C-extension stubs that confuse the checker.\n\n\nreportMissingTypeStubs\nfalse\nrclpy, px4_msgs, and most ROS packages have no .pyi stubs.\n\n\nreportArgumentType\nfalse\nGenerated message classes have loose __init__ signatures that produce spurious errors.",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#cuda-file-handling",
-    "href": "docs/tooling/clangd.html#cuda-file-handling",
-    "title": "C++ Tooling with clangd",
-    "section": "CUDA file handling",
-    "text": "CUDA file handling\n.cu files need special treatment because compile_commands.json records the NVCC invocation, not a clang-compatible command. A conditional block remaps them to clang with CUDA-host-only parsing:\n---\nIf:\n    PathMatch: \".*\\\\.cu$\"\nCompileFlags:\n    Compiler: clang++\n    Add:\n        [\n            \"-xcuda\",\n            \"--cuda-host-only\",\n            \"--cuda-path=/usr/local/cuda\",\n            \"--cuda-gpu-arch=sm_75\",\n            \"-Wno-unknown-cuda-version\",\n            \"-ferror-limit=0\",\n        ]\n    Remove:\n        [\n            \"/usr/local/cuda-*/bin/nvcc\",\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n            \"-x\", \"cu\", \"cuda\",\n        ]\nDiagnostics:\n    Suppress:\n        - \"cuda_ovl_target\"\n        - \"redefinition\"\n        - \"constexpr_redecl_mismatch\"\n        - \"variadic_device_fn\"\n        - \"attributes_not_allowed\"\n        - \"undeclared_var_use\"\n--cuda-host-only tells clang to only parse host code, which avoids the need for a full CUDA device compiler toolchain. The Suppress list silences redefinition errors that arise from CUDA’s dual-compilation model.\nAdjust --cuda-gpu-arch to match your GPU (e.g. sm_86 for Ampere, sm_89 for Ada Lovelace).",
+    "objectID": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
+    "href": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
+    "title": "Type Checking with basedpyright",
+    "section": "Pointing basedpyright at the pixi environment",
+    "text": "Pointing basedpyright at the pixi environment\nbasedpyright must resolve imports from the pixi environment, not system Python.\n\nOption A – venvPath (recommended)\n{\n  \"venvPath\": \".\",\n  \"venv\": \".pixi/envs/default\"\n}\nThis tells basedpyright to look for the virtual environment at .pixi/envs/default relative to the project root.\n\n\nOption B – pythonPath\n{\n  \"pythonPath\": \".pixi/envs/default/bin/python\"\n}\nUse this if venvPath does not correctly resolve stubs.\n\n\n\n\n\n\nTip\n\n\n\nVerify interpreter resolution:\nbasedpyright --outputjson src/ 2&gt;&1 | python -m json.tool | grep pythonPath",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#placement",
-    "href": "docs/tooling/clangd.html#placement",
-    "title": "C++ Tooling with clangd",
-    "section": "Placement",
-    "text": "Placement\nPut .clangd at the workspace root (the directory that contains src/), not inside individual packages. clangd searches upward from the open file to find the nearest .clangd, so a single workspace-root file covers all packages.\nmy_ws/\n  .clangd            &lt;-- here\n  compile_commands.json\n  src/\n    uav_control/\n    px4_msgs/",
+    "objectID": "docs/tooling/basedpyright.html#ros-2-specific-notes",
+    "href": "docs/tooling/basedpyright.html#ros-2-specific-notes",
+    "title": "Type Checking with basedpyright",
+    "section": "ROS 2-specific notes",
+    "text": "ROS 2-specific notes\n\nrclpy stubs\nrclpy has partial stubs on PyPI. They are often outdated but reduce reportMissingTypeStubs noise:\n[feature.dev.pypi-dependencies]\nrclpy-stubs = \"*\"\nAlternatively, generate stubs from the installed package:\n# inside pixi shell\nstubgen -p rclpy -o typestubs/\nThen register the stub path in pyrightconfig.json:\n{\n  \"stubPath\": \"typestubs\"\n}\n\n\npx4_msgs\npx4_msgs is a C extension built by colcon. After building, point basedpyright to its install location:\n{\n  \"extraPaths\": [\n    \"install/px4_msgs/lib/python3.11/site-packages\"\n  ]\n}\nIf you used venvPath above and the pixi activation already sourced install/setup.bash, this may not be necessary.\n\n\nLaunch files\nROS 2 launch files (.launch.py) use dynamic LaunchArgument substitutions that cannot be statically analysed. Suppress errors per-file:\n# pyright: reportGeneralTypeIssues=false",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#troubleshooting",
-    "href": "docs/tooling/clangd.html#troubleshooting",
-    "title": "C++ Tooling with clangd",
-    "section": "Troubleshooting",
-    "text": "Troubleshooting\n\nclangd cannot find compile_commands.json\nRun a full build with compile commands export enabled:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThen confirm the file exists at the workspace root:\nls compile_commands.json\n\n\nFalse-positive #include errors after adding a new package\ncolcon build must be re-run so the new package’s headers appear in compile_commands.json. clangd will re-index automatically once the file is updated.\n\n\nclangd crashes on .cu files\nConfirm clang++ is on PATH inside the pixi environment:\npixi run which clang++\nIf missing, add clangxx (or clang) to [dependencies] in pixi.toml.",
+    "objectID": "docs/tooling/basedpyright.html#vscode-integration",
+    "href": "docs/tooling/basedpyright.html#vscode-integration",
+    "title": "Type Checking with basedpyright",
+    "section": "VSCode integration",
+    "text": "VSCode integration\nAdd to .vscode/settings.json:\n{\n  \"python.defaultInterpreterPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.pythonPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.disableOrganizeImports\": false\n}\npython.defaultInterpreterPath ensures the VSCode Python extension, IntelliSense, and basedpyright all share the same pixi interpreter.",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html",
-    "href": "docs/control/low-level-control.html",
-    "title": "Low-Level Offboard Control",
+    "objectID": "docs/tooling/basedpyright.html#running-from-the-cli",
+    "href": "docs/tooling/basedpyright.html#running-from-the-cli",
+    "title": "Type Checking with basedpyright",
+    "section": "Running from the CLI",
+    "text": "Running from the CLI\n# Check all packages under src/\npixi run -e dev basedpyright src/\n\n# Check a single package\npixi run -e dev basedpyright src/my_package/\n\n# JSON output for CI\npixi run -e dev basedpyright --outputjson src/ &gt; typecheck.json",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
+    "href": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
+    "title": "Type Checking with basedpyright",
+    "section": "Incrementally tightening type checking",
+    "text": "Incrementally tightening type checking\nStart at \"basic\" to suppress ROS-stub noise. Tighten per-package as you add type annotations or as upstream stubs improve.\nbasic  -&gt;  standard  -&gt;  strict  -&gt;  all\nTo apply stricter checking to a specific file, add a comment at the top:\n# pyright: standard\nTo apply it to an entire subtree, add a nested pyrightconfig.json in that subdirectory with only the overridden key:\n{\n  \"typeCheckingMode\": \"standard\"\n}\nThe root pyrightconfig.json still governs everything else.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/control/qos-profiles.html",
+    "href": "docs/control/qos-profiles.html",
+    "title": "QoS Profiles for PX4 Topics",
     "section": "",
-    "text": "Low-level offboard control means bypassing PX4’s position/velocity controllers and sending commands directly to the inner loops. Three levels are available, selected at runtime via a ROS 2 parameter:\nReference implementation: SaxionMechatronics/px4_offboard_lowlevel.",
+    "text": "ROS 2 Quality of Service (QoS) settings must match between publisher and subscriber. PX4 publishes all /fmu/out/* topics with BEST_EFFORT reliability. If your subscriber uses the default RELIABLE profile, ROS 2 silently drops the connection — the subscription is created with no error, but the callback never fires.",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#offboardcontrolmode-heartbeat",
-    "href": "docs/control/low-level-control.html#offboardcontrolmode-heartbeat",
-    "title": "Low-Level Offboard Control",
-    "section": "OffboardControlMode heartbeat",
-    "text": "OffboardControlMode heartbeat\nPX4 requires a continuous OffboardControlMode heartbeat at ~3 Hz or it exits offboard mode. The active fields must match the command type being sent:\npx4_msgs::msg::OffboardControlMode msg{};\nmsg.position          = false;\nmsg.velocity          = false;\nmsg.acceleration      = false;\nmsg.body_rate         = false;\n\n// mode 1 — attitude\nmsg.attitude          = true;\nmsg.thrust_and_torque = false;\nmsg.direct_actuator   = false;\n\n// mode 2 — thrust + torque\n// msg.thrust_and_torque = true; (attitude and direct_actuator = false)\n\n// mode 3 — direct actuator\n// msg.direct_actuator = true; (attitude and thrust_and_torque = false)\n\nmsg.timestamp = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\noffboard_control_mode_pub-&gt;publish(msg);\nThe heartbeat timer and the controller output timer are independent:\n// 3 Hz heartbeat\noffboard_timer = create_wall_timer(333ms, [=]() { publishOffboardControlModeMsg(); });\n\n// 100 Hz control loop\ncontroller_timer = create_wall_timer(10ms,  [=]() { updateControllerOutput(); });",
+    "objectID": "docs/control/qos-profiles.html#why-qos-mismatches-are-silent",
+    "href": "docs/control/qos-profiles.html#why-qos-mismatches-are-silent",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Why QoS mismatches are silent",
+    "text": "Why QoS mismatches are silent\nROS 2 DDS does not error on a QoS incompatibility. The subscription is registered, the topic appears in ros2 topic list, but the middleware determines the publisher and subscriber are incompatible and simply sends no data. ros2 topic hz reports 0 Hz.",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#frame-conventions",
-    "href": "docs/control/low-level-control.html#frame-conventions",
-    "title": "Low-Level Offboard Control",
-    "section": "Frame conventions",
-    "text": "Frame conventions\nPX4 uses NED / FRD (North-East-Down, Front-Right-Down). ROS and most controllers use ENU / FLU (East-North-Up, Front-Left-Up). All setpoints must be converted before publishing, and all odometry must be converted after reading.\nSee Frame Conventions for the full conversion reference including vector permutations, quaternion transforms, altitude sign, and yaw convention.",
+    "objectID": "docs/control/qos-profiles.html#px4-publisher-profile",
+    "href": "docs/control/qos-profiles.html#px4-publisher-profile",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "PX4 publisher profile",
+    "text": "PX4 publisher profile\nAll PX4 /fmu/out/* topics use:\n\n\n\nSetting\nValue\n\n\n\n\nReliability\nBEST_EFFORT\n\n\nDurability\nVOLATILE\n\n\nHistory\nKEEP_LAST(10)\n\n\n\nBEST_EFFORT means packets may be dropped under load — acceptable for high-rate sensor streams where stale data is worse than missing data. VOLATILE means the publisher does not persist messages for late-joining subscribers.",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#mode-1-attitude-setpoint",
-    "href": "docs/control/low-level-control.html#mode-1-attitude-setpoint",
-    "title": "Low-Level Offboard Control",
-    "section": "Mode 1: Attitude setpoint",
-    "text": "Mode 1: Attitude setpoint\nPublish VehicleAttitudeSetpoint with a desired quaternion and collective thrust. The PX4 attitude controller tracks the quaternion error.\npx4_msgs::msg::VehicleAttitudeSetpoint msg{};\nmsg.timestamp = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\n\nEigen::Quaterniond q_ned = rotateQuaternionFromToENU_NED(desired_q);\nmsg.q_d[0] = q_ned.w();\nmsg.q_d[1] = q_ned.x();\nmsg.q_d[2] = q_ned.y();\nmsg.q_d[3] = q_ned.z();\n\nmsg.thrust_body[0] = 0.0;\nmsg.thrust_body[1] = 0.0;\nmsg.thrust_body[2] = -collective_thrust;   // NED: downward = negative\n\nattitude_setpoint_pub-&gt;publish(msg);",
+    "objectID": "docs/control/qos-profiles.html#subscriber-qos",
+    "href": "docs/control/qos-profiles.html#subscriber-qos",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Subscriber QoS",
+    "text": "Subscriber QoS\nMatch the publisher profile exactly:\n#include &lt;rclcpp/qos.hpp&gt;\n\n// Correct: matches PX4 publisher profile\nauto qos = rclcpp::QoS(10).best_effort();\n\nsub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n    \"/fmu/out/vehicle_odometry\", qos, callback);\nThe rclcpp::QoS(10) constructor sets history depth to 10 and defaults durability to VOLATILE. .best_effort() switches reliability from the default RELIABLE to BEST_EFFORT.\n\n\n\n\n\n\nWarning\n\n\n\nThe ROS 2 default QoS (rclcpp::SystemDefaultsQoS() or rclcpp::QoS(rclcpp::KeepLast(10))) uses RELIABLE reliability. Using it for PX4 subscriptions results in silent starvation.",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#mode-2-thrust-torque-setpoint",
-    "href": "docs/control/low-level-control.html#mode-2-thrust-torque-setpoint",
-    "title": "Low-Level Offboard Control",
-    "section": "Mode 2: Thrust + torque setpoint",
-    "text": "Mode 2: Thrust + torque setpoint\nPublish separate VehicleThrustSetpoint and VehicleTorqueSetpoint messages. PX4 uses these directly — no attitude controller in the loop.\npx4_msgs::msg::VehicleThrustSetpoint thrust_msg{};\npx4_msgs::msg::VehicleTorqueSetpoint torque_msg{};\n\nuint64_t ts = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\nthrust_msg.timestamp = thrust_msg.timestamp_sample = ts;\ntorque_msg.timestamp = torque_msg.timestamp_sample = ts;\n\nthrust_msg.xyz[0] = 0.0;\nthrust_msg.xyz[1] = 0.0;\nthrust_msg.xyz[2] = -collective_thrust;   // NED sign\n\n// Rotate torque from controller FLU frame to FRD\nEigen::Vector3d tau_frd = rotateVectorFromToFRD_FLU(torque_flu);\ntorque_msg.xyz[0] = tau_frd.x();\ntorque_msg.xyz[1] = tau_frd.y();\ntorque_msg.xyz[2] = tau_frd.z();\n\nthrust_pub-&gt;publish(thrust_msg);\ntorque_pub-&gt;publish(torque_msg);",
+    "objectID": "docs/control/qos-profiles.html#publisher-qos-ros-2---px4",
+    "href": "docs/control/qos-profiles.html#publisher-qos-ros-2---px4",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Publisher QoS (ROS 2 -> PX4)",
+    "text": "Publisher QoS (ROS 2 -&gt; PX4)\nFor /fmu/in/* topics (commands sent to PX4), use the same profile:\nauto qos = rclcpp::QoS(10).best_effort();\n\npub_ = create_publisher&lt;px4_msgs::msg::OffboardControlMode&gt;(\n    \"/fmu/in/offboard_control_mode\", qos);\nPX4’s DDS client subscribes to these topics with BEST_EFFORT. A RELIABLE publisher will time out waiting for acknowledgements that never come.",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#mode-3-direct-actuator-commands",
-    "href": "docs/control/low-level-control.html#mode-3-direct-actuator-commands",
-    "title": "Low-Level Offboard Control",
-    "section": "Mode 3: Direct actuator commands",
-    "text": "Mode 3: Direct actuator commands\nPublish ActuatorMotors with per-motor throttles in [0, 1]. Unused slots must be NaN.\npx4_msgs::msg::ActuatorMotors msg{};\nmsg.control = {\n    (float) throttles[0], (float) throttles[1],\n    (float) throttles[2], (float) throttles[3],\n    std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\"),\n    std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\")\n};\nmsg.reversible_flags = 0;\nmsg.timestamp = msg.timestamp_sample = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\nactuator_motors_pub-&gt;publish(msg);\n\n\n\n\n\n\nWarning\n\n\n\nLockstep must be disabled for direct actuator control in Gazebo SITL. Set lockstep: false in the model’s model.sdf and in PX4’s SITL config.",
+    "objectID": "docs/control/qos-profiles.html#convenience-wrapper",
+    "href": "docs/control/qos-profiles.html#convenience-wrapper",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Convenience wrapper",
+    "text": "Convenience wrapper\nDefine a single helper to avoid repeating the QoS setup:\n/* px4_qos.hpp */\n#pragma once\n#include &lt;rclcpp/qos.hpp&gt;\n\ninline rclcpp::QoS px4_qos(std::size_t depth = 10) {\n    return rclcpp::QoS(depth).best_effort();\n}\nUsage:\n#include \"my_package/px4_qos.hpp\"\n\nodom_sub_   = create_subscription&lt;...&gt;(\"/fmu/out/...\", px4_qos(), cb);\ncmd_pub_    = create_publisher&lt;...&gt;   (\"/fmu/in/...\",  px4_qos());",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#control-allocation-wrench---throttles",
-    "href": "docs/control/low-level-control.html#control-allocation-wrench---throttles",
-    "title": "Low-Level Offboard Control",
-    "section": "Control allocation (wrench -> throttles)",
-    "text": "Control allocation (wrench -&gt; throttles)\nWhen using mode 3 (direct actuator), the controller must convert the desired wrench \\([\\tau_x, \\tau_y, \\tau_z, T]\\) to per-motor throttles. See Control Allocation for the full derivation, mixing matrix, C++ implementation, and x500 parameters.",
+    "objectID": "docs/control/qos-profiles.html#diagnosing-a-mismatch",
+    "href": "docs/control/qos-profiles.html#diagnosing-a-mismatch",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Diagnosing a mismatch",
+    "text": "Diagnosing a mismatch\n# Check publisher QoS\nros2 topic info /fmu/out/vehicle_odometry --verbose\n\n# Expected:\n# Publisher count: 1\n#   QoS profile:\n#     Reliability: BEST_EFFORT\n#     Durability: VOLATILE\nIf your subscriber shows Reliability: RELIABLE while the publisher shows BEST_EFFORT, the middleware will log an incompatibility warning at the DEBUG level. Enable it:\nexport RCUTILS_LOGGING_SEVERITY=DEBUG\nros2 run my_package my_node\n# look for: \"NEW_QOS_POLICY_REQUEST_INCOMPATIBLE_QOS\"",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#topic-map",
-    "href": "docs/control/low-level-control.html#topic-map",
-    "title": "Low-Level Offboard Control",
-    "section": "Topic map",
-    "text": "Topic map\n\n\n\n\n\n\n\n\nDirection\nTopic\nMessage type\n\n\n\n\nin\n/fmu/out/vehicle_odometry\nVehicleOdometry\n\n\nin\n/fmu/out/vehicle_status_v1\nVehicleStatus\n\n\nout\n/fmu/in/offboard_control_mode\nOffboardControlMode\n\n\nout\n/fmu/in/vehicle_command\nVehicleCommand\n\n\nout\n/fmu/in/vehicle_attitude_setpoint\nVehicleAttitudeSetpoint\n\n\nout\n/fmu/in/vehicle_thrust_setpoint\nVehicleThrustSetpoint\n\n\nout\n/fmu/in/vehicle_torque_setpoint\nVehicleTorqueSetpoint\n\n\nout\n/fmu/in/actuator_motors\nActuatorMotors\n\n\n\nNote the versioned topic name for VehicleStatus — see version mismatch.",
+    "objectID": "docs/control/qos-profiles.html#python-subscribers",
+    "href": "docs/control/qos-profiles.html#python-subscribers",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Python subscribers",
+    "text": "Python subscribers\nThe same rule applies to rclpy:\nfrom rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy\n\npx4_qos = QoSProfile(\n    reliability=ReliabilityPolicy.BEST_EFFORT,\n    durability=DurabilityPolicy.VOLATILE,\n    depth=10,\n)\n\nself.sub = self.create_subscription(\n    VehicleOdometry,\n    \"/fmu/out/vehicle_odometry\",\n    self.callback,\n    px4_qos,\n)",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
-    "objectID": "docs/control/low-level-control.html#switching-modes-at-runtime",
-    "href": "docs/control/low-level-control.html#switching-modes-at-runtime",
-    "title": "Low-Level Offboard Control",
-    "section": "Switching modes at runtime",
-    "text": "Switching modes at runtime\nThe control mode can be changed without restarting the node:\nros2 param set /offboard_controller control_mode 2   # -&gt; thrust + torque\nros2 param set /offboard_controller control_mode 3   # -&gt; direct actuator\nros2 param set /offboard_controller control_mode 1   # -&gt; attitude (default)\nThe OffboardControlMode heartbeat automatically switches its active field on the next publish cycle.",
+    "objectID": "docs/control/qos-profiles.html#summary",
+    "href": "docs/control/qos-profiles.html#summary",
+    "title": "QoS Profiles for PX4 Topics",
+    "section": "Summary",
+    "text": "Summary\n\n\n\nTopic direction\nReliability\nDurability\n\n\n\n\n/fmu/out/* (PX4 -&gt; ROS 2)\nBEST_EFFORT\nVOLATILE\n\n\n/fmu/in/* (ROS 2 -&gt; PX4)\nBEST_EFFORT\nVOLATILE\n\n\n\nUse .best_effort() on every QoS object that touches a PX4 topic. There are no exceptions.",
     "crumbs": [
       "Home",
       "Control",
-      "Low-Level Offboard Control"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html",
-    "href": "docs/control/control-allocation.html",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "",
-    "text": "Control allocation is the mapping from a desired wrench \\([\\tau_x,\\, \\tau_y,\\, \\tau_z,\\, T]^\\top\\) to individual motor throttles \\(\\delta_i \\in [0, 1]\\). For an X-frame quadrotor it is a \\(4 \\times 4\\) linear map followed by a square-root and an affine throttle scaling.\nThe implementation lives in motor_allocator.hpp inside uav_control.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
-    "href": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Motor layout (x500 SITL, top view, NED)",
-    "text": "Motor layout (x500 SITL, top view, NED)\n\n\n\n\n\n\nFigure 1: x500 SITL X-frame motor layout with motor indices and spin directions.\n\n\n\nMotor indices 0–3 map directly to ActuatorMotors.control[0..3]. Slots 4–11 must be NaN for a 4-motor vehicle.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#forward-model",
-    "href": "docs/control/control-allocation.html#forward-model",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Forward model",
-    "text": "Forward model\nEach motor \\(i\\) spinning at \\(\\omega_i\\) [rad/s] produces a thrust \\(f_i = k_T \\omega_i^2\\) and a reaction torque \\(m_i = k_m \\omega_i^2\\) where \\(k_m = k_{M,\\text{ratio}} \\cdot k_T\\).\nThe wrench assembled on the body is:\n\\[\n\\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n= \\mathbf{A}\\,\\boldsymbol{\\omega}^2,\n\\qquad\n\\mathbf{A} = \\mathrm{diag}(k_T L,\\; k_T L,\\; k_m,\\; k_T)\\; \\mathbf{B}\n\\]\nwhere \\(L\\) is the arm length and \\(\\mathbf{B}\\) encodes the geometry and spin directions:\n\\[\n\\mathbf{B} = \\begin{pmatrix}\n-k_s &  k_s &  k_s & -k_s \\\\\nk_s & -k_s &  k_s & -k_s \\\\\n    1 &    1 &   -1 &   -1 \\\\\n    1 &    1 &    1 &    1\n\\end{pmatrix},\n\\qquad k_s = \\sin 45^\\circ = \\frac{\\sqrt{2}}{2}\n\\]\nColumn order: FR(0), RL(1), FL(2), RR(3).\n\nRow-by-row interpretation\n\n\n\n\n\n\n\n\n\nRow\nWrench\nSign pattern\nReason\n\n\n\n\n1\n\\(\\tau_x\\) (roll)\nFR,RR negative; RL,FL positive\nRight motors are on the \\(+y\\) side; spinning them faster rolls right (negative roll)\n\n\n2\n\\(\\tau_y\\) (pitch)\nRL,RR negative; FR,FL positive\nFront motors are on the \\(+x\\) side\n\n\n3\n\\(\\tau_z\\) (yaw)\nFR,RL positive; FL,RR negative\nCCW motors produce positive reaction torque on body\n\n\n4\n\\(T\\) (thrust)\nall positive\nAll motors contribute thrust",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#inverse-wrench---throttles",
-    "href": "docs/control/control-allocation.html#inverse-wrench---throttles",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Inverse: wrench -> throttles",
-    "text": "Inverse: wrench -&gt; throttles\nThe allocation inversion uses the Moore-Penrose pseudoinverse:\n\\[\n\\boldsymbol{\\omega}^2 = \\mathbf{A}^+ \\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n\\]\nSince \\(\\mathbf{A}\\) is square and full rank for a standard quadrotor, \\(\\mathbf{A}^+\n= \\mathbf{A}^{-1}\\).\nRotor speeds are then converted to throttles via:\n\\[\n\\omega_i = \\sqrt{\\max(0,\\; \\omega_i^2)}, \\qquad\n\\delta_i = \\mathrm{clip}\\!\\left(\\frac{\\omega_i - \\omega_\\min}{\\omega_\\max - \\omega_\\min},\\; 0,\\; 1\\right)\n\\]\nThe \\(\\max(0,\\cdot)\\) before the square root prevents NaN from small negative values due to numerical noise.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#c-implementation",
-    "href": "docs/control/control-allocation.html#c-implementation",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "C++ implementation",
-    "text": "C++ implementation\n/* motor_allocator.hpp */\nstruct MotorAllocatorConfig {\n    double arm_length = 0.25;       // m\n    double k_T        = 8.54858e-6; // N/(rad/s)^2\n    double k_M_ratio  = 0.019;      // k_m = k_M_ratio * k_T\n    double omega_max  = 1047.2;     // rad/s\n    double omega_min  = 150.0;      // rad/s\n};\n\nclass MotorAllocator {\npublic:\n    void initialize(const MotorAllocatorConfig& cfg) {\n        cfg_ = cfg;\n        build_inverse();\n    }\n\n    std::array&lt;float, 12&gt; allocate(double T, const Eigen::Vector3d& tau) const {\n        Eigen::Vector4d wrench(tau(0), tau(1), tau(2), T);\n        Eigen::Vector4d omega_sq = inv_ * wrench;\n\n        std::array&lt;float, 12&gt; result;\n        double range = cfg_.omega_max - cfg_.omega_min;\n        for (int i = 0; i &lt; 4; ++i) {\n            double w = std::sqrt(std::max(0.0, omega_sq(i)));\n            result[i] = static_cast&lt;float&gt;(std::clamp(\n                (w - cfg_.omega_min) / range, 0.0, 1.0));\n        }\n        for (int i = 4; i &lt; 12; ++i)\n            result[i] = std::nanf(\"1\");   // unused slots must be NaN\n        return result;\n    }\n\nprivate:\n    void build_inverse() {\n        const double kS = std::sin(M_PI / 4.0);\n        double kt = cfg_.k_T,  km = cfg_.k_M_ratio * kt,  L = cfg_.arm_length;\n\n        Eigen::Matrix4d B;\n        B &lt;&lt; -kS,  kS,  kS, -kS,\n               kS, -kS,  kS, -kS,\n                1,   1,  -1,  -1,\n                1,   1,   1,   1;\n\n        Eigen::Vector4d k(kt * L, kt * L, km, kt);\n        Eigen::Matrix4d A = k.asDiagonal() * B;\n        inv_ = A.completeOrthogonalDecomposition().pseudoInverse();\n    }\n\n    MotorAllocatorConfig cfg_;\n    Eigen::Matrix4d inv_;\n};\nThe matrix is built once at initialization; allocate is called at 100 Hz in the control loop.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#publishing-to-px4",
-    "href": "docs/control/control-allocation.html#publishing-to-px4",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Publishing to PX4",
-    "text": "Publishing to PX4\nauto msg = std::make_unique&lt;px4_msgs::msg::ActuatorMotors&gt;();\nmsg-&gt;timestamp        = px4_timestamp_us;\nmsg-&gt;timestamp_sample = px4_timestamp_us;\nmsg-&gt;reversible_flags = 0;\nfor (int i = 0; i &lt; 12; ++i)\n    msg-&gt;control[i] = motors[i];\nmotor_pub_-&gt;publish(std::move(msg));\n\n\n\n\n\n\nWarning\n\n\n\nPX4 requires a continuous ActuatorMotors stream from the moment offboard mode is entered. If the stream stops, PX4 exits offboard mode. Publish zeros while waiting for all sensor inputs to be ready — do not skip the publish call.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#parameters-x500-defaults",
-    "href": "docs/control/control-allocation.html#parameters-x500-defaults",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Parameters (x500 defaults)",
-    "text": "Parameters (x500 defaults)\n\n\n\nParameter\nValue\nDescription\n\n\n\n\narm_length\n0.25 m\nCentre-to-motor distance\n\n\nk_T\n8.54858e-6 N/(rad/s)^2\nThrust coefficient\n\n\nk_M_ratio\n0.019\nMoment-to-thrust ratio\n\n\nomega_max\n1047.2 rad/s\nMax rotor speed (~10 000 RPM)\n\n\nomega_min\n150.0 rad/s\nMin rotor speed (idle)\n\n\n\nomega_max and omega_min correspond to SIM_GZ_EC_MAX and SIM_GZ_EC_MIN in PX4’s SITL parameters.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
-    "href": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Python reference (mixing matrix test)",
-    "text": "Python reference (mixing matrix test)\nThe scripts/test_mixing.py script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.\npython3 scripts/test_mixing.py",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
+      "QoS Profiles for PX4 Topics"
     ]
   },
   {
@@ -444,6 +372,198 @@
     ]
   },
   {
+    "objectID": "docs/setup/ros2-package.html",
+    "href": "docs/setup/ros2-package.html",
+    "title": "ROS 2 Package Structure",
+    "section": "",
+    "text": "This page describes the minimal layout and boilerplate for a ROS 2 C++ package that builds correctly under colcon inside the pixi workspace.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#directory-layout",
+    "href": "docs/setup/ros2-package.html#directory-layout",
+    "title": "ROS 2 Package Structure",
+    "section": "Directory layout",
+    "text": "Directory layout\nsrc/\n+-- my_package/\n    +-- include/\n    |   +-- my_package/\n    |       +-- my_node.hpp\n    +-- src/\n    |   +-- my_node.cpp\n    |   +-- main.cpp\n    +-- launch/\n    |   +-- my_node.launch.py\n    +-- CMakeLists.txt\n    +-- package.xml\nHeaders live under include/&lt;package_name&gt;/ so they are importable as #include \"my_package/my_node.hpp\" from any package that depends on this one.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#package.xml",
+    "href": "docs/setup/ros2-package.html#package.xml",
+    "title": "ROS 2 Package Structure",
+    "section": "package.xml",
+    "text": "package.xml\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_package&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;My ROS 2 package&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;depend&gt;rclcpp&lt;/depend&gt;\n  &lt;depend&gt;std_msgs&lt;/depend&gt;\n  &lt;depend&gt;geometry_msgs&lt;/depend&gt;\n  &lt;depend&gt;px4_msgs&lt;/depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;\nUse &lt;depend&gt; (not &lt;build_depend&gt; + &lt;exec_depend&gt;) for libraries that are needed at both build and runtime — which covers most ROS packages.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#cmakelists.txt",
+    "href": "docs/setup/ros2-package.html#cmakelists.txt",
+    "title": "ROS 2 Package Structure",
+    "section": "CMakeLists.txt",
+    "text": "CMakeLists.txt\ncmake_minimum_required(VERSION 3.8)\nproject(my_package)\n\n# --- compiler settings ---\nif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES \"Clang\")\n  add_compile_options(-Wall -Wextra -Wpedantic)\nendif()\n\n# --- find dependencies ---\nfind_package(ament_cmake REQUIRED)\nfind_package(rclcpp REQUIRED)\nfind_package(std_msgs REQUIRED)\nfind_package(geometry_msgs REQUIRED)\nfind_package(px4_msgs REQUIRED)\nfind_package(Eigen3 REQUIRED)\n\n# --- build target ---\nadd_executable(my_node\n  src/my_node.cpp\n  src/main.cpp\n)\n\ntarget_include_directories(my_node PUBLIC\n  $&lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;\n  $&lt;INSTALL_INTERFACE:include&gt;\n  ${EIGEN3_INCLUDE_DIR}\n)\n\ntarget_compile_features(my_node PUBLIC cxx_std_17)\n\nament_target_dependencies(my_node\n  rclcpp\n  std_msgs\n  geometry_msgs\n  px4_msgs\n)\n\n# --- install ---\ninstall(TARGETS my_node DESTINATION lib/${PROJECT_NAME})\ninstall(DIRECTORY launch DESTINATION share/${PROJECT_NAME})\n\nament_package()\n\n\n\n\n\n\nNote\n\n\n\nament_target_dependencies handles both include paths and link libraries for ament packages. Only use target_link_libraries for non-ament deps (Eigen, yaml-cpp, etc.) that expose CMake targets directly.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#node-boilerplate-c",
+    "href": "docs/setup/ros2-package.html#node-boilerplate-c",
+    "title": "ROS 2 Package Structure",
+    "section": "Node boilerplate (C++)",
+    "text": "Node boilerplate (C++)\ninclude/my_package/my_node.hpp:\n#pragma once\n\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n\nclass MyNode : public rclcpp::Node {\npublic:\n    explicit MyNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());\n\nprivate:\n    void odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);\n\n    rclcpp::Subscription&lt;px4_msgs::msg::VehicleOdometry&gt;::SharedPtr odom_sub_;\n};\nsrc/my_node.cpp:\n#include \"my_package/my_node.hpp\"\n#include &lt;rclcpp/qos.hpp&gt;\n\nMyNode::MyNode(const rclcpp::NodeOptions& options)\n: Node(\"my_node\", options)\n{\n    /* PX4 topics require BEST_EFFORT QoS — see QoS Profiles page. */\n    auto qos = rclcpp::QoS(10).best_effort();\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n        \"/fmu/out/vehicle_odometry\", qos,\n        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {\n            odometry_callback(msg);\n        });\n}\n\nvoid MyNode::odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)\n{\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,\n        \"pos: [%.2f, %.2f, %.2f]\",\n        msg-&gt;position[0], msg-&gt;position[1], msg-&gt;position[2]);\n}\nsrc/main.cpp:\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include \"my_package/my_node.hpp\"\n\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    rclcpp::spin(std::make_shared&lt;MyNode&gt;());\n    rclcpp::shutdown();\n    return 0;\n}",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#launch-file",
+    "href": "docs/setup/ros2-package.html#launch-file",
+    "title": "ROS 2 Package Structure",
+    "section": "Launch file",
+    "text": "Launch file\nlaunch/my_node.launch.py:\nfrom launch import LaunchDescription\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        Node(\n            package=\"my_package\",\n            executable=\"my_node\",\n            name=\"my_node\",\n            output=\"screen\",\n            parameters=[],\n        )\n    ])\nLaunch with:\nros2 launch my_package my_node.launch.py\nOr via pixi:\npixi run launch   # if you defined a 'launch' task in pixi.toml",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#building-and-running",
+    "href": "docs/setup/ros2-package.html#building-and-running",
+    "title": "ROS 2 Package Structure",
+    "section": "Building and running",
+    "text": "Building and running\n# Build the workspace (all packages under src/)\npixi run build\n\n# Run the node directly\npixi run -- ros2 run my_package my_node\n\n# Or via launch file\npixi run -- ros2 launch my_package my_node.launch.py\nAfter editing source files, re-run pixi run build. With --symlink-install (default in the build task), Python and resource files are symlinked so they update without a rebuild — C++ sources still require a rebuild.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-package.html#adding-a-new-package",
+    "href": "docs/setup/ros2-package.html#adding-a-new-package",
+    "title": "ROS 2 Package Structure",
+    "section": "Adding a new package",
+    "text": "Adding a new package\n\nCreate the directory under src/:\nmkdir -p src/my_new_package/{include/my_new_package,src,launch}\nWrite package.xml and CMakeLists.txt as shown above.\nRun pixi run build — colcon discovers the new package automatically.\n\nNo registration in pixi.toml is needed. colcon scans src/ recursively for package.xml files.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "ROS 2 Package Structure"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html",
+    "href": "docs/setup/sitl-setup.html",
+    "title": "PX4 SITL Setup",
+    "section": "",
+    "text": "This page covers how to build PX4 firmware, launch the Gazebo SITL simulator, and wire it into the pixi workspace for use with the ROS 2 integration.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#prerequisites",
+    "href": "docs/setup/sitl-setup.html#prerequisites",
+    "title": "PX4 SITL Setup",
+    "section": "Prerequisites",
+    "text": "Prerequisites\nPX4 SITL requires a native Ubuntu build environment. The PX4 source tree is not managed inside the ROS 2 workspace — it lives separately and is built with its own toolchain.\n# Install PX4 build dependencies (run once)\ngit clone https://github.com/PX4/PX4-Autopilot.git --recursive\ncd PX4-Autopilot\nbash ./Tools/setup/ubuntu.sh\n\n\n\n\n\n\nNote\n\n\n\nubuntu.sh installs system packages including gcc-arm-none-eabi, ninja, and Python dependencies. It also installs gz-harmonic (Gazebo) for SITL. Re-run it if a new PX4 checkout changes the required dependencies.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#building-px4-for-gazebo-sitl",
+    "href": "docs/setup/sitl-setup.html#building-px4-for-gazebo-sitl",
+    "title": "PX4 SITL Setup",
+    "section": "Building PX4 for Gazebo SITL",
+    "text": "Building PX4 for Gazebo SITL\ncd PX4-Autopilot\nmake px4_sitl gz_x500\nThis compiles the SITL binary and generates a Gazebo world with the x500 quadrotor model. The first build takes ~5 minutes; subsequent builds are incremental.\nTo confirm the build succeeded:\nls build/px4_sitl_default/bin/px4",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#launching-sitl-standalone",
+    "href": "docs/setup/sitl-setup.html#launching-sitl-standalone",
+    "title": "PX4 SITL Setup",
+    "section": "Launching SITL standalone",
+    "text": "Launching SITL standalone\ncd PX4-Autopilot\nmake px4_sitl gz_x500\nOn launch, PX4 prints its version string (PX4 v1.16.x) and the Gazebo window opens with the x500 model on the ground.\nTo choose a different vehicle model:\nmake px4_sitl gz_x500_depth        # x500 with depth camera\nmake px4_sitl gz_x500_lidar        # x500 with lidar\nmake px4_sitl gz_rc_cessna         # fixed-wing",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#key-environment-variables",
+    "href": "docs/setup/sitl-setup.html#key-environment-variables",
+    "title": "PX4 SITL Setup",
+    "section": "Key environment variables",
+    "text": "Key environment variables\nPX4 SITL reads several environment variables at launch. Set them before calling make or running the PX4 binary directly.\n\n\n\n\n\n\n\n\nVariable\nPurpose\nExample\n\n\n\n\nPX4_GZ_MODEL\nOverride the vehicle model name\nx500\n\n\nPX4_GZ_WORLD\nOverride the Gazebo world file\ndefault\n\n\nPX4_SYS_AUTOSTART\nAirframe ID (overrides the model default)\n4001\n\n\nPX4_GZ_MODEL_POSE\nInitial spawn pose x,y,z,roll,pitch,yaw\n0,0,0.1,0,0,0\n\n\nHEADLESS\nDisable the Gazebo GUI (useful on servers)\n1\n\n\n\nExample — spawn in a custom pose without the GUI:\nHEADLESS=1 PX4_GZ_MODEL_POSE=\"0,0,0.5,0,0,1.57\" make px4_sitl gz_x500",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#integrating-with-the-pixi-workspace",
+    "href": "docs/setup/sitl-setup.html#integrating-with-the-pixi-workspace",
+    "title": "PX4 SITL Setup",
+    "section": "Integrating with the pixi workspace",
+    "text": "Integrating with the pixi workspace\nThe recommended pattern is to store the path to the PX4 source tree as a pixi variable and expose it as an environment variable in the activation script.\npixi.toml:\n[workspace.variables]\nPX4_SRC = \"/home/user/PX4-Autopilot\"\n\n[activation]\nscripts = [\"activate.sh\"]\nenv = { PX4_AUTOPILOT = \"$PX4_SRC\" }\nThen the launch task can start PX4 directly:\n[tasks]\npx4 = { cmd = \"cd $PX4_AUTOPILOT && make px4_sitl gz_x500\" }\nOr launch from a Python launch file using subprocess inside a ROS 2 launch action (see the launch file pattern in the Package Setup page).",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#confirming-sitl-is-running",
+    "href": "docs/setup/sitl-setup.html#confirming-sitl-is-running",
+    "title": "PX4 SITL Setup",
+    "section": "Confirming SITL is running",
+    "text": "Confirming SITL is running\nOnce PX4 starts, the NuttShell prompt appears:\nnsh&gt;\nCheck that the EKF has initialised and that the vehicle is ready:\nnsh&gt; ekf2 status\nnsh&gt; commander status\nIn a second terminal, confirm the DDS bridge topics are visible after starting the micro-XRCE-DDS agent (see DDS Agent Setup):\nros2 topic list | grep fmu",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/sitl-setup.html#troubleshooting",
+    "href": "docs/setup/sitl-setup.html#troubleshooting",
+    "title": "PX4 SITL Setup",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\nGazebo window does not open\nThe display is not forwarded. Either set HEADLESS=1, or on a remote machine export DISPLAY=:0 before running SITL.\n\n\nmake px4_sitl gz_x500 fails with missing submodules\nThe PX4 repo was cloned without --recursive:\ngit submodule update --init --recursive\n\n\nPX4 exits immediately after launch\nLockstep mode is waiting for a Gazebo clock. Ensure Gazebo is running — the gz_x500 target launches both. If you are running the PX4 binary directly (without make), launch Gazebo first.\n\n\nEKF2 ERROR at startup\nNormal on the first few seconds while sensors initialise. If it persists past ~10 s the IMU or barometer simulation is misconfigured — check that gz-harmonic is installed and that the Gazebo sensors plugin loaded without errors in the terminal output.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "PX4 SITL Setup"
+    ]
+  },
+  {
     "objectID": "docs/setup/workspace-setup.html",
     "href": "docs/setup/workspace-setup.html",
     "title": "Workspace Setup",
@@ -540,111 +660,519 @@
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html",
-    "href": "docs/tooling/basedpyright.html",
-    "title": "Type Checking with basedpyright",
+    "objectID": "docs/setup/uxrce-dds-agent.html",
+    "href": "docs/setup/uxrce-dds-agent.html",
+    "title": "micro-XRCE-DDS Agent",
     "section": "",
-    "text": "This guide covers how to configure basedpyright for a ROS 2 workspace managed with pixi. basedpyright is a stricter fork of pyright with better defaults and improved error messages.",
+    "text": "The micro-XRCE-DDS agent (also called the uXRCE-DDS agent or MicroXRCEAgent) is the bridge between PX4 and ROS 2. PX4 runs a micro-XRCE-DDS client internally; the agent runs on the companion computer (or SITL host) and forwards messages to the ROS 2 DDS middleware.\nWithout the agent, no /fmu/* topics appear and all ROS 2 subscribers receive nothing.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#why-basedpyright",
-    "href": "docs/tooling/basedpyright.html#why-basedpyright",
-    "title": "Type Checking with basedpyright",
-    "section": "Why basedpyright",
-    "text": "Why basedpyright\nStandard pyright works fine for general Python, but ROS 2 introduces friction:\n\nrclpy, px4_msgs, and most ROS packages ship no type stubs.\nGenerated message classes have loose constructors that trigger false-positive argument-type errors.\nThe install tree lives in install/ (a colcon artifact), not in the standard site-packages location.\n\nbasedpyright provides more granular per-rule configuration so you can silence ROS-specific false positives while still catching real errors in your own code.",
+    "objectID": "docs/setup/uxrce-dds-agent.html#how-it-works",
+    "href": "docs/setup/uxrce-dds-agent.html#how-it-works",
+    "title": "micro-XRCE-DDS Agent",
+    "section": "How it works",
+    "text": "How it works\nPX4 (SITL or hardware)           Companion / workstation\n+------------------------+        +---------------------------+\n| micro-XRCE-DDS client  | &lt;----&gt; | micro-XRCE-DDS agent      |\n| (runs in PX4 firmware) |  UDP   | (MicroXRCEAgent binary)   |\n+------------------------+        +-----------+---------------+\n                                              |\n                                       ROS 2 DDS (rmw)\n                                              |\n                                    +---------+---------+\n                                    | /fmu/out/* topics |\n                                    | /fmu/in/*  topics |\n                                    +-------------------+\nThe agent converts between the XRCE wire protocol and native DDS. It is stateless — restart it freely without restarting PX4 or your ROS 2 nodes.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#installation",
-    "href": "docs/tooling/basedpyright.html#installation",
-    "title": "Type Checking with basedpyright",
+    "objectID": "docs/setup/uxrce-dds-agent.html#installation",
+    "href": "docs/setup/uxrce-dds-agent.html#installation",
+    "title": "micro-XRCE-DDS Agent",
     "section": "Installation",
-    "text": "Installation\n\nInside the pixi environment (recommended)\nAdd basedpyright to a dev feature so it is not bundled into production builds:\n# pixi.toml\n[feature.dev.pypi-dependencies]\nbasedpyright = \"*\"\n\n[environments]\ndev = { features = [\"dev\"], solve-group = \"default\" }\nInstall and run:\npixi install -e dev\npixi run -e dev basedpyright src/\n\n\nGlobal install (for the LSP / editor)\n# via pip\npip install basedpyright\n\n# via npm (also installs the language server)\nnpm install -g basedpyright\nThe VSCode extension is basedpyright (detachhead.basedpyright). Do not mix an npm install with the VSCode extension – let the extension manage its own binary.",
+    "text": "Installation\n\nOption A – Snap (recommended for SITL on Ubuntu)\nsudo snap install micro-xrce-dds-agent --edge\nRun:\nMicroXRCEAgent udp4 -p 8888\n\n\nOption B – Build from source\ngit clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git\ncd Micro-XRCE-DDS-Agent\nmkdir build && cd build\ncmake ..\nmake -j$(nproc)\nsudo make install\nRun:\nMicroXRCEAgent udp4 -p 8888\n\n\nOption C – pixi task (SITL-only)\nAdd the snap binary as a pixi task so it starts with the full SITL stack:\n[tasks]\nagent = \"MicroXRCEAgent udp4 -p 8888\"\n\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true\",\n             depends-on = [\"build\"] }\nThe launch file is responsible for starting the agent subprocess — the agent task is kept separate for manual use.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#pyrightconfig.json",
-    "href": "docs/tooling/basedpyright.html#pyrightconfig.json",
-    "title": "Type Checking with basedpyright",
-    "section": "pyrightconfig.json",
-    "text": "pyrightconfig.json\nPlace pyrightconfig.json at the workspace root (same directory as pixi.toml).\n{\n  \"typeCheckingMode\": \"basic\",\n  \"pythonVersion\": \"3.11\",\n  \"pythonPlatform\": \"Linux\",\n\n  \"include\": [\"src\"],\n  \"exclude\": [\n    \"**/node_modules\",\n    \"**/__pycache__\",\n    \"**/.*\",\n    \"build\",\n    \"install\",\n    \"log\"\n  ],\n\n  \"reportMissingImports\": true,\n  \"reportMissingTypeStubs\": false,\n\n  \"reportUnusedImport\": true,\n  \"reportUnusedVariable\": true,\n\n  \"reportGeneralTypeIssues\": true,\n  \"reportOptionalMemberAccess\": true,\n  \"reportOptionalSubscript\": true,\n  \"reportOptionalOperand\": true,\n  \"reportOptionalIterable\": true,\n  \"reportOptionalContextManager\": true,\n  \"reportOptionalCallOperand\": true,\n\n  \"reportArgumentType\": false\n}\n\nSettings explained\n\n\n\n\n\n\n\n\nSetting\nValue\nReason\n\n\n\n\ntypeCheckingMode\n\"basic\"\nAvoids false positives from untyped ROS packages. Upgrade to \"standard\" once stubs improve.\n\n\npythonVersion\n\"3.11\"\nMust match the Python version in pixi.toml.\n\n\ninclude\n[\"src\"]\nOnly analyse your packages; ignore colcon build artefacts.\n\n\nexclude\nbuild, install, log\nColcon output contains generated C-extension stubs that confuse the checker.\n\n\nreportMissingTypeStubs\nfalse\nrclpy, px4_msgs, and most ROS packages have no .pyi stubs.\n\n\nreportArgumentType\nfalse\nGenerated message classes have loose __init__ signatures that produce spurious errors.",
+    "objectID": "docs/setup/uxrce-dds-agent.html#transport-options",
+    "href": "docs/setup/uxrce-dds-agent.html#transport-options",
+    "title": "micro-XRCE-DDS Agent",
+    "section": "Transport options",
+    "text": "Transport options\n\n\n\n\n\n\n\n\nTransport\nFlag\nTypical use\n\n\n\n\nUDP IPv4\nudp4 -p 8888\nSITL on localhost or LAN\n\n\nUDP IPv6\nudp6 -p 8888\nIPv6 networks\n\n\nSerial\nserial -D /dev/ttyUSB0 -b 921600\nPixhawk via UART\n\n\nSerial (pseudo-TTY)\nserial -D /dev/ttyACM0 -b 57600\nPixhawk via USB\n\n\n\nFor SITL, always use udp4 -p 8888. PX4’s default client config targets localhost:8888 on UDP.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
-    "href": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
-    "title": "Type Checking with basedpyright",
-    "section": "Pointing basedpyright at the pixi environment",
-    "text": "Pointing basedpyright at the pixi environment\nbasedpyright must resolve imports from the pixi environment, not system Python.\n\nOption A – venvPath (recommended)\n{\n  \"venvPath\": \".\",\n  \"venv\": \".pixi/envs/default\"\n}\nThis tells basedpyright to look for the virtual environment at .pixi/envs/default relative to the project root.\n\n\nOption B – pythonPath\n{\n  \"pythonPath\": \".pixi/envs/default/bin/python\"\n}\nUse this if venvPath does not correctly resolve stubs.\n\n\n\n\n\n\nTip\n\n\n\nVerify interpreter resolution:\nbasedpyright --outputjson src/ 2&gt;&1 | python -m json.tool | grep pythonPath",
+    "objectID": "docs/setup/uxrce-dds-agent.html#px4-side-configuration-sitl",
+    "href": "docs/setup/uxrce-dds-agent.html#px4-side-configuration-sitl",
+    "title": "micro-XRCE-DDS Agent",
+    "section": "PX4-side configuration (SITL)",
+    "text": "PX4-side configuration (SITL)\nPX4 SITL already has the uXRCE-DDS client enabled by default. No parameter changes are needed. On real hardware, ensure these parameters are set:\n\n\n\n\n\n\n\n\nParameter\nValue\nMeaning\n\n\n\n\nUXRCE_DDS_CFG\n1002 (TELEM2) or 0 (disabled)\nSerial port for client\n\n\nUXRCE_DDS_AG_IP\n192.168.x.x\nAgent IP (ethernet)\n\n\nUXRCE_DDS_PRT\n8888\nAgent UDP port\n\n\n\nAfter changing parameters, reboot PX4.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#ros-2-specific-notes",
-    "href": "docs/tooling/basedpyright.html#ros-2-specific-notes",
-    "title": "Type Checking with basedpyright",
-    "section": "ROS 2-specific notes",
-    "text": "ROS 2-specific notes\n\nrclpy stubs\nrclpy has partial stubs on PyPI. They are often outdated but reduce reportMissingTypeStubs noise:\n[feature.dev.pypi-dependencies]\nrclpy-stubs = \"*\"\nAlternatively, generate stubs from the installed package:\n# inside pixi shell\nstubgen -p rclpy -o typestubs/\nThen register the stub path in pyrightconfig.json:\n{\n  \"stubPath\": \"typestubs\"\n}\n\n\npx4_msgs\npx4_msgs is a C extension built by colcon. After building, point basedpyright to its install location:\n{\n  \"extraPaths\": [\n    \"install/px4_msgs/lib/python3.11/site-packages\"\n  ]\n}\nIf you used venvPath above and the pixi activation already sourced install/setup.bash, this may not be necessary.\n\n\nLaunch files\nROS 2 launch files (.launch.py) use dynamic LaunchArgument substitutions that cannot be statically analysed. Suppress errors per-file:\n# pyright: reportGeneralTypeIssues=false",
+    "objectID": "docs/setup/uxrce-dds-agent.html#verifying-the-bridge",
+    "href": "docs/setup/uxrce-dds-agent.html#verifying-the-bridge",
+    "title": "micro-XRCE-DDS Agent",
+    "section": "Verifying the bridge",
+    "text": "Verifying the bridge\nWith PX4 SITL running and the agent started, open a new terminal inside the pixi environment and check that topics appear:\npixi shell\nros2 topic list | grep fmu\nExpected output (subset):\n/fmu/in/actuator_motors\n/fmu/in/offboard_control_mode\n/fmu/in/vehicle_attitude_setpoint\n/fmu/in/vehicle_command\n/fmu/in/vehicle_thrust_setpoint\n/fmu/in/vehicle_torque_setpoint\n/fmu/out/vehicle_angular_velocity\n/fmu/out/vehicle_attitude\n/fmu/out/vehicle_local_position\n/fmu/out/vehicle_odometry\n/fmu/out/vehicle_status_v1\nIf the list is empty, the agent is not connected. Check:\n\nThe agent process is running (ps aux | grep MicroXRCE).\nPort 8888 is not blocked (ss -u -l -n | grep 8888).\nPX4 printed INFO [uxrce_dds_client] synchronized with agent at startup.\n\nCheck publish rate on a key topic:\nros2 topic hz /fmu/out/vehicle_odometry\nExpected: ~50 Hz. If rate is 0, the QoS profile is mismatched — see QoS Profiles.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#vscode-integration",
-    "href": "docs/tooling/basedpyright.html#vscode-integration",
-    "title": "Type Checking with basedpyright",
-    "section": "VSCode integration",
-    "text": "VSCode integration\nAdd to .vscode/settings.json:\n{\n  \"python.defaultInterpreterPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.pythonPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.disableOrganizeImports\": false\n}\npython.defaultInterpreterPath ensures the VSCode Python extension, IntelliSense, and basedpyright all share the same pixi interpreter.",
+    "objectID": "docs/setup/uxrce-dds-agent.html#namespace-isolation-multiple-vehicles",
+    "href": "docs/setup/uxrce-dds-agent.html#namespace-isolation-multiple-vehicles",
+    "title": "micro-XRCE-DDS Agent",
+    "section": "Namespace isolation (multiple vehicles)",
+    "text": "Namespace isolation (multiple vehicles)\nTo run multiple SITL instances on the same machine, start each PX4 instance on a different port and run a separate agent for each:\n# Vehicle 1\nMicroXRCEAgent udp4 -p 8888 -n uav0\n\n# Vehicle 2\nMicroXRCEAgent udp4 -p 8889 -n uav1\nThe -n flag sets a ROS 2 namespace prefix. Topics appear as /uav0/fmu/out/... and /uav1/fmu/out/....",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#running-from-the-cli",
-    "href": "docs/tooling/basedpyright.html#running-from-the-cli",
-    "title": "Type Checking with basedpyright",
-    "section": "Running from the CLI",
-    "text": "Running from the CLI\n# Check all packages under src/\npixi run -e dev basedpyright src/\n\n# Check a single package\npixi run -e dev basedpyright src/my_package/\n\n# JSON output for CI\npixi run -e dev basedpyright --outputjson src/ &gt; typecheck.json",
+    "objectID": "docs/setup/uxrce-dds-agent.html#troubleshooting",
+    "href": "docs/setup/uxrce-dds-agent.html#troubleshooting",
+    "title": "micro-XRCE-DDS Agent",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\nMicroXRCEAgent: command not found\nThe snap is not on PATH. Try /snap/bin/MicroXRCEAgent, or add /snap/bin to PATH in ~/.zshrc.\n\n\nAgent connects but topics stop after a few seconds\nPX4 SITL exited or crashed. The agent streams data only while the PX4 client is alive. Check the PX4 terminal for errors.\n\n\nTopics appear but subscriber callbacks never fire\nQoS mismatch. PX4 publishes with BEST_EFFORT reliability. See QoS Profiles.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
+      "Setup",
+      "micro-XRCE-DDS Agent"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
-    "href": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
-    "title": "Type Checking with basedpyright",
-    "section": "Incrementally tightening type checking",
-    "text": "Incrementally tightening type checking\nStart at \"basic\" to suppress ROS-stub noise. Tighten per-package as you add type annotations or as upstream stubs improve.\nbasic  -&gt;  standard  -&gt;  strict  -&gt;  all\nTo apply stricter checking to a specific file, add a comment at the top:\n# pyright: standard\nTo apply it to an entire subtree, add a nested pyrightconfig.json in that subdirectory with only the overridden key:\n{\n  \"typeCheckingMode\": \"standard\"\n}\nThe root pyrightconfig.json still governs everything else.",
+    "objectID": "docs/control/arming-offboard.html",
+    "href": "docs/control/arming-offboard.html",
+    "title": "Arming and Offboard Mode",
+    "section": "",
+    "text": "Before a ROS 2 node can send setpoints to PX4, the vehicle must be armed and PX4 must be in offboard mode. Both transitions are triggered by publishing VehicleCommand messages. The sequence has strict ordering requirements and timing constraints.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#required-sequence",
+    "href": "docs/control/arming-offboard.html#required-sequence",
+    "title": "Arming and Offboard Mode",
+    "section": "Required sequence",
+    "text": "Required sequence\n1. Start streaming OffboardControlMode heartbeat  (&gt;=2 Hz, before switching)\n2. Start streaming setpoints                       (same rate as control loop)\n3. Send VehicleCommand: VEHICLE_CMD_DO_SET_MODE -&gt; OFFBOARD\n4. Send VehicleCommand: VEHICLE_CMD_COMPONENT_ARM_DISARM -&gt; ARM\nSteps 1–2 must begin before step 3. PX4 rejects the offboard mode switch if it has not already seen a recent OffboardControlMode message. Keep both streams running continuously thereafter.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#vehiclecommand-helper",
+    "href": "docs/control/arming-offboard.html#vehiclecommand-helper",
+    "title": "Arming and Offboard Mode",
+    "section": "VehicleCommand helper",
+    "text": "VehicleCommand helper\n/* vehicle_command.hpp */\n#pragma once\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_command.hpp&gt;\n\ninline void send_vehicle_command(\n    rclcpp::Publisher&lt;px4_msgs::msg::VehicleCommand&gt;::SharedPtr& pub,\n    rclcpp::Node* node,\n    uint32_t command,\n    float param1 = 0.0f,\n    float param2 = 0.0f)\n{\n    px4_msgs::msg::VehicleCommand msg{};\n    msg.timestamp       = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\n    msg.command         = command;\n    msg.param1          = param1;\n    msg.param2          = param2;\n    msg.target_system   = 1;\n    msg.target_component = 1;\n    msg.source_system   = 1;\n    msg.source_component = 1;\n    msg.from_external   = true;\n    pub-&gt;publish(msg);\n}",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#switching-to-offboard-mode",
+    "href": "docs/control/arming-offboard.html#switching-to-offboard-mode",
+    "title": "Arming and Offboard Mode",
+    "section": "Switching to offboard mode",
+    "text": "Switching to offboard mode\n#include &lt;px4_msgs/msg/vehicle_command.hpp&gt;\n\n/* PX4_CUSTOM_MAIN_MODE_OFFBOARD = 6 */\nsend_vehicle_command(\n    vehicle_cmd_pub_, this,\n    px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE,\n    1.0f,   // base mode: custom\n    6.0f);  // custom main mode: offboard\nPX4 switches only if it has received OffboardControlMode messages recently. If the switch fails, VehicleStatus.nav_state stays at its prior value.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#arming",
+    "href": "docs/control/arming-offboard.html#arming",
+    "title": "Arming and Offboard Mode",
+    "section": "Arming",
+    "text": "Arming\nsend_vehicle_command(\n    vehicle_cmd_pub_, this,\n    px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM,\n    1.0f);  // 1.0 = arm, 0.0 = disarm",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#disarming",
+    "href": "docs/control/arming-offboard.html#disarming",
+    "title": "Arming and Offboard Mode",
+    "section": "Disarming",
+    "text": "Disarming\nsend_vehicle_command(\n    vehicle_cmd_pub_, this,\n    px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM,\n    0.0f);  // disarm",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#monitoring-vehicle-state",
+    "href": "docs/control/arming-offboard.html#monitoring-vehicle-state",
+    "title": "Arming and Offboard Mode",
+    "section": "Monitoring vehicle state",
+    "text": "Monitoring vehicle state\nSubscribe to VehicleStatus to read the current arming and nav state:\n#include &lt;px4_msgs/msg/vehicle_status.hpp&gt;\n\nauto qos = rclcpp::QoS(10).best_effort();\n\nstatus_sub_ = create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos,\n    [this](const px4_msgs::msg::VehicleStatus::SharedPtr msg) {\n        armed_       = (msg-&gt;arming_state ==\n                        px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED);\n        in_offboard_ = (msg-&gt;nav_state ==\n                        px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD);\n    });\n\n\n\n\n\n\nNote\n\n\n\nThe topic is /fmu/out/vehicle_status_v1 (versioned) from PX4 v1.14 onward. See Versioned topic names.\n\n\nRelevant VehicleStatus constants:\n\n\n\nField\nConstant\nValue\n\n\n\n\narming_state\nARMING_STATE_DISARMED\n1\n\n\narming_state\nARMING_STATE_ARMED\n2\n\n\nnav_state\nNAVIGATION_STATE_OFFBOARD\n14",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#full-arming-state-machine",
+    "href": "docs/control/arming-offboard.html#full-arming-state-machine",
+    "title": "Arming and Offboard Mode",
+    "section": "Full arming state machine",
+    "text": "Full arming state machine\nA typical controller node follows this pattern on startup:\n/* Called at ~10 Hz in the main control timer */\nvoid control_loop()\n{\n    /* 1. Always publish heartbeat first */\n    publish_offboard_control_mode();\n\n    /* 2. Always publish a setpoint (zeros are fine pre-arm) */\n    publish_setpoint();\n\n    /* 3. After a short warm-up, switch mode and arm */\n    if (!mode_sent_ && ++tick_ &gt; 10) {   // ~1 s at 10 Hz\n        switch_to_offboard();\n        arm();\n        mode_sent_ = true;\n    }\n}\nThe tick counter gives PX4 time to receive a few heartbeats before the mode switch is requested.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#takeoff-after-arming",
+    "href": "docs/control/arming-offboard.html#takeoff-after-arming",
+    "title": "Arming and Offboard Mode",
+    "section": "Takeoff after arming",
+    "text": "Takeoff after arming\nAfter arming, the vehicle is on the ground with motors spinning at idle. Command a TrajectorySetpoint with a target altitude to begin the takeoff:\npx4_msgs::msg::TrajectorySetpoint traj{};\ntraj.timestamp = get_clock()-&gt;now().nanoseconds() / 1000;\n\n/* NED frame: negative z = above ground */\ntraj.position  = {0.0f, 0.0f, -2.0f};  // 2 m above ground\ntraj.yaw       = 0.0f;                  // North-facing\ntraj_pub_-&gt;publish(traj);\nUse OffboardControlMode with position = true while climbing:\nmode_msg.position = true;\nmode_msg.velocity = false;\nmode_msg.attitude = false;\nSwitch OffboardControlMode fields to match whichever control mode you activate once at altitude. See Low-Level Offboard Control.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#safety-continuous-stream-requirement",
+    "href": "docs/control/arming-offboard.html#safety-continuous-stream-requirement",
+    "title": "Arming and Offboard Mode",
+    "section": "Safety: continuous stream requirement",
+    "text": "Safety: continuous stream requirement\nPX4 exits offboard mode if the OffboardControlMode stream stops for more than ~500 ms. It also disarms if the vehicle is commanded with zero throttle while on the ground in offboard mode for more than ~1 s.\nKeep two independent timers:\n// Heartbeat: 10 Hz is safe margin above the 2 Hz minimum\noffboard_timer_ = create_wall_timer(100ms, [this]() {\n    publish_offboard_control_mode();\n});\n\n// Control output: 100 Hz\ncontrol_timer_ = create_wall_timer(10ms, [this]() {\n    publish_setpoint();\n});\nThe timers are independent so a slow control computation does not starve the heartbeat.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/arming-offboard.html#troubleshooting",
+    "href": "docs/control/arming-offboard.html#troubleshooting",
+    "title": "Arming and Offboard Mode",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\nVehicle never arms\n\nCheck pre-arm checks: ros2 topic echo /fmu/out/vehicle_status_v1 | grep arming.\nIn SITL, the EKF2 estimator must be healthy before arming. Wait ~5 s after SITL starts.\nEnsure OffboardControlMode is being published before sending the arm command — PX4 refuses to arm for offboard if no heartbeat has arrived.\n\n\n\nOffboard mode switch is accepted but vehicle falls\nThe OffboardControlMode was set with position = true but no TrajectorySetpoint is being published. The position controller has no target and commands zero thrust. Always publish a setpoint at the current position immediately after arming.\n\n\nVehicle disarms immediately after takeoff\nThe motor output stream (ActuatorMotors) stopped. PX4 exits offboard mode and auto-disarms. Check that your control timer is running without exceptions.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html",
+    "href": "docs/control/control-allocation.html",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "",
+    "text": "Control allocation is the mapping from a desired wrench \\([\\tau_x,\\, \\tau_y,\\, \\tau_z,\\, T]^\\top\\) to individual motor throttles \\(\\delta_i \\in [0, 1]\\). For an X-frame quadrotor it is a \\(4 \\times 4\\) linear map followed by a square-root and an affine throttle scaling.\nThe implementation lives in motor_allocator.hpp inside uav_control.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
+    "href": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Motor layout (x500 SITL, top view, NED)",
+    "text": "Motor layout (x500 SITL, top view, NED)\n\n\n\n\n\n\nFigure 1: x500 SITL X-frame motor layout with motor indices and spin directions.\n\n\n\nMotor indices 0–3 map directly to ActuatorMotors.control[0..3]. Slots 4–11 must be NaN for a 4-motor vehicle.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#forward-model",
+    "href": "docs/control/control-allocation.html#forward-model",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Forward model",
+    "text": "Forward model\nEach motor \\(i\\) spinning at \\(\\omega_i\\) [rad/s] produces a thrust \\(f_i = k_T \\omega_i^2\\) and a reaction torque \\(m_i = k_m \\omega_i^2\\) where \\(k_m = k_{M,\\text{ratio}} \\cdot k_T\\).\nThe wrench assembled on the body is:\n\\[\n\\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n= \\mathbf{A}\\,\\boldsymbol{\\omega}^2,\n\\qquad\n\\mathbf{A} = \\mathrm{diag}(k_T L,\\; k_T L,\\; k_m,\\; k_T)\\; \\mathbf{B}\n\\]\nwhere \\(L\\) is the arm length and \\(\\mathbf{B}\\) encodes the geometry and spin directions:\n\\[\n\\mathbf{B} = \\begin{pmatrix}\n-k_s &  k_s &  k_s & -k_s \\\\\nk_s & -k_s &  k_s & -k_s \\\\\n    1 &    1 &   -1 &   -1 \\\\\n    1 &    1 &    1 &    1\n\\end{pmatrix},\n\\qquad k_s = \\sin 45^\\circ = \\frac{\\sqrt{2}}{2}\n\\]\nColumn order: FR(0), RL(1), FL(2), RR(3).\n\nRow-by-row interpretation\n\n\n\n\n\n\n\n\n\nRow\nWrench\nSign pattern\nReason\n\n\n\n\n1\n\\(\\tau_x\\) (roll)\nFR,RR negative; RL,FL positive\nRight motors are on the \\(+y\\) side; spinning them faster rolls right (negative roll)\n\n\n2\n\\(\\tau_y\\) (pitch)\nRL,RR negative; FR,FL positive\nFront motors are on the \\(+x\\) side\n\n\n3\n\\(\\tau_z\\) (yaw)\nFR,RL positive; FL,RR negative\nCCW motors produce positive reaction torque on body\n\n\n4\n\\(T\\) (thrust)\nall positive\nAll motors contribute thrust",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#inverse-wrench---throttles",
+    "href": "docs/control/control-allocation.html#inverse-wrench---throttles",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Inverse: wrench -> throttles",
+    "text": "Inverse: wrench -&gt; throttles\nThe allocation inversion uses the Moore-Penrose pseudoinverse:\n\\[\n\\boldsymbol{\\omega}^2 = \\mathbf{A}^+ \\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n\\]\nSince \\(\\mathbf{A}\\) is square and full rank for a standard quadrotor, \\(\\mathbf{A}^+\n= \\mathbf{A}^{-1}\\).\nRotor speeds are then converted to throttles via:\n\\[\n\\omega_i = \\sqrt{\\max(0,\\; \\omega_i^2)}, \\qquad\n\\delta_i = \\mathrm{clip}\\!\\left(\\frac{\\omega_i - \\omega_\\min}{\\omega_\\max - \\omega_\\min},\\; 0,\\; 1\\right)\n\\]\nThe \\(\\max(0,\\cdot)\\) before the square root prevents NaN from small negative values due to numerical noise.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#c-implementation",
+    "href": "docs/control/control-allocation.html#c-implementation",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "C++ implementation",
+    "text": "C++ implementation\n/* motor_allocator.hpp */\nstruct MotorAllocatorConfig {\n    double arm_length = 0.25;       // m\n    double k_T        = 8.54858e-6; // N/(rad/s)^2\n    double k_M_ratio  = 0.019;      // k_m = k_M_ratio * k_T\n    double omega_max  = 1047.2;     // rad/s\n    double omega_min  = 150.0;      // rad/s\n};\n\nclass MotorAllocator {\npublic:\n    void initialize(const MotorAllocatorConfig& cfg) {\n        cfg_ = cfg;\n        build_inverse();\n    }\n\n    std::array&lt;float, 12&gt; allocate(double T, const Eigen::Vector3d& tau) const {\n        Eigen::Vector4d wrench(tau(0), tau(1), tau(2), T);\n        Eigen::Vector4d omega_sq = inv_ * wrench;\n\n        std::array&lt;float, 12&gt; result;\n        double range = cfg_.omega_max - cfg_.omega_min;\n        for (int i = 0; i &lt; 4; ++i) {\n            double w = std::sqrt(std::max(0.0, omega_sq(i)));\n            result[i] = static_cast&lt;float&gt;(std::clamp(\n                (w - cfg_.omega_min) / range, 0.0, 1.0));\n        }\n        for (int i = 4; i &lt; 12; ++i)\n            result[i] = std::nanf(\"1\");   // unused slots must be NaN\n        return result;\n    }\n\nprivate:\n    void build_inverse() {\n        const double kS = std::sin(M_PI / 4.0);\n        double kt = cfg_.k_T,  km = cfg_.k_M_ratio * kt,  L = cfg_.arm_length;\n\n        Eigen::Matrix4d B;\n        B &lt;&lt; -kS,  kS,  kS, -kS,\n               kS, -kS,  kS, -kS,\n                1,   1,  -1,  -1,\n                1,   1,   1,   1;\n\n        Eigen::Vector4d k(kt * L, kt * L, km, kt);\n        Eigen::Matrix4d A = k.asDiagonal() * B;\n        inv_ = A.completeOrthogonalDecomposition().pseudoInverse();\n    }\n\n    MotorAllocatorConfig cfg_;\n    Eigen::Matrix4d inv_;\n};\nThe matrix is built once at initialization; allocate is called at 100 Hz in the control loop.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#publishing-to-px4",
+    "href": "docs/control/control-allocation.html#publishing-to-px4",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Publishing to PX4",
+    "text": "Publishing to PX4\nauto msg = std::make_unique&lt;px4_msgs::msg::ActuatorMotors&gt;();\nmsg-&gt;timestamp        = px4_timestamp_us;\nmsg-&gt;timestamp_sample = px4_timestamp_us;\nmsg-&gt;reversible_flags = 0;\nfor (int i = 0; i &lt; 12; ++i)\n    msg-&gt;control[i] = motors[i];\nmotor_pub_-&gt;publish(std::move(msg));\n\n\n\n\n\n\nWarning\n\n\n\nPX4 requires a continuous ActuatorMotors stream from the moment offboard mode is entered. If the stream stops, PX4 exits offboard mode. Publish zeros while waiting for all sensor inputs to be ready — do not skip the publish call.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#parameters-x500-defaults",
+    "href": "docs/control/control-allocation.html#parameters-x500-defaults",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Parameters (x500 defaults)",
+    "text": "Parameters (x500 defaults)\n\n\n\nParameter\nValue\nDescription\n\n\n\n\narm_length\n0.25 m\nCentre-to-motor distance\n\n\nk_T\n8.54858e-6 N/(rad/s)^2\nThrust coefficient\n\n\nk_M_ratio\n0.019\nMoment-to-thrust ratio\n\n\nomega_max\n1047.2 rad/s\nMax rotor speed (~10 000 RPM)\n\n\nomega_min\n150.0 rad/s\nMin rotor speed (idle)\n\n\n\nomega_max and omega_min correspond to SIM_GZ_EC_MAX and SIM_GZ_EC_MIN in PX4’s SITL parameters.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
+    "href": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Python reference (mixing matrix test)",
+    "text": "Python reference (mixing matrix test)\nThe scripts/test_mixing.py script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.\npython3 scripts/test_mixing.py",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html",
+    "href": "docs/control/low-level-control.html",
+    "title": "Low-Level Offboard Control",
+    "section": "",
+    "text": "Low-level offboard control means bypassing PX4’s position/velocity controllers and sending commands directly to the inner loops. Three levels are available, selected at runtime via a ROS 2 parameter:\nReference implementation: SaxionMechatronics/px4_offboard_lowlevel.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#offboardcontrolmode-heartbeat",
+    "href": "docs/control/low-level-control.html#offboardcontrolmode-heartbeat",
+    "title": "Low-Level Offboard Control",
+    "section": "OffboardControlMode heartbeat",
+    "text": "OffboardControlMode heartbeat\nPX4 requires a continuous OffboardControlMode heartbeat at ~3 Hz or it exits offboard mode. The active fields must match the command type being sent:\npx4_msgs::msg::OffboardControlMode msg{};\nmsg.position          = false;\nmsg.velocity          = false;\nmsg.acceleration      = false;\nmsg.body_rate         = false;\n\n// mode 1 — attitude\nmsg.attitude          = true;\nmsg.thrust_and_torque = false;\nmsg.direct_actuator   = false;\n\n// mode 2 — thrust + torque\n// msg.thrust_and_torque = true; (attitude and direct_actuator = false)\n\n// mode 3 — direct actuator\n// msg.direct_actuator = true; (attitude and thrust_and_torque = false)\n\nmsg.timestamp = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\noffboard_control_mode_pub-&gt;publish(msg);\nThe heartbeat timer and the controller output timer are independent:\n// 3 Hz heartbeat\noffboard_timer = create_wall_timer(333ms, [=]() { publishOffboardControlModeMsg(); });\n\n// 100 Hz control loop\ncontroller_timer = create_wall_timer(10ms,  [=]() { updateControllerOutput(); });",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#frame-conventions",
+    "href": "docs/control/low-level-control.html#frame-conventions",
+    "title": "Low-Level Offboard Control",
+    "section": "Frame conventions",
+    "text": "Frame conventions\nPX4 uses NED / FRD (North-East-Down, Front-Right-Down). ROS and most controllers use ENU / FLU (East-North-Up, Front-Left-Up). All setpoints must be converted before publishing, and all odometry must be converted after reading.\nSee Frame Conventions for the full conversion reference including vector permutations, quaternion transforms, altitude sign, and yaw convention.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#mode-1-attitude-setpoint",
+    "href": "docs/control/low-level-control.html#mode-1-attitude-setpoint",
+    "title": "Low-Level Offboard Control",
+    "section": "Mode 1: Attitude setpoint",
+    "text": "Mode 1: Attitude setpoint\nPublish VehicleAttitudeSetpoint with a desired quaternion and collective thrust. The PX4 attitude controller tracks the quaternion error.\npx4_msgs::msg::VehicleAttitudeSetpoint msg{};\nmsg.timestamp = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\n\nEigen::Quaterniond q_ned = rotateQuaternionFromToENU_NED(desired_q);\nmsg.q_d[0] = q_ned.w();\nmsg.q_d[1] = q_ned.x();\nmsg.q_d[2] = q_ned.y();\nmsg.q_d[3] = q_ned.z();\n\nmsg.thrust_body[0] = 0.0;\nmsg.thrust_body[1] = 0.0;\nmsg.thrust_body[2] = -collective_thrust;   // NED: downward = negative\n\nattitude_setpoint_pub-&gt;publish(msg);",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#mode-2-thrust-torque-setpoint",
+    "href": "docs/control/low-level-control.html#mode-2-thrust-torque-setpoint",
+    "title": "Low-Level Offboard Control",
+    "section": "Mode 2: Thrust + torque setpoint",
+    "text": "Mode 2: Thrust + torque setpoint\nPublish separate VehicleThrustSetpoint and VehicleTorqueSetpoint messages. PX4 uses these directly — no attitude controller in the loop.\npx4_msgs::msg::VehicleThrustSetpoint thrust_msg{};\npx4_msgs::msg::VehicleTorqueSetpoint torque_msg{};\n\nuint64_t ts = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\nthrust_msg.timestamp = thrust_msg.timestamp_sample = ts;\ntorque_msg.timestamp = torque_msg.timestamp_sample = ts;\n\nthrust_msg.xyz[0] = 0.0;\nthrust_msg.xyz[1] = 0.0;\nthrust_msg.xyz[2] = -collective_thrust;   // NED sign\n\n// Rotate torque from controller FLU frame to FRD\nEigen::Vector3d tau_frd = rotateVectorFromToFRD_FLU(torque_flu);\ntorque_msg.xyz[0] = tau_frd.x();\ntorque_msg.xyz[1] = tau_frd.y();\ntorque_msg.xyz[2] = tau_frd.z();\n\nthrust_pub-&gt;publish(thrust_msg);\ntorque_pub-&gt;publish(torque_msg);",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#mode-3-direct-actuator-commands",
+    "href": "docs/control/low-level-control.html#mode-3-direct-actuator-commands",
+    "title": "Low-Level Offboard Control",
+    "section": "Mode 3: Direct actuator commands",
+    "text": "Mode 3: Direct actuator commands\nPublish ActuatorMotors with per-motor throttles in [0, 1]. Unused slots must be NaN.\npx4_msgs::msg::ActuatorMotors msg{};\nmsg.control = {\n    (float) throttles[0], (float) throttles[1],\n    (float) throttles[2], (float) throttles[3],\n    std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\"),\n    std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\"), std::nanf(\"1\")\n};\nmsg.reversible_flags = 0;\nmsg.timestamp = msg.timestamp_sample = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\nactuator_motors_pub-&gt;publish(msg);\n\n\n\n\n\n\nWarning\n\n\n\nLockstep must be disabled for direct actuator control in Gazebo SITL. Set lockstep: false in the model’s model.sdf and in PX4’s SITL config.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#control-allocation-wrench---throttles",
+    "href": "docs/control/low-level-control.html#control-allocation-wrench---throttles",
+    "title": "Low-Level Offboard Control",
+    "section": "Control allocation (wrench -> throttles)",
+    "text": "Control allocation (wrench -&gt; throttles)\nWhen using mode 3 (direct actuator), the controller must convert the desired wrench \\([\\tau_x, \\tau_y, \\tau_z, T]\\) to per-motor throttles. See Control Allocation for the full derivation, mixing matrix, C++ implementation, and x500 parameters.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#topic-map",
+    "href": "docs/control/low-level-control.html#topic-map",
+    "title": "Low-Level Offboard Control",
+    "section": "Topic map",
+    "text": "Topic map\n\n\n\n\n\n\n\n\nDirection\nTopic\nMessage type\n\n\n\n\nin\n/fmu/out/vehicle_odometry\nVehicleOdometry\n\n\nin\n/fmu/out/vehicle_status_v1\nVehicleStatus\n\n\nout\n/fmu/in/offboard_control_mode\nOffboardControlMode\n\n\nout\n/fmu/in/vehicle_command\nVehicleCommand\n\n\nout\n/fmu/in/vehicle_attitude_setpoint\nVehicleAttitudeSetpoint\n\n\nout\n/fmu/in/vehicle_thrust_setpoint\nVehicleThrustSetpoint\n\n\nout\n/fmu/in/vehicle_torque_setpoint\nVehicleTorqueSetpoint\n\n\nout\n/fmu/in/actuator_motors\nActuatorMotors\n\n\n\nNote the versioned topic name for VehicleStatus — see version mismatch.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/control/low-level-control.html#switching-modes-at-runtime",
+    "href": "docs/control/low-level-control.html#switching-modes-at-runtime",
+    "title": "Low-Level Offboard Control",
+    "section": "Switching modes at runtime",
+    "text": "Switching modes at runtime\nThe control mode can be changed without restarting the node:\nros2 param set /offboard_controller control_mode 2   # -&gt; thrust + torque\nros2 param set /offboard_controller control_mode 3   # -&gt; direct actuator\nros2 param set /offboard_controller control_mode 1   # -&gt; attitude (default)\nThe OffboardControlMode heartbeat automatically switches its active field on the next publish cycle.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Low-Level Offboard Control"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html",
+    "href": "docs/tooling/clangd.html",
+    "title": "C++ Tooling with clangd",
+    "section": "",
+    "text": "This guide covers the .clangd configuration used across uav_control and related ROS 2 C++ packages. The setup gives accurate clangd completions and clang-tidy diagnostics inside a colcon workspace without false positives from GPU or ROS-specific compiler flags.",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#how-clangd-finds-headers",
+    "href": "docs/tooling/clangd.html#how-clangd-finds-headers",
+    "title": "C++ Tooling with clangd",
+    "section": "How clangd finds headers",
+    "text": "How clangd finds headers\nclangd reads compile_commands.json to know which flags were used to build each translation unit. colcon generates this file at the workspace root when you pass --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThe .clangd file then tells clangd where to look:\nCompileFlags:\n    CompilationDatabase: \".\"\n\".\" resolves to the directory containing .clangd, which should be the workspace root (the directory that contains src/, build/, install/).",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#base-configuration",
+    "href": "docs/tooling/clangd.html#base-configuration",
+    "title": "C++ Tooling with clangd",
+    "section": "Base configuration",
+    "text": "Base configuration\nCompileFlags:\n    CompilationDatabase: \".\"\n    Add: [\"-std=c++17\", \"-Wno-unknown-argument\"]\n    Remove:\n        [\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n        ]\nThe Remove list strips NVCC-specific flags that clang does not understand. Without this, clangd crashes or emits spurious errors on any package that links against CUDA.\n-Wno-unknown-argument suppresses the resulting unknown-flag warnings for any flags not caught by the Remove list.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#clang-tidy-checks",
+    "href": "docs/tooling/clangd.html#clang-tidy-checks",
+    "title": "C++ Tooling with clangd",
+    "section": "clang-tidy checks",
+    "text": "clang-tidy checks\nThe project runs the full clang-tidy suite (Add: [\"*\"]) with a focused suppress list. The suppressed checks fall into two categories:\nStyle preferences — rules that conflict with the project’s conventions:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ngoogle-build-*, google-readability-*\nGoogle style not used\n\n\nmodernize-use-trailing-return-type\nTrailing return types add noise for simple functions\n\n\nmodernize-use-nodiscard\nOverly noisy for internal helpers\n\n\nreadability-identifier-length\nShort names (e.g. dt, u) are idiomatic in control code\n\n\nreadability-magic-numbers, cppcoreguidelines-avoid-magic-numbers\nPhysical constants and gains are fine inline\n\n\nreadability-function-cognitive-complexity\nMPPI kernels are inherently long\n\n\n\nFalse positives in ROS 2 / robotics code:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ncppcoreguidelines-avoid-non-const-global-variables\nROS node handles and parameter servers are globals by convention\n\n\ncppcoreguidelines-pro-type-vararg\nSome ROS logging macros use varargs\n\n\ncppcoreguidelines-pro-bounds-array-to-pointer-decay\nCommon in Eigen / low-level math\n\n\ncppcoreguidelines-special-member-functions, hicpp-special-member-functions\nRule-of-five is not required for RAII wrappers with shared_ptr\n\n\nmisc-non-private-member-variables-in-classes, cppcoreguidelines-non-private-member-variables-in-classes\nParameter structs use public fields intentionally\n\n\ncppcoreguidelines-prefer-member-initializer\nConflicts with complex constructor delegation patterns\n\n\nmisc-include-cleaner\nGenerates excessive noise from transitively included ROS headers\n\n\n\nVendor-specific suites (llvmlibc-*, fuchsia-*, altera-*) are suppressed wholesale as they target entirely different platforms.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#cuda-file-handling",
+    "href": "docs/tooling/clangd.html#cuda-file-handling",
+    "title": "C++ Tooling with clangd",
+    "section": "CUDA file handling",
+    "text": "CUDA file handling\n.cu files need special treatment because compile_commands.json records the NVCC invocation, not a clang-compatible command. A conditional block remaps them to clang with CUDA-host-only parsing:\n---\nIf:\n    PathMatch: \".*\\\\.cu$\"\nCompileFlags:\n    Compiler: clang++\n    Add:\n        [\n            \"-xcuda\",\n            \"--cuda-host-only\",\n            \"--cuda-path=/usr/local/cuda\",\n            \"--cuda-gpu-arch=sm_75\",\n            \"-Wno-unknown-cuda-version\",\n            \"-ferror-limit=0\",\n        ]\n    Remove:\n        [\n            \"/usr/local/cuda-*/bin/nvcc\",\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n            \"-x\", \"cu\", \"cuda\",\n        ]\nDiagnostics:\n    Suppress:\n        - \"cuda_ovl_target\"\n        - \"redefinition\"\n        - \"constexpr_redecl_mismatch\"\n        - \"variadic_device_fn\"\n        - \"attributes_not_allowed\"\n        - \"undeclared_var_use\"\n--cuda-host-only tells clang to only parse host code, which avoids the need for a full CUDA device compiler toolchain. The Suppress list silences redefinition errors that arise from CUDA’s dual-compilation model.\nAdjust --cuda-gpu-arch to match your GPU (e.g. sm_86 for Ampere, sm_89 for Ada Lovelace).",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#placement",
+    "href": "docs/tooling/clangd.html#placement",
+    "title": "C++ Tooling with clangd",
+    "section": "Placement",
+    "text": "Placement\nPut .clangd at the workspace root (the directory that contains src/), not inside individual packages. clangd searches upward from the open file to find the nearest .clangd, so a single workspace-root file covers all packages.\nmy_ws/\n  .clangd            &lt;-- here\n  compile_commands.json\n  src/\n    uav_control/\n    px4_msgs/",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#troubleshooting",
+    "href": "docs/tooling/clangd.html#troubleshooting",
+    "title": "C++ Tooling with clangd",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\nclangd cannot find compile_commands.json\nRun a full build with compile commands export enabled:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThen confirm the file exists at the workspace root:\nls compile_commands.json\n\n\nFalse-positive #include errors after adding a new package\ncolcon build must be re-run so the new package’s headers appear in compile_commands.json. clangd will re-index automatically once the file is updated.\n\n\nclangd crashes on .cu files\nConfirm clang++ is on PATH inside the pixi environment:\npixi run which clang++\nIf missing, add clangxx (or clang) to [dependencies] in pixi.toml.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
     ]
   }
 ]

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Workspace Setup – ROS 2 + PX4 Dev Guide</title>
+<title>PX4 SITL Setup – ROS 2 + PX4 Dev Guide</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -373,7 +373,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Workspace Setup</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/sitl-setup.html">PX4 SITL Setup</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -413,13 +413,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/workspace-setup.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../docs/setup/workspace-setup.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Workspace Setup</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/sitl-setup.html" class="sidebar-item-text sidebar-link">
+  <a href="../../docs/setup/sitl-setup.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">PX4 SITL Setup</span></a>
   </div>
 </li>
@@ -511,32 +511,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#project-structure" id="toc-project-structure" class="nav-link active" data-scroll-target="#project-structure">Project structure</a></li>
-  <li><a href="#pixi.toml" id="toc-pixi.toml" class="nav-link" data-scroll-target="#pixi.toml">pixi.toml</a>
-  <ul class="collapse">
-  <li><a href="#workspace-metadata" id="toc-workspace-metadata" class="nav-link" data-scroll-target="#workspace-metadata">Workspace metadata</a></li>
-  <li><a href="#dependencies" id="toc-dependencies" class="nav-link" data-scroll-target="#dependencies">Dependencies</a></li>
-  <li><a href="#pypi-only-packages" id="toc-pypi-only-packages" class="nav-link" data-scroll-target="#pypi-only-packages">PyPI-only packages</a></li>
-  <li><a href="#activation-script" id="toc-activation-script" class="nav-link" data-scroll-target="#activation-script">Activation script</a></li>
-  </ul></li>
-  <li><a href="#workspace-activation" id="toc-workspace-activation" class="nav-link" data-scroll-target="#workspace-activation">Workspace activation</a></li>
-  <li><a href="#px4-message-definitions-submodule" id="toc-px4-message-definitions-submodule" class="nav-link" data-scroll-target="#px4-message-definitions-submodule">PX4 message definitions (submodule)</a>
-  <ul class="collapse">
-  <li><a href="#adding-the-submodule" id="toc-adding-the-submodule" class="nav-link" data-scroll-target="#adding-the-submodule">Adding the submodule</a></li>
-  <li><a href="#restoring-on-a-fresh-clone" id="toc-restoring-on-a-fresh-clone" class="nav-link" data-scroll-target="#restoring-on-a-fresh-clone">Restoring on a fresh clone</a></li>
-  <li><a href="#gitmodules-entry" id="toc-gitmodules-entry" class="nav-link" data-scroll-target="#gitmodules-entry">.gitmodules entry</a></li>
-  <li><a href="#versioned-topic-names" id="toc-versioned-topic-names" class="nav-link" data-scroll-target="#versioned-topic-names">Versioned topic names</a></li>
-  <li><a href="#diagnosing-version-mismatches" id="toc-diagnosing-version-mismatches" class="nav-link" data-scroll-target="#diagnosing-version-mismatches">Diagnosing version mismatches</a></li>
-  </ul></li>
-  <li><a href="#build-tasks" id="toc-build-tasks" class="nav-link" data-scroll-target="#build-tasks">Build tasks</a></li>
-  <li><a href="#daily-workflow" id="toc-daily-workflow" class="nav-link" data-scroll-target="#daily-workflow">Daily workflow</a></li>
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link active" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#building-px4-for-gazebo-sitl" id="toc-building-px4-for-gazebo-sitl" class="nav-link" data-scroll-target="#building-px4-for-gazebo-sitl">Building PX4 for Gazebo SITL</a></li>
+  <li><a href="#launching-sitl-standalone" id="toc-launching-sitl-standalone" class="nav-link" data-scroll-target="#launching-sitl-standalone">Launching SITL standalone</a></li>
+  <li><a href="#key-environment-variables" id="toc-key-environment-variables" class="nav-link" data-scroll-target="#key-environment-variables">Key environment variables</a></li>
+  <li><a href="#integrating-with-the-pixi-workspace" id="toc-integrating-with-the-pixi-workspace" class="nav-link" data-scroll-target="#integrating-with-the-pixi-workspace">Integrating with the pixi workspace</a></li>
+  <li><a href="#confirming-sitl-is-running" id="toc-confirming-sitl-is-running" class="nav-link" data-scroll-target="#confirming-sitl-is-running">Confirming SITL is running</a></li>
   <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
   <ul class="collapse">
-  <li><a href="#package-xxx-not-found-after-adding-a-new-ros-package" id="toc-package-xxx-not-found-after-adding-a-new-ros-package" class="nav-link" data-scroll-target="#package-xxx-not-found-after-adding-a-new-ros-package"><code>package 'xxx' not found</code> after adding a new ROS package</a></li>
-  <li><a href="#ros2-command-not-found-inside-pixi-shell" id="toc-ros2-command-not-found-inside-pixi-shell" class="nav-link" data-scroll-target="#ros2-command-not-found-inside-pixi-shell"><code>ros2: command not found</code> inside pixi shell</a></li>
-  <li><a href="#cuda-compiler-nvcc-not-found" id="toc-cuda-compiler-nvcc-not-found" class="nav-link" data-scroll-target="#cuda-compiler-nvcc-not-found">CUDA compiler (<code>nvcc</code>) not found</a></li>
-  <li><a href="#colcon-picks-up-system-python-instead-of-pixi-python" id="toc-colcon-picks-up-system-python-instead-of-pixi-python" class="nav-link" data-scroll-target="#colcon-picks-up-system-python-instead-of-pixi-python">colcon picks up system Python instead of pixi Python</a></li>
-  <li><a href="#pixi.lock-conflicts-on-git-pull" id="toc-pixi.lock-conflicts-on-git-pull" class="nav-link" data-scroll-target="#pixi.lock-conflicts-on-git-pull">pixi.lock conflicts on <code>git pull</code></a></li>
+  <li><a href="#gazebo-window-does-not-open" id="toc-gazebo-window-does-not-open" class="nav-link" data-scroll-target="#gazebo-window-does-not-open">Gazebo window does not open</a></li>
+  <li><a href="#make-px4_sitl-gz_x500-fails-with-missing-submodules" id="toc-make-px4_sitl-gz_x500-fails-with-missing-submodules" class="nav-link" data-scroll-target="#make-px4_sitl-gz_x500-fails-with-missing-submodules"><code>make px4_sitl gz_x500</code> fails with missing submodules</a></li>
+  <li><a href="#px4-exits-immediately-after-launch" id="toc-px4-exits-immediately-after-launch" class="nav-link" data-scroll-target="#px4-exits-immediately-after-launch">PX4 exits immediately after launch</a></li>
+  <li><a href="#ekf2-error-at-startup" id="toc-ekf2-error-at-startup" class="nav-link" data-scroll-target="#ekf2-error-at-startup"><code>EKF2 ERROR</code> at startup</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -545,9 +531,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Workspace Setup</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/sitl-setup.html">PX4 SITL Setup</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Workspace Setup</h1>
+<h1 class="title">PX4 SITL Setup</h1>
 </div>
 
 
@@ -564,80 +550,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using <strong>pixi</strong> as the environment and package manager.</p>
-<section id="project-structure" class="level2">
-<h2 class="anchored" data-anchor-id="project-structure">Project structure</h2>
-<pre><code>my_ros2_ws/
-+-- src/
-|   +-- my_package/             # your ROS 2 packages
-|   +-- px4_msgs/               # git submodule (PX4 message definitions)
-+-- pixi.toml                   # environment + task definitions
-+-- pixi.lock                   # committed; pins all resolved versions
-+-- activate.sh                 # sources install/setup.bash on shell entry
-+-- pyrightconfig.json          # basedpyright config (see Type Checking)
-+-- install/                    # colcon output     (gitignored)
-+-- build/                      # colcon build tree (gitignored)
-+-- log/                        # colcon logs       (gitignored)</code></pre>
+<p>This page covers how to build PX4 firmware, launch the Gazebo SITL simulator, and wire it into the pixi workspace for use with the ROS 2 integration.</p>
 <hr>
-</section>
-<section id="pixi.toml" class="level2">
-<h2 class="anchored" data-anchor-id="pixi.toml">pixi.toml</h2>
-<section id="workspace-metadata" class="level3">
-<h3 class="anchored" data-anchor-id="workspace-metadata">Workspace metadata</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[workspace]</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">name</span>     <span class="op">=</span> <span class="st">"my_ros2_ws"</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span>  <span class="op">=</span> <span class="st">"0.1.0"</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="dt">channels</span> <span class="op">=</span> <span class="op">[</span><span class="st">"robostack-jazzy"</span><span class="op">,</span> <span class="st">"conda-forge"</span><span class="op">]</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dt">platforms</span> <span class="op">=</span> <span class="op">[</span><span class="st">"linux-64"</span><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><strong>Channel order matters.</strong> <code>robostack-jazzy</code> must come <strong>before</strong> <code>conda-forge</code>. Reversing the order causes the solver to pick incompatible <code>libstdc++</code> builds and break ROS package resolution.</p>
-</div>
-</div>
-</section>
-<section id="dependencies" class="level3">
-<h3 class="anchored" data-anchor-id="dependencies">Dependencies</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[dependencies]</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># --- ROS 2 Jazzy ---</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-ros-base</span>             <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-ament-cmake</span>          <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-rclcpp</span>               <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-std-msgs</span>             <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-geometry-msgs</span>        <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-sensor-msgs</span>          <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-nav-msgs</span>             <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-tf2</span>                  <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-tf2-ros</span>              <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-tf2-geometry-msgs</span>    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-ros2launch</span>           <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-launch-ros</span>           <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-rosbag2</span>              <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-rosbag2-storage-mcap</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="dt">ros-jazzy-plotjuggler-ros</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Build tooling ---</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="dt">colcon-common-extensions</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="dt">cmake</span>                    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="dt">ninja</span>                    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="dt">compilers</span>                <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="co"># --- C++ libraries ---</span></span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="dt">eigen</span>    <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="dt">yaml-cpp</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Python ---</span></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="dt">python</span>     <span class="op">=</span> <span class="st">"&gt;=3.11"</span></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="dt">numpy</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="dt">scipy</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="dt">matplotlib</span> <span class="op">=</span> <span class="st">"*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="prerequisites" class="level2">
+<h2 class="anchored" data-anchor-id="prerequisites">Prerequisites</h2>
+<p>PX4 SITL requires a native Ubuntu build environment. The PX4 source tree is <strong>not</strong> managed inside the ROS 2 workspace — it lives separately and is built with its own toolchain.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install PX4 build dependencies (run once)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/PX4/PX4-Autopilot.git <span class="at">--recursive</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> ./Tools/setup/ubuntu.sh</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -648,196 +569,124 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><strong>GPU-accelerated nodes (optional)</strong>: add <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> under <code>[dependencies]</code> if your workspace includes CUDA nodes. The host driver must already be installed (<code>nvidia-smi</code> should report &gt;= 525 for CUDA 12).</p>
+<p><code>ubuntu.sh</code> installs system packages including <code>gcc-arm-none-eabi</code>, <code>ninja</code>, and Python dependencies. It also installs <code>gz-harmonic</code> (Gazebo) for SITL. Re-run it if a new PX4 checkout changes the required dependencies.</p>
 </div>
 </div>
-</section>
-<section id="pypi-only-packages" class="level3">
-<h3 class="anchored" data-anchor-id="pypi-only-packages">PyPI-only packages</h3>
-<p>For packages not on conda channels, use <code>[pypi-dependencies]</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[pypi-dependencies]</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">scienceplots</span> <span class="op">=</span> <span class="st">"*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="activation-script" class="level3">
-<h3 class="anchored" data-anchor-id="activation-script">Activation script</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[activation]</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="dt">scripts</span> <span class="op">=</span> <span class="op">[</span><span class="st">"activate.sh"</span><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-</section>
-<section id="workspace-activation" class="level2">
-<h2 class="anchored" data-anchor-id="workspace-activation">Workspace activation</h2>
-<p>Every time pixi launches a shell or runs a task it sources the scripts listed under <code>[activation]</code>. Use this to overlay the colcon install tree.</p>
-<p><strong><code>activate.sh</code></strong> (project root):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSTALL_DIR</span><span class="op">=</span><span class="st">"</span><span class="va">${PIXI_PROJECT_ROOT}</span><span class="st">/install"</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="ot">-f</span> <span class="st">"</span><span class="va">${INSTALL_DIR}</span><span class="st">/setup.bash"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="bu">source</span> <span class="st">"</span><span class="va">${INSTALL_DIR}</span><span class="st">/setup.bash"</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>PIXI_PROJECT_ROOT</code> is set automatically to the directory containing <code>pixi.toml</code>. The <code>if</code> guard prevents errors on a clean checkout before the first build.</p>
+<section id="building-px4-for-gazebo-sitl" class="level2">
+<h2 class="anchored" data-anchor-id="building-px4-for-gazebo-sitl">Building PX4 for Gazebo SITL</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This compiles the SITL binary and generates a Gazebo world with the x500 quadrotor model. The first build takes ~5 minutes; subsequent builds are incremental.</p>
+<p>To confirm the build succeeded:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> build/px4_sitl_default/bin/px4</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-<section id="px4-message-definitions-submodule" class="level2">
-<h2 class="anchored" data-anchor-id="px4-message-definitions-submodule">PX4 message definitions (submodule)</h2>
-<p><code>px4_msgs</code> must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.</p>
-<section id="adding-the-submodule" class="level3">
-<h3 class="anchored" data-anchor-id="adding-the-submodule">Adding the submodule</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule add <span class="at">-b</span> release/1.16 <span class="dt">\</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    https://github.com/PX4/px4_msgs.git src/px4_msgs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="restoring-on-a-fresh-clone" class="level3">
-<h3 class="anchored" data-anchor-id="restoring-on-a-fresh-clone">Restoring on a fresh clone</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone <span class="at">--recurse-submodules</span> <span class="op">&lt;</span>repo-url<span class="op">&gt;</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or, after a plain clone:</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="gitmodules-entry" class="level3">
-<h3 class="anchored" data-anchor-id="gitmodules-entry">.gitmodules entry</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[submodule "src/px4_msgs"]</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">    path   </span><span class="ot">=</span><span class="st"> src/px4_msgs</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="dt">    url    </span><span class="ot">=</span><span class="st"> https://github.com/PX4/px4_msgs.git</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="dt">    branch </span><span class="ot">=</span><span class="st"> release/1.16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Always pin <code>px4_msgs</code> to the same release branch as the PX4 firmware used for SITL (<code>release/1.14</code>, <code>release/1.15</code>, <code>release/1.16</code>, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.</p>
-</div>
-</div>
-</section>
-<section id="versioned-topic-names" class="level3">
-<h3 class="anchored" data-anchor-id="versioned-topic-names">Versioned topic names</h3>
-<p>From PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is <code>VehicleStatus</code>, which moved from:</p>
-<pre><code>/fmu/out/vehicle_status      # pre-v1.14
-/fmu/out/vehicle_status_v1   # v1.14+</code></pre>
-<p>If your subscriber listens on the wrong topic name it receives <strong>no data at all</strong> — the subscription simply never fires. Auto-arming logic that waits for <code>arming_state == ARMING_STATE_ARMED</code> blocks forever, and the vehicle never arms.</p>
-<p>The fix is to subscribe to the versioned topic:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// px4_interface.cpp / px4_manager_node.cpp</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="va">status_sub_</span> <span class="op">=</span> <span class="va">node_</span><span class="op">-&gt;</span>create_subscription<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">&gt;(</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"/fmu/out/vehicle_status_v1"</span><span class="op">,</span> qos<span class="op">,</span> callback<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Check which topics are actually being published by the running firmware:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> vehicle_status</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Use whichever name appears — it tells you exactly what the firmware is advertising.</p>
-</section>
-<section id="diagnosing-version-mismatches" class="level3">
-<h3 class="anchored" data-anchor-id="diagnosing-version-mismatches">Diagnosing version mismatches</h3>
-<p>If the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># commit that your workspace px4_msgs is pinned to</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> src/px4_msgs rev-parse HEAD</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># PX4 version string printed at SITL startup, e.g. "PX4 v1.15.2"</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co"># must correspond to the same release branch</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>To fix, update the submodule to the branch matching your firmware:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> src/px4_msgs</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout release/1.16   <span class="co"># match PX4 firmware version</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ../..</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--symlink-install</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add src/px4_msgs</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">"chore: pin px4_msgs to release/1.16"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="launching-sitl-standalone" class="level2">
+<h2 class="anchored" data-anchor-id="launching-sitl-standalone">Launching SITL standalone</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>On launch, PX4 prints its version string (<code>PX4 v1.16.x</code>) and the Gazebo window opens with the x500 model on the ground.</p>
+<p>To choose a different vehicle model:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500_depth        <span class="co"># x500 with depth camera</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500_lidar        <span class="co"># x500 with lidar</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_rc_cessna         <span class="co"># fixed-wing</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-</section>
-<section id="build-tasks" class="level2">
-<h2 class="anchored" data-anchor-id="build-tasks">Build tasks</h2>
-<p>Define all build and launch operations as pixi tasks. Every task runs inside the activated environment, so <code>ros2</code>, <code>colcon</code>, <code>cmake</code>, and <code>nvcc</code> are all on <code>PATH</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all packages with symlink install and compile commands export</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="dt">build</span> <span class="op">=</span> <span class="st">"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1"</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove all colcon output</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="dt">clean</span> <span class="op">=</span> <span class="st">"rm -rf build install log"</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Run all tests with live console output</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="dt">test</span> <span class="op">=</span> <span class="st">"colcon test --event-handlers console_direct+"</span></span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Launch control nodes only (PX4 running externally)</span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="dt">launch</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup sitl.launch.py"</span><span class="op">,</span></span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="op">           </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-sitl</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="op">                     </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">record_bag</span><span class="op">:=</span><span class="cn">false</span><span class="dt">",</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Canned trajectories</span></span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="dt">hover</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">hover</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="op"> </span><span class="dt">duration</span><span class="op">:=</span><span class="fl">90.0</span><span class="dt">",</span></span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="op">          </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="dt">lemniscate</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">lemniscate</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
-<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a><span class="op">               </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="dt">circular</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">circular</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
-<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Run any task with:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run px4-sitl</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run hover</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>depends-on</code> field guarantees the workspace is rebuilt before launching.</p>
+<section id="key-environment-variables" class="level2">
+<h2 class="anchored" data-anchor-id="key-environment-variables">Key environment variables</h2>
+<p>PX4 SITL reads several environment variables at launch. Set them before calling <code>make</code> or running the PX4 binary directly.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 32%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>PX4_GZ_MODEL</code></td>
+<td>Override the vehicle model name</td>
+<td><code>x500</code></td>
+</tr>
+<tr class="even">
+<td><code>PX4_GZ_WORLD</code></td>
+<td>Override the Gazebo world file</td>
+<td><code>default</code></td>
+</tr>
+<tr class="odd">
+<td><code>PX4_SYS_AUTOSTART</code></td>
+<td>Airframe ID (overrides the model default)</td>
+<td><code>4001</code></td>
+</tr>
+<tr class="even">
+<td><code>PX4_GZ_MODEL_POSE</code></td>
+<td>Initial spawn pose <code>x,y,z,roll,pitch,yaw</code></td>
+<td><code>0,0,0.1,0,0,0</code></td>
+</tr>
+<tr class="odd">
+<td><code>HEADLESS</code></td>
+<td>Disable the Gazebo GUI (useful on servers)</td>
+<td><code>1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Example — spawn in a custom pose without the GUI:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="va">HEADLESS</span><span class="op">=</span>1 <span class="va">PX4_GZ_MODEL_POSE</span><span class="op">=</span><span class="st">"0,0,0.5,0,0,1.57"</span> <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-<section id="daily-workflow" class="level2">
-<h2 class="anchored" data-anchor-id="daily-workflow">Daily workflow</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># After adding or updating packages in pixi.toml</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> install</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all ROS 2 packages</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run test</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Interactive shell with the full environment active</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> shell</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean rebuild</span></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run clean</span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="integrating-with-the-pixi-workspace" class="level2">
+<h2 class="anchored" data-anchor-id="integrating-with-the-pixi-workspace">Integrating with the pixi workspace</h2>
+<p>The recommended pattern is to store the path to the PX4 source tree as a pixi variable and expose it as an environment variable in the activation script.</p>
+<p><strong><code>pixi.toml</code></strong>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[workspace.variables]</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">PX4_SRC</span> <span class="op">=</span> <span class="st">"/home/user/PX4-Autopilot"</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">[activation]</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="dt">scripts</span> <span class="op">=</span> <span class="op">[</span><span class="st">"activate.sh"</span><span class="op">]</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="dt">env</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">PX4_AUTOPILOT</span><span class="op"> =</span> <span class="st">"$PX4_SRC"</span><span class="op"> }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Then the launch task can start PX4 directly:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="dt">px4</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"cd $PX4_AUTOPILOT &amp;&amp; make px4_sitl gz_x500"</span><span class="op"> }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Or launch from a Python launch file using <code>subprocess</code> inside a ROS 2 launch action (see the launch file pattern in the Package Setup page).</p>
+<hr>
+</section>
+<section id="confirming-sitl-is-running" class="level2">
+<h2 class="anchored" data-anchor-id="confirming-sitl-is-running">Confirming SITL is running</h2>
+<p>Once PX4 starts, the NuttShell prompt appears:</p>
+<pre><code>nsh&gt;</code></pre>
+<p>Check that the EKF has initialised and that the vehicle is ready:</p>
+<pre><code>nsh&gt; ekf2 status
+nsh&gt; commander status</code></pre>
+<p>In a second terminal, confirm the DDS bridge topics are visible after starting the micro-XRCE-DDS agent (see <a href="../../docs/setup/uxrce-dds-agent.html">DDS Agent Setup</a>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> fmu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 <section id="troubleshooting" class="level2">
 <h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<section id="package-xxx-not-found-after-adding-a-new-ros-package" class="level3">
-<h3 class="anchored" data-anchor-id="package-xxx-not-found-after-adding-a-new-ros-package"><code>package 'xxx' not found</code> after adding a new ROS package</h3>
-<p>The colcon install overlay is stale. Run <code>pixi run build</code>.</p>
+<section id="gazebo-window-does-not-open" class="level3">
+<h3 class="anchored" data-anchor-id="gazebo-window-does-not-open">Gazebo window does not open</h3>
+<p>The display is not forwarded. Either set <code>HEADLESS=1</code>, or on a remote machine export <code>DISPLAY=:0</code> before running SITL.</p>
 </section>
-<section id="ros2-command-not-found-inside-pixi-shell" class="level3">
-<h3 class="anchored" data-anchor-id="ros2-command-not-found-inside-pixi-shell"><code>ros2: command not found</code> inside pixi shell</h3>
-<p>The activation script did not run. Verify:</p>
-<ol type="1">
-<li><code>activate.sh</code> exists at the project root.</li>
-<li><code>pixi.toml</code> contains <code>[activation] scripts = ["activate.sh"]</code>.</li>
-<li>You entered the environment with <code>pixi shell</code> or <code>pixi run &lt;task&gt;</code>.</li>
-</ol>
+<section id="make-px4_sitl-gz_x500-fails-with-missing-submodules" class="level3">
+<h3 class="anchored" data-anchor-id="make-px4_sitl-gz_x500-fails-with-missing-submodules"><code>make px4_sitl gz_x500</code> fails with missing submodules</h3>
+<p>The PX4 repo was cloned without <code>--recursive</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="cuda-compiler-nvcc-not-found" class="level3">
-<h3 class="anchored" data-anchor-id="cuda-compiler-nvcc-not-found">CUDA compiler (<code>nvcc</code>) not found</h3>
-<p>Only needed if your workspace has GPU-accelerated nodes.</p>
-<ol type="1">
-<li>Add <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> to <code>[dependencies]</code> in <code>pixi.toml</code>.</li>
-<li>Run <code>pixi install</code> to fetch it.</li>
-<li>Inside <code>pixi shell</code>, <code>which nvcc</code> should resolve to <code>.pixi/envs/default/bin/nvcc</code>.</li>
-</ol>
+<section id="px4-exits-immediately-after-launch" class="level3">
+<h3 class="anchored" data-anchor-id="px4-exits-immediately-after-launch">PX4 exits immediately after launch</h3>
+<p>Lockstep mode is waiting for a Gazebo clock. Ensure Gazebo is running — the <code>gz_x500</code> target launches both. If you are running the PX4 binary directly (without <code>make</code>), launch Gazebo first.</p>
 </section>
-<section id="colcon-picks-up-system-python-instead-of-pixi-python" class="level3">
-<h3 class="anchored" data-anchor-id="colcon-picks-up-system-python-instead-of-pixi-python">colcon picks up system Python instead of pixi Python</h3>
-<p>pixi prepends its environment to <code>PATH</code>, but a stale shell may still resolve system Python. Exit and re-enter with <code>pixi shell</code>.</p>
-</section>
-<section id="pixi.lock-conflicts-on-git-pull" class="level3">
-<h3 class="anchored" data-anchor-id="pixi.lock-conflicts-on-git-pull">pixi.lock conflicts on <code>git pull</code></h3>
-<p><code>pixi.lock</code> is a committed file. If it conflicts, accept the incoming version and run <code>pixi install</code> to re-sync your local environment.</p>
+<section id="ekf2-error-at-startup" class="level3">
+<h3 class="anchored" data-anchor-id="ekf2-error-at-startup"><code>EKF2 ERROR</code> at startup</h3>
+<p>Normal on the first few seconds while sensors initialise. If it persists past ~10 s the IMU or barometer simulation is misconfigured — check that <code>gz-harmonic</code> is installed and that the Gazebo sensors plugin loaded without errors in the terminal output.</p>
 
 
 </section>
