@@ -48,411 +48,87 @@
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html",
-    "href": "docs/tooling/basedpyright.html",
-    "title": "Type Checking with basedpyright",
+    "objectID": "docs/tooling/clangd.html",
+    "href": "docs/tooling/clangd.html",
+    "title": "C++ Tooling with clangd",
     "section": "",
-    "text": "This guide covers how to configure basedpyright for a ROS 2 workspace managed with pixi. basedpyright is a stricter fork of pyright with better defaults and improved error messages.",
+    "text": "This guide covers the .clangd configuration used across uav_control and related ROS 2 C++ packages. The setup gives accurate clangd completions and clang-tidy diagnostics inside a colcon workspace without false positives from GPU or ROS-specific compiler flags.",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#why-basedpyright",
-    "href": "docs/tooling/basedpyright.html#why-basedpyright",
-    "title": "Type Checking with basedpyright",
-    "section": "Why basedpyright",
-    "text": "Why basedpyright\nStandard pyright works fine for general Python, but ROS 2 introduces friction:\n\nrclpy, px4_msgs, and most ROS packages ship no type stubs.\nGenerated message classes have loose constructors that trigger false-positive argument-type errors.\nThe install tree lives in install/ (a colcon artifact), not in the standard site-packages location.\n\nbasedpyright provides more granular per-rule configuration so you can silence ROS-specific false positives while still catching real errors in your own code.",
+    "objectID": "docs/tooling/clangd.html#how-clangd-finds-headers",
+    "href": "docs/tooling/clangd.html#how-clangd-finds-headers",
+    "title": "C++ Tooling with clangd",
+    "section": "How clangd finds headers",
+    "text": "How clangd finds headers\nclangd reads compile_commands.json to know which flags were used to build each translation unit. colcon generates this file at the workspace root when you pass --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThe .clangd file then tells clangd where to look:\nCompileFlags:\n    CompilationDatabase: \".\"\n\".\" resolves to the directory containing .clangd, which should be the workspace root (the directory that contains src/, build/, install/).",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#installation",
-    "href": "docs/tooling/basedpyright.html#installation",
-    "title": "Type Checking with basedpyright",
-    "section": "Installation",
-    "text": "Installation\n\nInside the pixi environment (recommended)\nAdd basedpyright to a dev feature so it is not bundled into production builds:\n# pixi.toml\n[feature.dev.pypi-dependencies]\nbasedpyright = \"*\"\n\n[environments]\ndev = { features = [\"dev\"], solve-group = \"default\" }\nInstall and run:\npixi install -e dev\npixi run -e dev basedpyright src/\n\n\nGlobal install (for the LSP / editor)\n# via pip\npip install basedpyright\n\n# via npm (also installs the language server)\nnpm install -g basedpyright\nThe VSCode extension is basedpyright (detachhead.basedpyright). Do not mix an npm install with the VSCode extension – let the extension manage its own binary.",
+    "objectID": "docs/tooling/clangd.html#base-configuration",
+    "href": "docs/tooling/clangd.html#base-configuration",
+    "title": "C++ Tooling with clangd",
+    "section": "Base configuration",
+    "text": "Base configuration\nCompileFlags:\n    CompilationDatabase: \".\"\n    Add: [\"-std=c++17\", \"-Wno-unknown-argument\"]\n    Remove:\n        [\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n        ]\nThe Remove list strips NVCC-specific flags that clang does not understand. Without this, clangd crashes or emits spurious errors on any package that links against CUDA.\n-Wno-unknown-argument suppresses the resulting unknown-flag warnings for any flags not caught by the Remove list.",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#pyrightconfig.json",
-    "href": "docs/tooling/basedpyright.html#pyrightconfig.json",
-    "title": "Type Checking with basedpyright",
-    "section": "pyrightconfig.json",
-    "text": "pyrightconfig.json\nPlace pyrightconfig.json at the workspace root (same directory as pixi.toml).\n{\n  \"typeCheckingMode\": \"basic\",\n  \"pythonVersion\": \"3.11\",\n  \"pythonPlatform\": \"Linux\",\n\n  \"include\": [\"src\"],\n  \"exclude\": [\n    \"**/node_modules\",\n    \"**/__pycache__\",\n    \"**/.*\",\n    \"build\",\n    \"install\",\n    \"log\"\n  ],\n\n  \"reportMissingImports\": true,\n  \"reportMissingTypeStubs\": false,\n\n  \"reportUnusedImport\": true,\n  \"reportUnusedVariable\": true,\n\n  \"reportGeneralTypeIssues\": true,\n  \"reportOptionalMemberAccess\": true,\n  \"reportOptionalSubscript\": true,\n  \"reportOptionalOperand\": true,\n  \"reportOptionalIterable\": true,\n  \"reportOptionalContextManager\": true,\n  \"reportOptionalCallOperand\": true,\n\n  \"reportArgumentType\": false\n}\n\nSettings explained\n\n\n\n\n\n\n\n\nSetting\nValue\nReason\n\n\n\n\ntypeCheckingMode\n\"basic\"\nAvoids false positives from untyped ROS packages. Upgrade to \"standard\" once stubs improve.\n\n\npythonVersion\n\"3.11\"\nMust match the Python version in pixi.toml.\n\n\ninclude\n[\"src\"]\nOnly analyse your packages; ignore colcon build artefacts.\n\n\nexclude\nbuild, install, log\nColcon output contains generated C-extension stubs that confuse the checker.\n\n\nreportMissingTypeStubs\nfalse\nrclpy, px4_msgs, and most ROS packages have no .pyi stubs.\n\n\nreportArgumentType\nfalse\nGenerated message classes have loose __init__ signatures that produce spurious errors.",
+    "objectID": "docs/tooling/clangd.html#clang-tidy-checks",
+    "href": "docs/tooling/clangd.html#clang-tidy-checks",
+    "title": "C++ Tooling with clangd",
+    "section": "clang-tidy checks",
+    "text": "clang-tidy checks\nThe project runs the full clang-tidy suite (Add: [\"*\"]) with a focused suppress list. The suppressed checks fall into two categories:\nStyle preferences — rules that conflict with the project’s conventions:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ngoogle-build-*, google-readability-*\nGoogle style not used\n\n\nmodernize-use-trailing-return-type\nTrailing return types add noise for simple functions\n\n\nmodernize-use-nodiscard\nOverly noisy for internal helpers\n\n\nreadability-identifier-length\nShort names (e.g. dt, u) are idiomatic in control code\n\n\nreadability-magic-numbers, cppcoreguidelines-avoid-magic-numbers\nPhysical constants and gains are fine inline\n\n\nreadability-function-cognitive-complexity\nMPPI kernels are inherently long\n\n\n\nFalse positives in ROS 2 / robotics code:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ncppcoreguidelines-avoid-non-const-global-variables\nROS node handles and parameter servers are globals by convention\n\n\ncppcoreguidelines-pro-type-vararg\nSome ROS logging macros use varargs\n\n\ncppcoreguidelines-pro-bounds-array-to-pointer-decay\nCommon in Eigen / low-level math\n\n\ncppcoreguidelines-special-member-functions, hicpp-special-member-functions\nRule-of-five is not required for RAII wrappers with shared_ptr\n\n\nmisc-non-private-member-variables-in-classes, cppcoreguidelines-non-private-member-variables-in-classes\nParameter structs use public fields intentionally\n\n\ncppcoreguidelines-prefer-member-initializer\nConflicts with complex constructor delegation patterns\n\n\nmisc-include-cleaner\nGenerates excessive noise from transitively included ROS headers\n\n\n\nVendor-specific suites (llvmlibc-*, fuchsia-*, altera-*) are suppressed wholesale as they target entirely different platforms.",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
-    "href": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
-    "title": "Type Checking with basedpyright",
-    "section": "Pointing basedpyright at the pixi environment",
-    "text": "Pointing basedpyright at the pixi environment\nbasedpyright must resolve imports from the pixi environment, not system Python.\n\nOption A – venvPath (recommended)\n{\n  \"venvPath\": \".\",\n  \"venv\": \".pixi/envs/default\"\n}\nThis tells basedpyright to look for the virtual environment at .pixi/envs/default relative to the project root.\n\n\nOption B – pythonPath\n{\n  \"pythonPath\": \".pixi/envs/default/bin/python\"\n}\nUse this if venvPath does not correctly resolve stubs.\n\n\n\n\n\n\nTip\n\n\n\nVerify interpreter resolution:\nbasedpyright --outputjson src/ 2&gt;&1 | python -m json.tool | grep pythonPath",
+    "objectID": "docs/tooling/clangd.html#cuda-file-handling",
+    "href": "docs/tooling/clangd.html#cuda-file-handling",
+    "title": "C++ Tooling with clangd",
+    "section": "CUDA file handling",
+    "text": "CUDA file handling\n.cu files need special treatment because compile_commands.json records the NVCC invocation, not a clang-compatible command. A conditional block remaps them to clang with CUDA-host-only parsing:\n---\nIf:\n    PathMatch: \".*\\\\.cu$\"\nCompileFlags:\n    Compiler: clang++\n    Add:\n        [\n            \"-xcuda\",\n            \"--cuda-host-only\",\n            \"--cuda-path=/usr/local/cuda\",\n            \"--cuda-gpu-arch=sm_75\",\n            \"-Wno-unknown-cuda-version\",\n            \"-ferror-limit=0\",\n        ]\n    Remove:\n        [\n            \"/usr/local/cuda-*/bin/nvcc\",\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n            \"-x\", \"cu\", \"cuda\",\n        ]\nDiagnostics:\n    Suppress:\n        - \"cuda_ovl_target\"\n        - \"redefinition\"\n        - \"constexpr_redecl_mismatch\"\n        - \"variadic_device_fn\"\n        - \"attributes_not_allowed\"\n        - \"undeclared_var_use\"\n--cuda-host-only tells clang to only parse host code, which avoids the need for a full CUDA device compiler toolchain. The Suppress list silences redefinition errors that arise from CUDA’s dual-compilation model.\nAdjust --cuda-gpu-arch to match your GPU (e.g. sm_86 for Ampere, sm_89 for Ada Lovelace).",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#ros-2-specific-notes",
-    "href": "docs/tooling/basedpyright.html#ros-2-specific-notes",
-    "title": "Type Checking with basedpyright",
-    "section": "ROS 2-specific notes",
-    "text": "ROS 2-specific notes\n\nrclpy stubs\nrclpy has partial stubs on PyPI. They are often outdated but reduce reportMissingTypeStubs noise:\n[feature.dev.pypi-dependencies]\nrclpy-stubs = \"*\"\nAlternatively, generate stubs from the installed package:\n# inside pixi shell\nstubgen -p rclpy -o typestubs/\nThen register the stub path in pyrightconfig.json:\n{\n  \"stubPath\": \"typestubs\"\n}\n\n\npx4_msgs\npx4_msgs is a C extension built by colcon. After building, point basedpyright to its install location:\n{\n  \"extraPaths\": [\n    \"install/px4_msgs/lib/python3.11/site-packages\"\n  ]\n}\nIf you used venvPath above and the pixi activation already sourced install/setup.bash, this may not be necessary.\n\n\nLaunch files\nROS 2 launch files (.launch.py) use dynamic LaunchArgument substitutions that cannot be statically analysed. Suppress errors per-file:\n# pyright: reportGeneralTypeIssues=false",
+    "objectID": "docs/tooling/clangd.html#placement",
+    "href": "docs/tooling/clangd.html#placement",
+    "title": "C++ Tooling with clangd",
+    "section": "Placement",
+    "text": "Placement\nPut .clangd at the workspace root (the directory that contains src/), not inside individual packages. clangd searches upward from the open file to find the nearest .clangd, so a single workspace-root file covers all packages.\nmy_ws/\n  .clangd            &lt;-- here\n  compile_commands.json\n  src/\n    uav_control/\n    px4_msgs/",
     "crumbs": [
       "Home",
       "Tooling",
-      "Type Checking with basedpyright"
+      "C++ Tooling with clangd"
     ]
   },
   {
-    "objectID": "docs/tooling/basedpyright.html#vscode-integration",
-    "href": "docs/tooling/basedpyright.html#vscode-integration",
-    "title": "Type Checking with basedpyright",
-    "section": "VSCode integration",
-    "text": "VSCode integration\nAdd to .vscode/settings.json:\n{\n  \"python.defaultInterpreterPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.pythonPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.disableOrganizeImports\": false\n}\npython.defaultInterpreterPath ensures the VSCode Python extension, IntelliSense, and basedpyright all share the same pixi interpreter.",
-    "crumbs": [
-      "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
-    ]
-  },
-  {
-    "objectID": "docs/tooling/basedpyright.html#running-from-the-cli",
-    "href": "docs/tooling/basedpyright.html#running-from-the-cli",
-    "title": "Type Checking with basedpyright",
-    "section": "Running from the CLI",
-    "text": "Running from the CLI\n# Check all packages under src/\npixi run -e dev basedpyright src/\n\n# Check a single package\npixi run -e dev basedpyright src/my_package/\n\n# JSON output for CI\npixi run -e dev basedpyright --outputjson src/ &gt; typecheck.json",
-    "crumbs": [
-      "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
-    ]
-  },
-  {
-    "objectID": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
-    "href": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
-    "title": "Type Checking with basedpyright",
-    "section": "Incrementally tightening type checking",
-    "text": "Incrementally tightening type checking\nStart at \"basic\" to suppress ROS-stub noise. Tighten per-package as you add type annotations or as upstream stubs improve.\nbasic  -&gt;  standard  -&gt;  strict  -&gt;  all\nTo apply stricter checking to a specific file, add a comment at the top:\n# pyright: standard\nTo apply it to an entire subtree, add a nested pyrightconfig.json in that subdirectory with only the overridden key:\n{\n  \"typeCheckingMode\": \"standard\"\n}\nThe root pyrightconfig.json still governs everything else.",
-    "crumbs": [
-      "Home",
-      "Tooling",
-      "Type Checking with basedpyright"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html",
-    "href": "docs/control/control-allocation.html",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "",
-    "text": "Control allocation is the mapping from a desired wrench \\([\\tau_x,\\, \\tau_y,\\, \\tau_z,\\, T]^\\top\\) to individual motor throttles \\(\\delta_i \\in [0, 1]\\). For an X-frame quadrotor it is a \\(4 \\times 4\\) linear map followed by a square-root and an affine throttle scaling.\nThe implementation lives in motor_allocator.hpp inside uav_control.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
-    "href": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Motor layout (x500 SITL, top view, NED)",
-    "text": "Motor layout (x500 SITL, top view, NED)\n        x (North)\n        ^\n   FL(2)   FR(0)\n       \\\\ /\n        X\n       / \\\\\n   RL(1)   RR(3)\n\nSpin directions (viewed from above):\n  FR(0): CCW    RL(1): CCW    FL(2): CW    RR(3): CW\nMotor indices 0–3 map directly to ActuatorMotors.control[0..3]. Slots 4–11 must be NaN for a 4-motor vehicle.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#forward-model",
-    "href": "docs/control/control-allocation.html#forward-model",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Forward model",
-    "text": "Forward model\nEach motor \\(i\\) spinning at \\(\\omega_i\\) [rad/s] produces a thrust \\(f_i = k_T \\omega_i^2\\) and a reaction torque \\(m_i = k_m \\omega_i^2\\) where \\(k_m = k_{M,\\text{ratio}} \\cdot k_T\\).\nThe wrench assembled on the body is:\n\\[\n\\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n= \\mathbf{A}\\,\\boldsymbol{\\omega}^2,\n\\qquad\n\\mathbf{A} = \\mathrm{diag}(k_T L,\\; k_T L,\\; k_m,\\; k_T)\\; \\mathbf{B}\n\\]\nwhere \\(L\\) is the arm length and \\(\\mathbf{B}\\) encodes the geometry and spin directions:\n\\[\n\\mathbf{B} = \\begin{pmatrix}\n-k_s &  k_s &  k_s & -k_s \\\\\nk_s & -k_s &  k_s & -k_s \\\\\n    1 &    1 &   -1 &   -1 \\\\\n    1 &    1 &    1 &    1\n\\end{pmatrix},\n\\qquad k_s = \\sin 45^\\circ = \\frac{\\sqrt{2}}{2}\n\\]\nColumn order: FR(0), RL(1), FL(2), RR(3).\n\nRow-by-row interpretation\n\n\n\n\n\n\n\n\n\nRow\nWrench\nSign pattern\nReason\n\n\n\n\n1\n\\(\\tau_x\\) (roll)\nFR,RR negative; RL,FL positive\nRight motors are on the \\(+y\\) side; spinning them faster rolls right (negative roll)\n\n\n2\n\\(\\tau_y\\) (pitch)\nRL,RR negative; FR,FL positive\nFront motors are on the \\(+x\\) side\n\n\n3\n\\(\\tau_z\\) (yaw)\nFR,RL positive; FL,RR negative\nCCW motors produce positive reaction torque on body\n\n\n4\n\\(T\\) (thrust)\nall positive\nAll motors contribute thrust",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#inverse-wrench---throttles",
-    "href": "docs/control/control-allocation.html#inverse-wrench---throttles",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Inverse: wrench -> throttles",
-    "text": "Inverse: wrench -&gt; throttles\nThe allocation inversion uses the Moore-Penrose pseudoinverse:\n\\[\n\\boldsymbol{\\omega}^2 = \\mathbf{A}^+ \\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n\\]\nSince \\(\\mathbf{A}\\) is square and full rank for a standard quadrotor, \\(\\mathbf{A}^+\n= \\mathbf{A}^{-1}\\).\nRotor speeds are then converted to throttles via:\n\\[\n\\omega_i = \\sqrt{\\max(0,\\; \\omega_i^2)}, \\qquad\n\\delta_i = \\mathrm{clip}\\!\\left(\\frac{\\omega_i - \\omega_\\min}{\\omega_\\max - \\omega_\\min},\\; 0,\\; 1\\right)\n\\]\nThe \\(\\max(0,\\cdot)\\) before the square root prevents NaN from small negative values due to numerical noise.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#c-implementation",
-    "href": "docs/control/control-allocation.html#c-implementation",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "C++ implementation",
-    "text": "C++ implementation\n/* motor_allocator.hpp */\nstruct MotorAllocatorConfig {\n    double arm_length = 0.25;       // m\n    double k_T        = 8.54858e-6; // N/(rad/s)^2\n    double k_M_ratio  = 0.019;      // k_m = k_M_ratio * k_T\n    double omega_max  = 1047.2;     // rad/s\n    double omega_min  = 150.0;      // rad/s\n};\n\nclass MotorAllocator {\npublic:\n    void initialize(const MotorAllocatorConfig& cfg) {\n        cfg_ = cfg;\n        build_inverse();\n    }\n\n    std::array&lt;float, 12&gt; allocate(double T, const Eigen::Vector3d& tau) const {\n        Eigen::Vector4d wrench(tau(0), tau(1), tau(2), T);\n        Eigen::Vector4d omega_sq = inv_ * wrench;\n\n        std::array&lt;float, 12&gt; result;\n        double range = cfg_.omega_max - cfg_.omega_min;\n        for (int i = 0; i &lt; 4; ++i) {\n            double w = std::sqrt(std::max(0.0, omega_sq(i)));\n            result[i] = static_cast&lt;float&gt;(std::clamp(\n                (w - cfg_.omega_min) / range, 0.0, 1.0));\n        }\n        for (int i = 4; i &lt; 12; ++i)\n            result[i] = std::nanf(\"1\");   // unused slots must be NaN\n        return result;\n    }\n\nprivate:\n    void build_inverse() {\n        const double kS = std::sin(M_PI / 4.0);\n        double kt = cfg_.k_T,  km = cfg_.k_M_ratio * kt,  L = cfg_.arm_length;\n\n        Eigen::Matrix4d B;\n        B &lt;&lt; -kS,  kS,  kS, -kS,\n               kS, -kS,  kS, -kS,\n                1,   1,  -1,  -1,\n                1,   1,   1,   1;\n\n        Eigen::Vector4d k(kt * L, kt * L, km, kt);\n        Eigen::Matrix4d A = k.asDiagonal() * B;\n        inv_ = A.completeOrthogonalDecomposition().pseudoInverse();\n    }\n\n    MotorAllocatorConfig cfg_;\n    Eigen::Matrix4d inv_;\n};\nThe matrix is built once at initialization; allocate is called at 100 Hz in the control loop.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#publishing-to-px4",
-    "href": "docs/control/control-allocation.html#publishing-to-px4",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Publishing to PX4",
-    "text": "Publishing to PX4\nauto msg = std::make_unique&lt;px4_msgs::msg::ActuatorMotors&gt;();\nmsg-&gt;timestamp        = px4_timestamp_us;\nmsg-&gt;timestamp_sample = px4_timestamp_us;\nmsg-&gt;reversible_flags = 0;\nfor (int i = 0; i &lt; 12; ++i)\n    msg-&gt;control[i] = motors[i];\nmotor_pub_-&gt;publish(std::move(msg));\n\n\n\n\n\n\nWarning\n\n\n\nPX4 requires a continuous ActuatorMotors stream from the moment offboard mode is entered. If the stream stops, PX4 exits offboard mode. Publish zeros while waiting for all sensor inputs to be ready — do not skip the publish call.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#parameters-x500-defaults",
-    "href": "docs/control/control-allocation.html#parameters-x500-defaults",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Parameters (x500 defaults)",
-    "text": "Parameters (x500 defaults)\n\n\n\nParameter\nValue\nDescription\n\n\n\n\narm_length\n0.25 m\nCentre-to-motor distance\n\n\nk_T\n8.54858e-6 N/(rad/s)^2\nThrust coefficient\n\n\nk_M_ratio\n0.019\nMoment-to-thrust ratio\n\n\nomega_max\n1047.2 rad/s\nMax rotor speed (~10 000 RPM)\n\n\nomega_min\n150.0 rad/s\nMin rotor speed (idle)\n\n\n\nomega_max and omega_min correspond to SIM_GZ_EC_MAX and SIM_GZ_EC_MIN in PX4’s SITL parameters.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
-    "href": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
-    "title": "Control Allocation: Wrench to Motor Throttles",
-    "section": "Python reference (mixing matrix test)",
-    "text": "Python reference (mixing matrix test)\nThe scripts/test_mixing.py script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.\npython3 scripts/test_mixing.py",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Control Allocation: Wrench to Motor Throttles"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html",
-    "href": "docs/setup/workspace-setup.html",
-    "title": "Workspace Setup",
-    "section": "",
-    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#project-structure",
-    "href": "docs/setup/workspace-setup.html#project-structure",
-    "title": "Workspace Setup",
-    "section": "Project structure",
-    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
-    "href": "docs/setup/workspace-setup.html#pixi.toml",
-    "title": "Workspace Setup",
-    "section": "pixi.toml",
-    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
-    "href": "docs/setup/workspace-setup.html#workspace-activation",
-    "title": "Workspace Setup",
-    "section": "Workspace activation",
-    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "title": "Workspace Setup",
-    "section": "PX4 message definitions (submodule)",
-    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.\n\n\n\n\nVersioned topic names\nFrom PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is VehicleStatus, which moved from:\n/fmu/out/vehicle_status      # pre-v1.14\n/fmu/out/vehicle_status_v1   # v1.14+\nIf your subscriber listens on the wrong topic name it receives no data at all — the subscription simply never fires. Auto-arming logic that waits for arming_state == ARMING_STATE_ARMED blocks forever, and the vehicle never arms.\nThe fix is to subscribe to the versioned topic:\n// px4_interface.cpp / px4_manager_node.cpp\nstatus_sub_ = node_-&gt;create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos, callback);\nCheck which topics are actually being published by the running firmware:\nros2 topic list | grep vehicle_status\nUse whichever name appears — it tells you exactly what the firmware is advertising.\n\n\nDiagnosing version mismatches\nIf the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:\n# commit that your workspace px4_msgs is pinned to\ngit -C src/px4_msgs rev-parse HEAD\n\n# PX4 version string printed at SITL startup, e.g. \"PX4 v1.15.2\"\n# must correspond to the same release branch\nTo fix, update the submodule to the branch matching your firmware:\ncd src/px4_msgs\ngit fetch\ngit checkout release/1.16   # match PX4 firmware version\ncd ../..\ncolcon build --symlink-install\ngit add src/px4_msgs\ngit commit -m \"chore: pin px4_msgs to release/1.16\"",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#build-tasks",
-    "href": "docs/setup/workspace-setup.html#build-tasks",
-    "title": "Workspace Setup",
-    "section": "Build tasks",
-    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
-    "href": "docs/setup/workspace-setup.html#daily-workflow",
-    "title": "Workspace Setup",
-    "section": "Daily workflow",
-    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
-    "href": "docs/setup/workspace-setup.html#troubleshooting",
-    "title": "Workspace Setup",
+    "objectID": "docs/tooling/clangd.html#troubleshooting",
+    "href": "docs/tooling/clangd.html#troubleshooting",
+    "title": "C++ Tooling with clangd",
     "section": "Troubleshooting",
-    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "text": "Troubleshooting\n\nclangd cannot find compile_commands.json\nRun a full build with compile commands export enabled:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThen confirm the file exists at the workspace root:\nls compile_commands.json\n\n\nFalse-positive #include errors after adding a new package\ncolcon build must be re-run so the new package’s headers appear in compile_commands.json. clangd will re-index automatically once the file is updated.\n\n\nclangd crashes on .cu files\nConfirm clang++ is on PATH inside the pixi environment:\npixi run which clang++\nIf missing, add clangxx (or clang) to [dependencies] in pixi.toml.",
     "crumbs": [
       "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html",
-    "href": "docs/control/frame-conventions.html",
-    "title": "Frame Conventions",
-    "section": "",
-    "text": "PX4 and ROS 2 use different coordinate frames. Every quantity exchanged over uXRCE-DDS must be converted at the boundary. This page defines the frames, the conversion rules, and the C++ implementations used in uav_control.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#frame-definitions",
-    "href": "docs/control/frame-conventions.html#frame-definitions",
-    "title": "Frame Conventions",
-    "section": "Frame definitions",
-    "text": "Frame definitions\n\n\n\n\n\n\n\n\n\n\n\nFrame\nName\nX\nY\nZ\nUsed by\n\n\n\n\nWorld inertial\nNED\nNorth\nEast\nDown\nPX4 internally, VehicleLocalPosition, VehicleOdometry\n\n\nBody\nFRD\nForward\nRight\nDown\nPX4 body-frame quantities (VehicleAngularVelocity, torque/thrust setpoints)\n\n\nWorld inertial\nENU\nEast\nNorth\nUp\nROS 2 convention, RViz, nav_msgs\n\n\nBody\nFLU\nForward\nLeft\nUp\nROS 2 geometry_msgs, most controllers\n\n\n\n\n\n\n\n\n\nNote\n\n\n\nPX4 VehicleOdometry reports position in NED and velocity in FRD. Angular velocity (VehicleAngularVelocity) is in FRD. Attitude quaternion (VehicleAttitude) expresses the rotation from FRD to NED.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#vector-conversions",
-    "href": "docs/control/frame-conventions.html#vector-conversions",
-    "title": "Frame Conventions",
-    "section": "Vector conversions",
-    "text": "Vector conversions\n\nNED &lt;-&gt; ENU\nThe axes permute as: \\(x_\\text{ENU} = y_\\text{NED}\\), \\(y_\\text{ENU} = x_\\text{NED}\\), \\(z_\\text{ENU} = -z_\\text{NED}\\).\nThe same relation holds in reverse (the transform is its own inverse):\n\\[\n\\begin{pmatrix} x \\\\ y \\\\ z \\end{pmatrix}_\\text{NED}\n= \\begin{pmatrix} y \\\\ x \\\\ -z \\end{pmatrix}_\\text{ENU}\n\\]\ninline Eigen::Vector3d ned_to_enu(const Eigen::Vector3d& v) {\n    return {v.y(), v.x(), -v.z()};\n}\n// enu_to_ned is identical (the mapping is its own inverse)\n\n\nFRD &lt;-&gt; FLU\nOnly the lateral and vertical axes flip: \\(y_\\text{FLU} = -y_\\text{FRD}\\), \\(z_\\text{FLU} = -z_\\text{FRD}\\).\n\\[\n\\begin{pmatrix} x \\\\ y \\\\ z \\end{pmatrix}_\\text{FLU}\n= \\begin{pmatrix} x \\\\ -y \\\\ -z \\end{pmatrix}_\\text{FRD}\n\\]\ninline Eigen::Vector3d frd_to_flu(const Eigen::Vector3d& v) {\n    return {v.x(), -v.y(), -v.z()};\n}\n// flu_to_frd is identical",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#quaternion-conversion-enuflu---nedfrd",
-    "href": "docs/control/frame-conventions.html#quaternion-conversion-enuflu---nedfrd",
-    "title": "Frame Conventions",
-    "section": "Quaternion conversion (ENU/FLU <-> NED/FRD)",
-    "text": "Quaternion conversion (ENU/FLU &lt;-&gt; NED/FRD)\nConverting a quaternion requires two rotations applied in sequence:\n\nNED_ENU_Q — rotates the world frame: \\(R_z(\\pi/2) \\cdot R_x(\\pi)\\)\nAIRCRAFT_BASELINK_Q — rotates the body frame: \\(R_x(\\pi)\\)\n\ninline Eigen::Quaterniond enu_flu_to_ned_frd(const Eigen::Quaterniond& q) {\n    // World-frame rotation: 90 deg yaw + 180 deg roll (ENU &lt;-&gt; NED)\n    const Eigen::Quaterniond NED_ENU_Q =\n        Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()) *\n        Eigen::AngleAxisd(M_PI,   Eigen::Vector3d::UnitX());\n\n    // Body-frame rotation: 180 deg roll (FLU &lt;-&gt; FRD)\n    const Eigen::Quaterniond AIRCRAFT_BASELINK_Q =\n        Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());\n\n    return (NED_ENU_Q * q) * AIRCRAFT_BASELINK_Q;\n}\n// ned_frd_to_enu_flu: same function (the combined rotation is its own inverse)\n\n\n\n\n\n\nWarning\n\n\n\nVehicleAttitude.q is stored as Hamilton [w, x, y, z] — not [x, y, z, w]. Match the Eigen constructor argument order accordingly: Eigen::Quaterniond q(msg-&gt;q[0], msg-&gt;q[1], msg-&gt;q[2], msg-&gt;q[3]).",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#parsing-vehicleodometry",
-    "href": "docs/control/frame-conventions.html#parsing-vehicleodometry",
-    "title": "Frame Conventions",
-    "section": "Parsing VehicleOdometry",
-    "text": "Parsing VehicleOdometry\nVehicleOdometry delivers all quantities in PX4 frames. Convert everything to ENU/FLU before passing to a ROS-convention controller:\nvoid parse_odometry(\n    const px4_msgs::msg::VehicleOdometry& msg,\n    Eigen::Vector3d& pos_enu,\n    Eigen::Quaterniond& att_enu_flu,\n    Eigen::Vector3d& vel_enu,\n    Eigen::Vector3d& omega_flu)\n{\n    // position: NED -&gt; ENU\n    pos_enu = ned_to_enu({msg.position[0], msg.position[1], msg.position[2]});\n\n    // attitude: NED/FRD -&gt; ENU/FLU\n    Eigen::Quaterniond q_ned_frd(msg.q[0], msg.q[1], msg.q[2], msg.q[3]);\n    att_enu_flu = ned_frd_to_enu_flu(q_ned_frd);\n\n    // velocity: NED -&gt; ENU\n    vel_enu = ned_to_enu({msg.velocity[0], msg.velocity[1], msg.velocity[2]});\n\n    // angular velocity: FRD -&gt; FLU\n    omega_flu = frd_to_flu({msg.angular_velocity[0],\n                            msg.angular_velocity[1],\n                            msg.angular_velocity[2]});\n}\nNote: VehicleAngularVelocity (from /fmu/out/vehicle_angular_velocity) also delivers in FRD — apply frd_to_flu the same way.",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#publishing-setpoints-controller---px4",
-    "href": "docs/control/frame-conventions.html#publishing-setpoints-controller---px4",
-    "title": "Frame Conventions",
-    "section": "Publishing setpoints (controller -> PX4)",
-    "text": "Publishing setpoints (controller -&gt; PX4)\nSetpoints go in the opposite direction: convert from controller ENU/FLU to PX4 NED/FRD before publishing.\n\nThrust (scalar)\nThrust is a scalar magnitude in the controller. PX4 expects it as a negative z component in the body-NED frame (down is positive):\nthrust_msg.xyz[2] = -collective_thrust;   // always negative\n\n\nTorque vector\nEigen::Vector3d tau_frd = flu_to_frd(tau_flu);\ntorque_msg.xyz[0] = tau_frd.x();\ntorque_msg.xyz[1] = tau_frd.y();\ntorque_msg.xyz[2] = tau_frd.z();\n\n\nAttitude quaternion\nEigen::Quaterniond q_ned_frd = enu_flu_to_ned_frd(q_desired);\natt_msg.q_d[0] = q_ned_frd.w();\natt_msg.q_d[1] = q_ned_frd.x();\natt_msg.q_d[2] = q_ned_frd.y();\natt_msg.q_d[3] = q_ned_frd.z();\n\n\nTrajectory setpoint (position/velocity, NED)\nTrajectorySetpoint positions and velocities are in NED:\ntraj_msg.position = {pos_ned.x(), pos_ned.y(), pos_ned.z()};\ntraj_msg.velocity = {vel_ned.x(), vel_ned.y(), vel_ned.z()};\ntraj_msg.yaw = yaw_ned;   // measured CW from North\nConvert from ENU before filling: pos_ned = enu_to_ned(pos_enu).",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#altitude-sign",
-    "href": "docs/control/frame-conventions.html#altitude-sign",
-    "title": "Frame Conventions",
-    "section": "Altitude sign",
-    "text": "Altitude sign\nIn NED, altitude increases downward (z is positive down). A drone hovering 2 m above the ground has \\(z \\approx -2\\). This affects trajectory setpoints, height checks, and obstacle bounds:\n// NED: negative z = above ground\nconstexpr float TAKEOFF_ALT_NED = -5.0f;   // 5 m above ground\n\n// ENU (RViz / nav_msgs): positive z = above ground\nconstexpr float TAKEOFF_ALT_ENU =  5.0f;",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#yaw-convention",
-    "href": "docs/control/frame-conventions.html#yaw-convention",
-    "title": "Frame Conventions",
-    "section": "Yaw convention",
-    "text": "Yaw convention\nPX4 yaw is measured clockwise from North (NED convention). ROS yaw is measured counter-clockwise from East (ENU convention). To extract yaw from a quaternion in the appropriate frame:\n// From NED quaternion [w, x, y, z]\nfloat yaw_ned = std::atan2(\n    2.0f * (qw * qz + qx * qy),\n    1.0f - 2.0f * (qy * qy + qz * qz));",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
-    ]
-  },
-  {
-    "objectID": "docs/control/frame-conventions.html#quick-reference",
-    "href": "docs/control/frame-conventions.html#quick-reference",
-    "title": "Frame Conventions",
-    "section": "Quick reference",
-    "text": "Quick reference\n\n\n\nQuantity\nPX4 frame\nController frame\nConversion\n\n\n\n\nPosition\nNED\nENU\nswap x/y, negate z\n\n\nVelocity (world)\nNED\nENU\nswap x/y, negate z\n\n\nAngular velocity\nFRD\nFLU\nnegate y and z\n\n\nAttitude quaternion\nNED/FRD\nENU/FLU\nenu_flu_to_ned_frd\n\n\nThrust (body z)\nNED (negative)\npositive scalar\nnegate\n\n\nTorque\nFRD\nFLU\nnegate y and z\n\n\nYaw\nCW from North\nCCW from East\nnegate",
-    "crumbs": [
-      "Home",
-      "Control",
-      "Frame Conventions"
+      "Tooling",
+      "C++ Tooling with clangd"
     ]
   },
   {
@@ -564,87 +240,411 @@
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html",
-    "href": "docs/tooling/clangd.html",
-    "title": "C++ Tooling with clangd",
+    "objectID": "docs/control/control-allocation.html",
+    "href": "docs/control/control-allocation.html",
+    "title": "Control Allocation: Wrench to Motor Throttles",
     "section": "",
-    "text": "This guide covers the .clangd configuration used across uav_control and related ROS 2 C++ packages. The setup gives accurate clangd completions and clang-tidy diagnostics inside a colcon workspace without false positives from GPU or ROS-specific compiler flags.",
+    "text": "Control allocation is the mapping from a desired wrench \\([\\tau_x,\\, \\tau_y,\\, \\tau_z,\\, T]^\\top\\) to individual motor throttles \\(\\delta_i \\in [0, 1]\\). For an X-frame quadrotor it is a \\(4 \\times 4\\) linear map followed by a square-root and an affine throttle scaling.\nThe implementation lives in motor_allocator.hpp inside uav_control.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "C++ Tooling with clangd"
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#how-clangd-finds-headers",
-    "href": "docs/tooling/clangd.html#how-clangd-finds-headers",
-    "title": "C++ Tooling with clangd",
-    "section": "How clangd finds headers",
-    "text": "How clangd finds headers\nclangd reads compile_commands.json to know which flags were used to build each translation unit. colcon generates this file at the workspace root when you pass --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThe .clangd file then tells clangd where to look:\nCompileFlags:\n    CompilationDatabase: \".\"\n\".\" resolves to the directory containing .clangd, which should be the workspace root (the directory that contains src/, build/, install/).",
+    "objectID": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
+    "href": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Motor layout (x500 SITL, top view, NED)",
+    "text": "Motor layout (x500 SITL, top view, NED)\n        x (North)\n        ^\n   FL(2)   FR(0)\n       \\\\ /\n        X\n       / \\\\\n   RL(1)   RR(3)\n\nSpin directions (viewed from above):\n  FR(0): CCW    RL(1): CCW    FL(2): CW    RR(3): CW\nMotor indices 0–3 map directly to ActuatorMotors.control[0..3]. Slots 4–11 must be NaN for a 4-motor vehicle.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "C++ Tooling with clangd"
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#base-configuration",
-    "href": "docs/tooling/clangd.html#base-configuration",
-    "title": "C++ Tooling with clangd",
-    "section": "Base configuration",
-    "text": "Base configuration\nCompileFlags:\n    CompilationDatabase: \".\"\n    Add: [\"-std=c++17\", \"-Wno-unknown-argument\"]\n    Remove:\n        [\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n        ]\nThe Remove list strips NVCC-specific flags that clang does not understand. Without this, clangd crashes or emits spurious errors on any package that links against CUDA.\n-Wno-unknown-argument suppresses the resulting unknown-flag warnings for any flags not caught by the Remove list.",
+    "objectID": "docs/control/control-allocation.html#forward-model",
+    "href": "docs/control/control-allocation.html#forward-model",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Forward model",
+    "text": "Forward model\nEach motor \\(i\\) spinning at \\(\\omega_i\\) [rad/s] produces a thrust \\(f_i = k_T \\omega_i^2\\) and a reaction torque \\(m_i = k_m \\omega_i^2\\) where \\(k_m = k_{M,\\text{ratio}} \\cdot k_T\\).\nThe wrench assembled on the body is:\n\\[\n\\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n= \\mathbf{A}\\,\\boldsymbol{\\omega}^2,\n\\qquad\n\\mathbf{A} = \\mathrm{diag}(k_T L,\\; k_T L,\\; k_m,\\; k_T)\\; \\mathbf{B}\n\\]\nwhere \\(L\\) is the arm length and \\(\\mathbf{B}\\) encodes the geometry and spin directions:\n\\[\n\\mathbf{B} = \\begin{pmatrix}\n-k_s &  k_s &  k_s & -k_s \\\\\nk_s & -k_s &  k_s & -k_s \\\\\n    1 &    1 &   -1 &   -1 \\\\\n    1 &    1 &    1 &    1\n\\end{pmatrix},\n\\qquad k_s = \\sin 45^\\circ = \\frac{\\sqrt{2}}{2}\n\\]\nColumn order: FR(0), RL(1), FL(2), RR(3).\n\nRow-by-row interpretation\n\n\n\n\n\n\n\n\n\nRow\nWrench\nSign pattern\nReason\n\n\n\n\n1\n\\(\\tau_x\\) (roll)\nFR,RR negative; RL,FL positive\nRight motors are on the \\(+y\\) side; spinning them faster rolls right (negative roll)\n\n\n2\n\\(\\tau_y\\) (pitch)\nRL,RR negative; FR,FL positive\nFront motors are on the \\(+x\\) side\n\n\n3\n\\(\\tau_z\\) (yaw)\nFR,RL positive; FL,RR negative\nCCW motors produce positive reaction torque on body\n\n\n4\n\\(T\\) (thrust)\nall positive\nAll motors contribute thrust",
     "crumbs": [
       "Home",
-      "Tooling",
-      "C++ Tooling with clangd"
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#clang-tidy-checks",
-    "href": "docs/tooling/clangd.html#clang-tidy-checks",
-    "title": "C++ Tooling with clangd",
-    "section": "clang-tidy checks",
-    "text": "clang-tidy checks\nThe project runs the full clang-tidy suite (Add: [\"*\"]) with a focused suppress list. The suppressed checks fall into two categories:\nStyle preferences — rules that conflict with the project’s conventions:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ngoogle-build-*, google-readability-*\nGoogle style not used\n\n\nmodernize-use-trailing-return-type\nTrailing return types add noise for simple functions\n\n\nmodernize-use-nodiscard\nOverly noisy for internal helpers\n\n\nreadability-identifier-length\nShort names (e.g. dt, u) are idiomatic in control code\n\n\nreadability-magic-numbers, cppcoreguidelines-avoid-magic-numbers\nPhysical constants and gains are fine inline\n\n\nreadability-function-cognitive-complexity\nMPPI kernels are inherently long\n\n\n\nFalse positives in ROS 2 / robotics code:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ncppcoreguidelines-avoid-non-const-global-variables\nROS node handles and parameter servers are globals by convention\n\n\ncppcoreguidelines-pro-type-vararg\nSome ROS logging macros use varargs\n\n\ncppcoreguidelines-pro-bounds-array-to-pointer-decay\nCommon in Eigen / low-level math\n\n\ncppcoreguidelines-special-member-functions, hicpp-special-member-functions\nRule-of-five is not required for RAII wrappers with shared_ptr\n\n\nmisc-non-private-member-variables-in-classes, cppcoreguidelines-non-private-member-variables-in-classes\nParameter structs use public fields intentionally\n\n\ncppcoreguidelines-prefer-member-initializer\nConflicts with complex constructor delegation patterns\n\n\nmisc-include-cleaner\nGenerates excessive noise from transitively included ROS headers\n\n\n\nVendor-specific suites (llvmlibc-*, fuchsia-*, altera-*) are suppressed wholesale as they target entirely different platforms.",
+    "objectID": "docs/control/control-allocation.html#inverse-wrench---throttles",
+    "href": "docs/control/control-allocation.html#inverse-wrench---throttles",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Inverse: wrench -> throttles",
+    "text": "Inverse: wrench -&gt; throttles\nThe allocation inversion uses the Moore-Penrose pseudoinverse:\n\\[\n\\boldsymbol{\\omega}^2 = \\mathbf{A}^+ \\begin{pmatrix} \\tau_x \\\\ \\tau_y \\\\ \\tau_z \\\\ T \\end{pmatrix}\n\\]\nSince \\(\\mathbf{A}\\) is square and full rank for a standard quadrotor, \\(\\mathbf{A}^+\n= \\mathbf{A}^{-1}\\).\nRotor speeds are then converted to throttles via:\n\\[\n\\omega_i = \\sqrt{\\max(0,\\; \\omega_i^2)}, \\qquad\n\\delta_i = \\mathrm{clip}\\!\\left(\\frac{\\omega_i - \\omega_\\min}{\\omega_\\max - \\omega_\\min},\\; 0,\\; 1\\right)\n\\]\nThe \\(\\max(0,\\cdot)\\) before the square root prevents NaN from small negative values due to numerical noise.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "C++ Tooling with clangd"
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#cuda-file-handling",
-    "href": "docs/tooling/clangd.html#cuda-file-handling",
-    "title": "C++ Tooling with clangd",
-    "section": "CUDA file handling",
-    "text": "CUDA file handling\n.cu files need special treatment because compile_commands.json records the NVCC invocation, not a clang-compatible command. A conditional block remaps them to clang with CUDA-host-only parsing:\n---\nIf:\n    PathMatch: \".*\\\\.cu$\"\nCompileFlags:\n    Compiler: clang++\n    Add:\n        [\n            \"-xcuda\",\n            \"--cuda-host-only\",\n            \"--cuda-path=/usr/local/cuda\",\n            \"--cuda-gpu-arch=sm_75\",\n            \"-Wno-unknown-cuda-version\",\n            \"-ferror-limit=0\",\n        ]\n    Remove:\n        [\n            \"/usr/local/cuda-*/bin/nvcc\",\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n            \"-x\", \"cu\", \"cuda\",\n        ]\nDiagnostics:\n    Suppress:\n        - \"cuda_ovl_target\"\n        - \"redefinition\"\n        - \"constexpr_redecl_mismatch\"\n        - \"variadic_device_fn\"\n        - \"attributes_not_allowed\"\n        - \"undeclared_var_use\"\n--cuda-host-only tells clang to only parse host code, which avoids the need for a full CUDA device compiler toolchain. The Suppress list silences redefinition errors that arise from CUDA’s dual-compilation model.\nAdjust --cuda-gpu-arch to match your GPU (e.g. sm_86 for Ampere, sm_89 for Ada Lovelace).",
+    "objectID": "docs/control/control-allocation.html#c-implementation",
+    "href": "docs/control/control-allocation.html#c-implementation",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "C++ implementation",
+    "text": "C++ implementation\n/* motor_allocator.hpp */\nstruct MotorAllocatorConfig {\n    double arm_length = 0.25;       // m\n    double k_T        = 8.54858e-6; // N/(rad/s)^2\n    double k_M_ratio  = 0.019;      // k_m = k_M_ratio * k_T\n    double omega_max  = 1047.2;     // rad/s\n    double omega_min  = 150.0;      // rad/s\n};\n\nclass MotorAllocator {\npublic:\n    void initialize(const MotorAllocatorConfig& cfg) {\n        cfg_ = cfg;\n        build_inverse();\n    }\n\n    std::array&lt;float, 12&gt; allocate(double T, const Eigen::Vector3d& tau) const {\n        Eigen::Vector4d wrench(tau(0), tau(1), tau(2), T);\n        Eigen::Vector4d omega_sq = inv_ * wrench;\n\n        std::array&lt;float, 12&gt; result;\n        double range = cfg_.omega_max - cfg_.omega_min;\n        for (int i = 0; i &lt; 4; ++i) {\n            double w = std::sqrt(std::max(0.0, omega_sq(i)));\n            result[i] = static_cast&lt;float&gt;(std::clamp(\n                (w - cfg_.omega_min) / range, 0.0, 1.0));\n        }\n        for (int i = 4; i &lt; 12; ++i)\n            result[i] = std::nanf(\"1\");   // unused slots must be NaN\n        return result;\n    }\n\nprivate:\n    void build_inverse() {\n        const double kS = std::sin(M_PI / 4.0);\n        double kt = cfg_.k_T,  km = cfg_.k_M_ratio * kt,  L = cfg_.arm_length;\n\n        Eigen::Matrix4d B;\n        B &lt;&lt; -kS,  kS,  kS, -kS,\n               kS, -kS,  kS, -kS,\n                1,   1,  -1,  -1,\n                1,   1,   1,   1;\n\n        Eigen::Vector4d k(kt * L, kt * L, km, kt);\n        Eigen::Matrix4d A = k.asDiagonal() * B;\n        inv_ = A.completeOrthogonalDecomposition().pseudoInverse();\n    }\n\n    MotorAllocatorConfig cfg_;\n    Eigen::Matrix4d inv_;\n};\nThe matrix is built once at initialization; allocate is called at 100 Hz in the control loop.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "C++ Tooling with clangd"
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#placement",
-    "href": "docs/tooling/clangd.html#placement",
-    "title": "C++ Tooling with clangd",
-    "section": "Placement",
-    "text": "Placement\nPut .clangd at the workspace root (the directory that contains src/), not inside individual packages. clangd searches upward from the open file to find the nearest .clangd, so a single workspace-root file covers all packages.\nmy_ws/\n  .clangd            &lt;-- here\n  compile_commands.json\n  src/\n    uav_control/\n    px4_msgs/",
+    "objectID": "docs/control/control-allocation.html#publishing-to-px4",
+    "href": "docs/control/control-allocation.html#publishing-to-px4",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Publishing to PX4",
+    "text": "Publishing to PX4\nauto msg = std::make_unique&lt;px4_msgs::msg::ActuatorMotors&gt;();\nmsg-&gt;timestamp        = px4_timestamp_us;\nmsg-&gt;timestamp_sample = px4_timestamp_us;\nmsg-&gt;reversible_flags = 0;\nfor (int i = 0; i &lt; 12; ++i)\n    msg-&gt;control[i] = motors[i];\nmotor_pub_-&gt;publish(std::move(msg));\n\n\n\n\n\n\nWarning\n\n\n\nPX4 requires a continuous ActuatorMotors stream from the moment offboard mode is entered. If the stream stops, PX4 exits offboard mode. Publish zeros while waiting for all sensor inputs to be ready — do not skip the publish call.",
     "crumbs": [
       "Home",
-      "Tooling",
-      "C++ Tooling with clangd"
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
     ]
   },
   {
-    "objectID": "docs/tooling/clangd.html#troubleshooting",
-    "href": "docs/tooling/clangd.html#troubleshooting",
-    "title": "C++ Tooling with clangd",
+    "objectID": "docs/control/control-allocation.html#parameters-x500-defaults",
+    "href": "docs/control/control-allocation.html#parameters-x500-defaults",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Parameters (x500 defaults)",
+    "text": "Parameters (x500 defaults)\n\n\n\nParameter\nValue\nDescription\n\n\n\n\narm_length\n0.25 m\nCentre-to-motor distance\n\n\nk_T\n8.54858e-6 N/(rad/s)^2\nThrust coefficient\n\n\nk_M_ratio\n0.019\nMoment-to-thrust ratio\n\n\nomega_max\n1047.2 rad/s\nMax rotor speed (~10 000 RPM)\n\n\nomega_min\n150.0 rad/s\nMin rotor speed (idle)\n\n\n\nomega_max and omega_min correspond to SIM_GZ_EC_MAX and SIM_GZ_EC_MIN in PX4’s SITL parameters.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
+    "href": "docs/control/control-allocation.html#python-reference-mixing-matrix-test",
+    "title": "Control Allocation: Wrench to Motor Throttles",
+    "section": "Python reference (mixing matrix test)",
+    "text": "Python reference (mixing matrix test)\nThe scripts/test_mixing.py script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.\npython3 scripts/test_mixing.py",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Allocation: Wrench to Motor Throttles"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html",
+    "href": "docs/control/frame-conventions.html",
+    "title": "Frame Conventions",
+    "section": "",
+    "text": "PX4 and ROS 2 use different coordinate frames. Every quantity exchanged over uXRCE-DDS must be converted at the boundary. This page defines the frames, the conversion rules, and the C++ implementations used in uav_control.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#frame-definitions",
+    "href": "docs/control/frame-conventions.html#frame-definitions",
+    "title": "Frame Conventions",
+    "section": "Frame definitions",
+    "text": "Frame definitions\n\n\n\n\n\n\n\n\n\n\n\nFrame\nName\nX\nY\nZ\nUsed by\n\n\n\n\nWorld inertial\nNED\nNorth\nEast\nDown\nPX4 internally, VehicleLocalPosition, VehicleOdometry\n\n\nBody\nFRD\nForward\nRight\nDown\nPX4 body-frame quantities (VehicleAngularVelocity, torque/thrust setpoints)\n\n\nWorld inertial\nENU\nEast\nNorth\nUp\nROS 2 convention, RViz, nav_msgs\n\n\nBody\nFLU\nForward\nLeft\nUp\nROS 2 geometry_msgs, most controllers\n\n\n\n\n\n\n\n\n\nNote\n\n\n\nPX4 VehicleOdometry reports position in NED and velocity in FRD. Angular velocity (VehicleAngularVelocity) is in FRD. Attitude quaternion (VehicleAttitude) expresses the rotation from FRD to NED.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#vector-conversions",
+    "href": "docs/control/frame-conventions.html#vector-conversions",
+    "title": "Frame Conventions",
+    "section": "Vector conversions",
+    "text": "Vector conversions\n\nNED &lt;-&gt; ENU\nThe axes permute as: \\(x_\\text{ENU} = y_\\text{NED}\\), \\(y_\\text{ENU} = x_\\text{NED}\\), \\(z_\\text{ENU} = -z_\\text{NED}\\).\nThe same relation holds in reverse (the transform is its own inverse):\n\\[\n\\begin{pmatrix} x \\\\ y \\\\ z \\end{pmatrix}_\\text{NED}\n= \\begin{pmatrix} y \\\\ x \\\\ -z \\end{pmatrix}_\\text{ENU}\n\\]\ninline Eigen::Vector3d ned_to_enu(const Eigen::Vector3d& v) {\n    return {v.y(), v.x(), -v.z()};\n}\n// enu_to_ned is identical (the mapping is its own inverse)\n\n\nFRD &lt;-&gt; FLU\nOnly the lateral and vertical axes flip: \\(y_\\text{FLU} = -y_\\text{FRD}\\), \\(z_\\text{FLU} = -z_\\text{FRD}\\).\n\\[\n\\begin{pmatrix} x \\\\ y \\\\ z \\end{pmatrix}_\\text{FLU}\n= \\begin{pmatrix} x \\\\ -y \\\\ -z \\end{pmatrix}_\\text{FRD}\n\\]\ninline Eigen::Vector3d frd_to_flu(const Eigen::Vector3d& v) {\n    return {v.x(), -v.y(), -v.z()};\n}\n// flu_to_frd is identical",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#quaternion-conversion-enuflu---nedfrd",
+    "href": "docs/control/frame-conventions.html#quaternion-conversion-enuflu---nedfrd",
+    "title": "Frame Conventions",
+    "section": "Quaternion conversion (ENU/FLU <-> NED/FRD)",
+    "text": "Quaternion conversion (ENU/FLU &lt;-&gt; NED/FRD)\nConverting a quaternion requires two rotations applied in sequence:\n\nNED_ENU_Q — rotates the world frame: \\(R_z(\\pi/2) \\cdot R_x(\\pi)\\)\nAIRCRAFT_BASELINK_Q — rotates the body frame: \\(R_x(\\pi)\\)\n\ninline Eigen::Quaterniond enu_flu_to_ned_frd(const Eigen::Quaterniond& q) {\n    // World-frame rotation: 90 deg yaw + 180 deg roll (ENU &lt;-&gt; NED)\n    const Eigen::Quaterniond NED_ENU_Q =\n        Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()) *\n        Eigen::AngleAxisd(M_PI,   Eigen::Vector3d::UnitX());\n\n    // Body-frame rotation: 180 deg roll (FLU &lt;-&gt; FRD)\n    const Eigen::Quaterniond AIRCRAFT_BASELINK_Q =\n        Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());\n\n    return (NED_ENU_Q * q) * AIRCRAFT_BASELINK_Q;\n}\n// ned_frd_to_enu_flu: same function (the combined rotation is its own inverse)\n\n\n\n\n\n\nWarning\n\n\n\nVehicleAttitude.q is stored as Hamilton [w, x, y, z] — not [x, y, z, w]. Match the Eigen constructor argument order accordingly: Eigen::Quaterniond q(msg-&gt;q[0], msg-&gt;q[1], msg-&gt;q[2], msg-&gt;q[3]).",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#parsing-vehicleodometry",
+    "href": "docs/control/frame-conventions.html#parsing-vehicleodometry",
+    "title": "Frame Conventions",
+    "section": "Parsing VehicleOdometry",
+    "text": "Parsing VehicleOdometry\nVehicleOdometry delivers all quantities in PX4 frames. Convert everything to ENU/FLU before passing to a ROS-convention controller:\nvoid parse_odometry(\n    const px4_msgs::msg::VehicleOdometry& msg,\n    Eigen::Vector3d& pos_enu,\n    Eigen::Quaterniond& att_enu_flu,\n    Eigen::Vector3d& vel_enu,\n    Eigen::Vector3d& omega_flu)\n{\n    // position: NED -&gt; ENU\n    pos_enu = ned_to_enu({msg.position[0], msg.position[1], msg.position[2]});\n\n    // attitude: NED/FRD -&gt; ENU/FLU\n    Eigen::Quaterniond q_ned_frd(msg.q[0], msg.q[1], msg.q[2], msg.q[3]);\n    att_enu_flu = ned_frd_to_enu_flu(q_ned_frd);\n\n    // velocity: NED -&gt; ENU\n    vel_enu = ned_to_enu({msg.velocity[0], msg.velocity[1], msg.velocity[2]});\n\n    // angular velocity: FRD -&gt; FLU\n    omega_flu = frd_to_flu({msg.angular_velocity[0],\n                            msg.angular_velocity[1],\n                            msg.angular_velocity[2]});\n}\nNote: VehicleAngularVelocity (from /fmu/out/vehicle_angular_velocity) also delivers in FRD — apply frd_to_flu the same way.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#publishing-setpoints-controller---px4",
+    "href": "docs/control/frame-conventions.html#publishing-setpoints-controller---px4",
+    "title": "Frame Conventions",
+    "section": "Publishing setpoints (controller -> PX4)",
+    "text": "Publishing setpoints (controller -&gt; PX4)\nSetpoints go in the opposite direction: convert from controller ENU/FLU to PX4 NED/FRD before publishing.\n\nThrust (scalar)\nThrust is a scalar magnitude in the controller. PX4 expects it as a negative z component in the body-NED frame (down is positive):\nthrust_msg.xyz[2] = -collective_thrust;   // always negative\n\n\nTorque vector\nEigen::Vector3d tau_frd = flu_to_frd(tau_flu);\ntorque_msg.xyz[0] = tau_frd.x();\ntorque_msg.xyz[1] = tau_frd.y();\ntorque_msg.xyz[2] = tau_frd.z();\n\n\nAttitude quaternion\nEigen::Quaterniond q_ned_frd = enu_flu_to_ned_frd(q_desired);\natt_msg.q_d[0] = q_ned_frd.w();\natt_msg.q_d[1] = q_ned_frd.x();\natt_msg.q_d[2] = q_ned_frd.y();\natt_msg.q_d[3] = q_ned_frd.z();\n\n\nTrajectory setpoint (position/velocity, NED)\nTrajectorySetpoint positions and velocities are in NED:\ntraj_msg.position = {pos_ned.x(), pos_ned.y(), pos_ned.z()};\ntraj_msg.velocity = {vel_ned.x(), vel_ned.y(), vel_ned.z()};\ntraj_msg.yaw = yaw_ned;   // measured CW from North\nConvert from ENU before filling: pos_ned = enu_to_ned(pos_enu).",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#altitude-sign",
+    "href": "docs/control/frame-conventions.html#altitude-sign",
+    "title": "Frame Conventions",
+    "section": "Altitude sign",
+    "text": "Altitude sign\nIn NED, altitude increases downward (z is positive down). A drone hovering 2 m above the ground has \\(z \\approx -2\\). This affects trajectory setpoints, height checks, and obstacle bounds:\n// NED: negative z = above ground\nconstexpr float TAKEOFF_ALT_NED = -5.0f;   // 5 m above ground\n\n// ENU (RViz / nav_msgs): positive z = above ground\nconstexpr float TAKEOFF_ALT_ENU =  5.0f;",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#yaw-convention",
+    "href": "docs/control/frame-conventions.html#yaw-convention",
+    "title": "Frame Conventions",
+    "section": "Yaw convention",
+    "text": "Yaw convention\nPX4 yaw is measured clockwise from North (NED convention). ROS yaw is measured counter-clockwise from East (ENU convention). To extract yaw from a quaternion in the appropriate frame:\n// From NED quaternion [w, x, y, z]\nfloat yaw_ned = std::atan2(\n    2.0f * (qw * qz + qx * qy),\n    1.0f - 2.0f * (qy * qy + qz * qz));",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/control/frame-conventions.html#quick-reference",
+    "href": "docs/control/frame-conventions.html#quick-reference",
+    "title": "Frame Conventions",
+    "section": "Quick reference",
+    "text": "Quick reference\n\n\n\nQuantity\nPX4 frame\nController frame\nConversion\n\n\n\n\nPosition\nNED\nENU\nswap x/y, negate z\n\n\nVelocity (world)\nNED\nENU\nswap x/y, negate z\n\n\nAngular velocity\nFRD\nFLU\nnegate y and z\n\n\nAttitude quaternion\nNED/FRD\nENU/FLU\nenu_flu_to_ned_frd\n\n\nThrust (body z)\nNED (negative)\npositive scalar\nnegate\n\n\nTorque\nFRD\nFLU\nnegate y and z\n\n\nYaw\nCW from North\nCCW from East\nnegate",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Frame Conventions"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html",
+    "href": "docs/setup/workspace-setup.html",
+    "title": "Workspace Setup",
+    "section": "",
+    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#project-structure",
+    "href": "docs/setup/workspace-setup.html#project-structure",
+    "title": "Workspace Setup",
+    "section": "Project structure",
+    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
+    "href": "docs/setup/workspace-setup.html#pixi.toml",
+    "title": "Workspace Setup",
+    "section": "pixi.toml",
+    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
+    "href": "docs/setup/workspace-setup.html#workspace-activation",
+    "title": "Workspace Setup",
+    "section": "Workspace activation",
+    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "title": "Workspace Setup",
+    "section": "PX4 message definitions (submodule)",
+    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.\n\n\n\n\nVersioned topic names\nFrom PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is VehicleStatus, which moved from:\n/fmu/out/vehicle_status      # pre-v1.14\n/fmu/out/vehicle_status_v1   # v1.14+\nIf your subscriber listens on the wrong topic name it receives no data at all — the subscription simply never fires. Auto-arming logic that waits for arming_state == ARMING_STATE_ARMED blocks forever, and the vehicle never arms.\nThe fix is to subscribe to the versioned topic:\n// px4_interface.cpp / px4_manager_node.cpp\nstatus_sub_ = node_-&gt;create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos, callback);\nCheck which topics are actually being published by the running firmware:\nros2 topic list | grep vehicle_status\nUse whichever name appears — it tells you exactly what the firmware is advertising.\n\n\nDiagnosing version mismatches\nIf the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:\n# commit that your workspace px4_msgs is pinned to\ngit -C src/px4_msgs rev-parse HEAD\n\n# PX4 version string printed at SITL startup, e.g. \"PX4 v1.15.2\"\n# must correspond to the same release branch\nTo fix, update the submodule to the branch matching your firmware:\ncd src/px4_msgs\ngit fetch\ngit checkout release/1.16   # match PX4 firmware version\ncd ../..\ncolcon build --symlink-install\ngit add src/px4_msgs\ngit commit -m \"chore: pin px4_msgs to release/1.16\"",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#build-tasks",
+    "href": "docs/setup/workspace-setup.html#build-tasks",
+    "title": "Workspace Setup",
+    "section": "Build tasks",
+    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
+    "href": "docs/setup/workspace-setup.html#daily-workflow",
+    "title": "Workspace Setup",
+    "section": "Daily workflow",
+    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
+    "href": "docs/setup/workspace-setup.html#troubleshooting",
+    "title": "Workspace Setup",
     "section": "Troubleshooting",
-    "text": "Troubleshooting\n\nclangd cannot find compile_commands.json\nRun a full build with compile commands export enabled:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThen confirm the file exists at the workspace root:\nls compile_commands.json\n\n\nFalse-positive #include errors after adding a new package\ncolcon build must be re-run so the new package’s headers appear in compile_commands.json. clangd will re-index automatically once the file is updated.\n\n\nclangd crashes on .cu files\nConfirm clang++ is on PATH inside the pixi environment:\npixi run which clang++\nIf missing, add clangxx (or clang) to [dependencies] in pixi.toml.",
+    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html",
+    "href": "docs/tooling/basedpyright.html",
+    "title": "Type Checking with basedpyright",
+    "section": "",
+    "text": "This guide covers how to configure basedpyright for a ROS 2 workspace managed with pixi. basedpyright is a stricter fork of pyright with better defaults and improved error messages.",
     "crumbs": [
       "Home",
       "Tooling",
-      "C++ Tooling with clangd"
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#why-basedpyright",
+    "href": "docs/tooling/basedpyright.html#why-basedpyright",
+    "title": "Type Checking with basedpyright",
+    "section": "Why basedpyright",
+    "text": "Why basedpyright\nStandard pyright works fine for general Python, but ROS 2 introduces friction:\n\nrclpy, px4_msgs, and most ROS packages ship no type stubs.\nGenerated message classes have loose constructors that trigger false-positive argument-type errors.\nThe install tree lives in install/ (a colcon artifact), not in the standard site-packages location.\n\nbasedpyright provides more granular per-rule configuration so you can silence ROS-specific false positives while still catching real errors in your own code.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#installation",
+    "href": "docs/tooling/basedpyright.html#installation",
+    "title": "Type Checking with basedpyright",
+    "section": "Installation",
+    "text": "Installation\n\nInside the pixi environment (recommended)\nAdd basedpyright to a dev feature so it is not bundled into production builds:\n# pixi.toml\n[feature.dev.pypi-dependencies]\nbasedpyright = \"*\"\n\n[environments]\ndev = { features = [\"dev\"], solve-group = \"default\" }\nInstall and run:\npixi install -e dev\npixi run -e dev basedpyright src/\n\n\nGlobal install (for the LSP / editor)\n# via pip\npip install basedpyright\n\n# via npm (also installs the language server)\nnpm install -g basedpyright\nThe VSCode extension is basedpyright (detachhead.basedpyright). Do not mix an npm install with the VSCode extension – let the extension manage its own binary.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#pyrightconfig.json",
+    "href": "docs/tooling/basedpyright.html#pyrightconfig.json",
+    "title": "Type Checking with basedpyright",
+    "section": "pyrightconfig.json",
+    "text": "pyrightconfig.json\nPlace pyrightconfig.json at the workspace root (same directory as pixi.toml).\n{\n  \"typeCheckingMode\": \"basic\",\n  \"pythonVersion\": \"3.11\",\n  \"pythonPlatform\": \"Linux\",\n\n  \"include\": [\"src\"],\n  \"exclude\": [\n    \"**/node_modules\",\n    \"**/__pycache__\",\n    \"**/.*\",\n    \"build\",\n    \"install\",\n    \"log\"\n  ],\n\n  \"reportMissingImports\": true,\n  \"reportMissingTypeStubs\": false,\n\n  \"reportUnusedImport\": true,\n  \"reportUnusedVariable\": true,\n\n  \"reportGeneralTypeIssues\": true,\n  \"reportOptionalMemberAccess\": true,\n  \"reportOptionalSubscript\": true,\n  \"reportOptionalOperand\": true,\n  \"reportOptionalIterable\": true,\n  \"reportOptionalContextManager\": true,\n  \"reportOptionalCallOperand\": true,\n\n  \"reportArgumentType\": false\n}\n\nSettings explained\n\n\n\n\n\n\n\n\nSetting\nValue\nReason\n\n\n\n\ntypeCheckingMode\n\"basic\"\nAvoids false positives from untyped ROS packages. Upgrade to \"standard\" once stubs improve.\n\n\npythonVersion\n\"3.11\"\nMust match the Python version in pixi.toml.\n\n\ninclude\n[\"src\"]\nOnly analyse your packages; ignore colcon build artefacts.\n\n\nexclude\nbuild, install, log\nColcon output contains generated C-extension stubs that confuse the checker.\n\n\nreportMissingTypeStubs\nfalse\nrclpy, px4_msgs, and most ROS packages have no .pyi stubs.\n\n\nreportArgumentType\nfalse\nGenerated message classes have loose __init__ signatures that produce spurious errors.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
+    "href": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
+    "title": "Type Checking with basedpyright",
+    "section": "Pointing basedpyright at the pixi environment",
+    "text": "Pointing basedpyright at the pixi environment\nbasedpyright must resolve imports from the pixi environment, not system Python.\n\nOption A – venvPath (recommended)\n{\n  \"venvPath\": \".\",\n  \"venv\": \".pixi/envs/default\"\n}\nThis tells basedpyright to look for the virtual environment at .pixi/envs/default relative to the project root.\n\n\nOption B – pythonPath\n{\n  \"pythonPath\": \".pixi/envs/default/bin/python\"\n}\nUse this if venvPath does not correctly resolve stubs.\n\n\n\n\n\n\nTip\n\n\n\nVerify interpreter resolution:\nbasedpyright --outputjson src/ 2&gt;&1 | python -m json.tool | grep pythonPath",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#ros-2-specific-notes",
+    "href": "docs/tooling/basedpyright.html#ros-2-specific-notes",
+    "title": "Type Checking with basedpyright",
+    "section": "ROS 2-specific notes",
+    "text": "ROS 2-specific notes\n\nrclpy stubs\nrclpy has partial stubs on PyPI. They are often outdated but reduce reportMissingTypeStubs noise:\n[feature.dev.pypi-dependencies]\nrclpy-stubs = \"*\"\nAlternatively, generate stubs from the installed package:\n# inside pixi shell\nstubgen -p rclpy -o typestubs/\nThen register the stub path in pyrightconfig.json:\n{\n  \"stubPath\": \"typestubs\"\n}\n\n\npx4_msgs\npx4_msgs is a C extension built by colcon. After building, point basedpyright to its install location:\n{\n  \"extraPaths\": [\n    \"install/px4_msgs/lib/python3.11/site-packages\"\n  ]\n}\nIf you used venvPath above and the pixi activation already sourced install/setup.bash, this may not be necessary.\n\n\nLaunch files\nROS 2 launch files (.launch.py) use dynamic LaunchArgument substitutions that cannot be statically analysed. Suppress errors per-file:\n# pyright: reportGeneralTypeIssues=false",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#vscode-integration",
+    "href": "docs/tooling/basedpyright.html#vscode-integration",
+    "title": "Type Checking with basedpyright",
+    "section": "VSCode integration",
+    "text": "VSCode integration\nAdd to .vscode/settings.json:\n{\n  \"python.defaultInterpreterPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.pythonPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.disableOrganizeImports\": false\n}\npython.defaultInterpreterPath ensures the VSCode Python extension, IntelliSense, and basedpyright all share the same pixi interpreter.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#running-from-the-cli",
+    "href": "docs/tooling/basedpyright.html#running-from-the-cli",
+    "title": "Type Checking with basedpyright",
+    "section": "Running from the CLI",
+    "text": "Running from the CLI\n# Check all packages under src/\npixi run -e dev basedpyright src/\n\n# Check a single package\npixi run -e dev basedpyright src/my_package/\n\n# JSON output for CI\npixi run -e dev basedpyright --outputjson src/ &gt; typecheck.json",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
+    "href": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
+    "title": "Type Checking with basedpyright",
+    "section": "Incrementally tightening type checking",
+    "text": "Incrementally tightening type checking\nStart at \"basic\" to suppress ROS-stub noise. Tighten per-package as you add type annotations or as upstream stubs improve.\nbasic  -&gt;  standard  -&gt;  strict  -&gt;  all\nTo apply stricter checking to a specific file, add a comment at the top:\n# pyright: standard\nTo apply it to an entire subtree, add a nested pyrightconfig.json in that subdirectory with only the overridden key:\n{\n  \"typeCheckingMode\": \"standard\"\n}\nThe root pyrightconfig.json still governs everything else.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
     ]
   }
 ]

@@ -2,30 +2,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/index.html</loc>
-    <lastmod>2026-05-27T07:07:05.615Z</lastmod>
-  </url>
-  <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/tooling/basedpyright.html</loc>
-    <lastmod>2026-05-27T07:07:05.615Z</lastmod>
-  </url>
-  <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/control-allocation.html</loc>
-    <lastmod>2026-05-27T07:07:05.614Z</lastmod>
-  </url>
-  <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/workspace-setup.html</loc>
-    <lastmod>2026-05-27T07:07:05.615Z</lastmod>
-  </url>
-  <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/frame-conventions.html</loc>
-    <lastmod>2026-05-27T07:07:05.615Z</lastmod>
-  </url>
-  <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/low-level-control.html</loc>
-    <lastmod>2026-05-27T07:07:05.615Z</lastmod>
+    <lastmod>2026-05-27T07:11:52.011Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/tooling/clangd.html</loc>
-    <lastmod>2026-05-27T07:07:05.615Z</lastmod>
+    <lastmod>2026-05-27T07:11:52.011Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/low-level-control.html</loc>
+    <lastmod>2026-05-27T07:11:52.011Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/control-allocation.html</loc>
+    <lastmod>2026-05-27T07:11:52.010Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/frame-conventions.html</loc>
+    <lastmod>2026-05-27T07:11:52.011Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/workspace-setup.html</loc>
+    <lastmod>2026-05-27T07:11:52.011Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/tooling/basedpyright.html</loc>
+    <lastmod>2026-05-27T07:11:52.011Z</lastmod>
   </url>
 </urlset>
