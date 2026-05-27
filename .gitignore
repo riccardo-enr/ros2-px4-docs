@@ -1,8 +1,10 @@
 _site/
 .quarto/
+**/*.quarto_ipynb
+
+# VS Code
+.vscode/
 
 # AI
 CLAUDE.md
 .claude/
-/.quarto/
-**/*.quarto_ipynb
