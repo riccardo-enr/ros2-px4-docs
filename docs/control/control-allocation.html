@@ -338,9 +338,7 @@ window.Quarto = {
 
 
 <p>Control allocation is the mapping from a desired wrench <span class="math inline">\([\tau_x,\, \tau_y,\, \tau_z,\, T]^\top\)</span> to individual motor throttles <span class="math inline">\(\delta_i \in [0, 1]\)</span>. For an X-frame quadrotor it is a <span class="math inline">\(4 \times 4\)</span> linear map followed by a square-root and an affine throttle scaling.</p>
-<!-- The implementation lives in
-[`motor_allocator.hpp`](https://github.com/riccardo-enr/px4_cmaes_tuner)
-inside `uav_control`. -->
+<p>The implementation lives in <code>motor_allocator.hpp</code> inside <code>uav_control</code>.</p>
 <hr>
 <section id="motor-layout-x500-sitl-top-view-ned" class="level2">
 <h2 class="anchored" data-anchor-id="motor-layout-x500-sitl-top-view-ned">Motor layout (x500 SITL, top view, NED)</h2>
@@ -564,7 +562,7 @@ Warning
 </section>
 <section id="python-reference-mixing-matrix-test" class="level2">
 <h2 class="anchored" data-anchor-id="python-reference-mixing-matrix-test">Python reference (mixing matrix test)</h2>
-<p>The <a href="https://github.com/riccardo-enr/px4_cmaes_tuner"><code>scripts/test_mixing.py</code></a> script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.</p>
+<p>The <code>scripts/test_mixing.py</code> script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/test_mixing.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 

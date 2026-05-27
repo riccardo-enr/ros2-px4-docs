@@ -160,7 +160,7 @@
     "href": "docs/control/control-allocation.html",
     "title": "Control Allocation: Wrench to Motor Throttles",
     "section": "",
-    "text": "Control allocation is the mapping from a desired wrench \\([\\tau_x,\\, \\tau_y,\\, \\tau_z,\\, T]^\\top\\) to individual motor throttles \\(\\delta_i \\in [0, 1]\\). For an X-frame quadrotor it is a \\(4 \\times 4\\) linear map followed by a square-root and an affine throttle scaling.",
+    "text": "Control allocation is the mapping from a desired wrench \\([\\tau_x,\\, \\tau_y,\\, \\tau_z,\\, T]^\\top\\) to individual motor throttles \\(\\delta_i \\in [0, 1]\\). For an X-frame quadrotor it is a \\(4 \\times 4\\) linear map followed by a square-root and an affine throttle scaling.\nThe implementation lives in motor_allocator.hpp inside uav_control.",
     "crumbs": [
       "Home",
       "Control",
