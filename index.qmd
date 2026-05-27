@@ -1,0 +1,34 @@
+---
+title: "ROS 2 + PX4 Dev Guide"
+---
+
+A self-contained reference for setting up a ROS 2 (Jazzy) workspace targeting
+PX4 SITL, using **pixi** as the environment manager and **basedpyright** for
+Python type checking. No system-level ROS install required.
+
+## Contents
+
+| Guide | Description |
+|-------|-------------|
+| [Workspace Setup](workspace-setup.qmd) | pixi.toml, channels, dependencies, activation, submodules, build tasks |
+| [Type Checking](basedpyright.qmd) | basedpyright configuration, pixi env resolution, ROS-specific notes, VSCode |
+
+## Stack overview
+
+```{mermaid}
+graph LR
+    pixi["pixi\n(env manager)"] --> ros["ROS 2 Jazzy\n(robostack-jazzy)"]
+    pixi --> cuda["CUDA 12+\n(conda-forge)"]
+    pixi --> python["Python 3.11+\n(conda-forge)"]
+    ros --> colcon["colcon build"]
+    colcon --> ws["install/\n(ROS overlay)"]
+    ws --> px4["px4_msgs\n(git submodule)"]
+```
+
+## Prerequisites
+
+| Requirement | Notes |
+|-------------|-------|
+| **pixi** | `curl -fsSL https://pixi.sh/install.sh \| bash` |
+| **CUDA 12+** | Host driver >= 525; `nvcc` is installed by pixi |
+| **git** | For submodule management |

@@ -1,0 +1,264 @@
+---
+title: "Type Checking with basedpyright"
+---
+
+This guide covers how to configure
+[basedpyright](https://github.com/DetachHead/basedpyright) for a ROS 2
+workspace managed with pixi. basedpyright is a stricter fork of pyright with
+better defaults and improved error messages.
+
+## Why basedpyright
+
+Standard pyright works fine for general Python, but ROS 2 introduces friction:
+
+- `rclpy`, `px4_msgs`, and most ROS packages ship **no type stubs**.
+- Generated message classes have loose constructors that trigger false-positive
+  argument-type errors.
+- The install tree lives in `install/` (a colcon artifact), not in the standard
+  site-packages location.
+
+basedpyright provides more granular per-rule configuration so you can silence
+ROS-specific false positives while still catching real errors in your own code.
+
+---
+
+## Installation
+
+### Inside the pixi environment (recommended)
+
+Add basedpyright to a `dev` feature so it is not bundled into production builds:
+
+```toml
+# pixi.toml
+[feature.dev.pypi-dependencies]
+basedpyright = "*"
+
+[environments]
+dev = { features = ["dev"], solve-group = "default" }
+```
+
+Install and run:
+
+```bash
+pixi install -e dev
+pixi run -e dev basedpyright src/
+```
+
+### Global install (for the LSP / editor)
+
+```bash
+# via pip
+pip install basedpyright
+
+# via npm (also installs the language server)
+npm install -g basedpyright
+```
+
+The VSCode extension is **basedpyright** (`detachhead.basedpyright`). Do not
+mix an npm install with the VSCode extension -- let the extension manage its
+own binary.
+
+---
+
+## pyrightconfig.json
+
+Place `pyrightconfig.json` at the **workspace root** (same directory as
+`pixi.toml`).
+
+```json
+{
+  "typeCheckingMode": "basic",
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux",
+
+  "include": ["src"],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "build",
+    "install",
+    "log"
+  ],
+
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+
+  "reportUnusedImport": true,
+  "reportUnusedVariable": true,
+
+  "reportGeneralTypeIssues": true,
+  "reportOptionalMemberAccess": true,
+  "reportOptionalSubscript": true,
+  "reportOptionalOperand": true,
+  "reportOptionalIterable": true,
+  "reportOptionalContextManager": true,
+  "reportOptionalCallOperand": true,
+
+  "reportArgumentType": false
+}
+```
+
+### Settings explained
+
+| Setting | Value | Reason |
+|---------|-------|--------|
+| `typeCheckingMode` | `"basic"` | Avoids false positives from untyped ROS packages. Upgrade to `"standard"` once stubs improve. |
+| `pythonVersion` | `"3.11"` | Must match the Python version in `pixi.toml`. |
+| `include` | `["src"]` | Only analyse your packages; ignore colcon build artefacts. |
+| `exclude` | `build`, `install`, `log` | Colcon output contains generated C-extension stubs that confuse the checker. |
+| `reportMissingTypeStubs` | `false` | `rclpy`, `px4_msgs`, and most ROS packages have no `.pyi` stubs. |
+| `reportArgumentType` | `false` | Generated message classes have loose `__init__` signatures that produce spurious errors. |
+
+---
+
+## Pointing basedpyright at the pixi environment
+
+basedpyright must resolve imports from the pixi environment, not system Python.
+
+### Option A -- venvPath (recommended)
+
+```json
+{
+  "venvPath": ".",
+  "venv": ".pixi/envs/default"
+}
+```
+
+This tells basedpyright to look for the virtual environment at
+`.pixi/envs/default` relative to the project root.
+
+### Option B -- pythonPath
+
+```json
+{
+  "pythonPath": ".pixi/envs/default/bin/python"
+}
+```
+
+Use this if `venvPath` does not correctly resolve stubs.
+
+::: {.callout-tip}
+**Verify interpreter resolution:**
+```bash
+basedpyright --outputjson src/ 2>&1 | python -m json.tool | grep pythonPath
+```
+:::
+
+---
+
+## ROS 2-specific notes
+
+### rclpy stubs
+
+`rclpy` has partial stubs on PyPI. They are often outdated but reduce
+`reportMissingTypeStubs` noise:
+
+```toml
+[feature.dev.pypi-dependencies]
+rclpy-stubs = "*"
+```
+
+Alternatively, generate stubs from the installed package:
+
+```bash
+# inside pixi shell
+stubgen -p rclpy -o typestubs/
+```
+
+Then register the stub path in `pyrightconfig.json`:
+
+```json
+{
+  "stubPath": "typestubs"
+}
+```
+
+### px4_msgs
+
+`px4_msgs` is a C extension built by colcon. After building, point basedpyright
+to its install location:
+
+```json
+{
+  "extraPaths": [
+    "install/px4_msgs/lib/python3.11/site-packages"
+  ]
+}
+```
+
+If you used `venvPath` above and the pixi activation already sourced
+`install/setup.bash`, this may not be necessary.
+
+### Launch files
+
+ROS 2 launch files (`.launch.py`) use dynamic `LaunchArgument` substitutions
+that cannot be statically analysed. Suppress errors per-file:
+
+```python
+# pyright: reportGeneralTypeIssues=false
+```
+
+---
+
+## VSCode integration
+
+Add to `.vscode/settings.json`:
+
+```json
+{
+  "python.defaultInterpreterPath":
+      "${workspaceFolder}/.pixi/envs/default/bin/python",
+
+  "basedpyright.pythonPath":
+      "${workspaceFolder}/.pixi/envs/default/bin/python",
+
+  "basedpyright.disableOrganizeImports": false
+}
+```
+
+`python.defaultInterpreterPath` ensures the VSCode Python extension,
+IntelliSense, and basedpyright all share the same pixi interpreter.
+
+---
+
+## Running from the CLI
+
+```bash
+# Check all packages under src/
+pixi run -e dev basedpyright src/
+
+# Check a single package
+pixi run -e dev basedpyright src/my_package/
+
+# JSON output for CI
+pixi run -e dev basedpyright --outputjson src/ > typecheck.json
+```
+
+---
+
+## Incrementally tightening type checking
+
+Start at `"basic"` to suppress ROS-stub noise. Tighten per-package as you add
+type annotations or as upstream stubs improve.
+
+```
+basic  ->  standard  ->  strict  ->  all
+```
+
+To apply stricter checking to a specific file, add a comment at the top:
+
+```python
+# pyright: standard
+```
+
+To apply it to an entire subtree, add a nested `pyrightconfig.json` in that
+subdirectory with only the overridden key:
+
+```json
+{
+  "typeCheckingMode": "standard"
+}
+```
+
+The root `pyrightconfig.json` still governs everything else.

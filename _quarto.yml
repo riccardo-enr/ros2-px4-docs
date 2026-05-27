@@ -1,0 +1,30 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "ROS 2 + PX4 Dev Guide"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: workspace-setup.qmd
+        text: Workspace Setup
+      - href: basedpyright.qmd
+        text: Type Checking
+  sidebar:
+    style: docked
+    contents:
+      - section: "Getting Started"
+        contents:
+          - index.qmd
+          - workspace-setup.qmd
+          - basedpyright.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: scroll

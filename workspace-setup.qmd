@@ -1,0 +1,275 @@
+---
+title: "Workspace Setup"
+---
+
+This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace
+targeting PX4 SITL using **pixi** as the environment and package manager.
+
+## Project structure
+
+```
+my_ros2_ws/
++-- src/
+|   +-- my_package/             # your ROS 2 packages
+|   +-- px4_msgs/               # git submodule (PX4 message definitions)
++-- pixi.toml                   # environment + task definitions
++-- pixi.lock                   # committed; pins all resolved versions
++-- activate.sh                 # sources install/setup.bash on shell entry
++-- pyrightconfig.json          # basedpyright config (see Type Checking)
++-- install/                    # colcon output     (gitignored)
++-- build/                      # colcon build tree (gitignored)
++-- log/                        # colcon logs       (gitignored)
+```
+
+---
+
+## pixi.toml
+
+### Workspace metadata
+
+```toml
+[workspace]
+name     = "my_ros2_ws"
+version  = "0.1.0"
+channels = ["robostack-jazzy", "conda-forge"]
+platforms = ["linux-64"]
+```
+
+::: {.callout-warning}
+**Channel order matters.**
+`robostack-jazzy` must come **before** `conda-forge`. Reversing the order
+causes the solver to pick incompatible `libstdc++` builds and break ROS
+package resolution.
+:::
+
+### Dependencies
+
+```toml
+[dependencies]
+# --- ROS 2 Jazzy ---
+ros-jazzy-ros-base             = "*"
+ros-jazzy-ament-cmake          = "*"
+ros-jazzy-rclcpp               = "*"
+ros-jazzy-std-msgs             = "*"
+ros-jazzy-geometry-msgs        = "*"
+ros-jazzy-sensor-msgs          = "*"
+ros-jazzy-nav-msgs             = "*"
+ros-jazzy-tf2                  = "*"
+ros-jazzy-tf2-ros              = "*"
+ros-jazzy-tf2-geometry-msgs    = "*"
+ros-jazzy-ros2launch           = "*"
+ros-jazzy-launch-ros           = "*"
+ros-jazzy-rosbag2              = "*"
+ros-jazzy-rosbag2-storage-mcap = "*"
+ros-jazzy-plotjuggler-ros      = "*"
+
+# --- Build tooling ---
+colcon-common-extensions = "*"
+cmake                    = "*"
+ninja                    = "*"
+compilers                = "*"
+
+# --- C++ libraries ---
+eigen    = "*"
+yaml-cpp = "*"
+
+# --- Python ---
+python     = ">=3.11"
+numpy      = "*"
+scipy      = "*"
+matplotlib = "*"
+
+# --- CUDA (required for GPU-accelerated nodes) ---
+cuda-toolkit = ">=12.0,<13"
+```
+
+::: {.callout-tip}
+`cuda-toolkit` from `conda-forge` installs `nvcc` and runtime headers inside
+the pixi environment. The **host driver** must already be installed
+(`nvidia-smi` should report >= 525 for CUDA 12).
+:::
+
+### PyPI-only packages
+
+For packages not on conda channels, use `[pypi-dependencies]`:
+
+```toml
+[pypi-dependencies]
+scienceplots = "*"
+```
+
+### Activation script
+
+```toml
+[activation]
+scripts = ["activate.sh"]
+```
+
+---
+
+## Workspace activation
+
+Every time pixi launches a shell or runs a task it sources the scripts listed
+under `[activation]`. Use this to overlay the colcon install tree.
+
+**`activate.sh`** (project root):
+
+```bash
+INSTALL_DIR="${PIXI_PROJECT_ROOT}/install"
+
+if [ -f "${INSTALL_DIR}/setup.bash" ]; then
+  source "${INSTALL_DIR}/setup.bash"
+fi
+```
+
+`PIXI_PROJECT_ROOT` is set automatically to the directory containing
+`pixi.toml`. The `if` guard prevents errors on a clean checkout before the
+first build.
+
+---
+
+## PX4 message definitions (submodule)
+
+`px4_msgs` must be built with colcon as a standard ROS 2 package. It is
+tracked as a git submodule so that the version is pinned to the exact PX4
+firmware release you are flying against.
+
+### Adding the submodule
+
+```bash
+git submodule add -b release/1.16 \
+    https://github.com/PX4/px4_msgs.git src/px4_msgs
+```
+
+### Restoring on a fresh clone
+
+```bash
+git clone --recurse-submodules <repo-url>
+# or, after a plain clone:
+git submodule update --init --recursive
+```
+
+### .gitmodules entry
+
+```ini
+[submodule "src/px4_msgs"]
+    path   = src/px4_msgs
+    url    = https://github.com/PX4/px4_msgs.git
+    branch = release/1.16
+```
+
+::: {.callout-warning}
+Always pin `px4_msgs` to the same release branch as the PX4 firmware used
+for SITL (`release/1.14`, `release/1.15`, `release/1.16`, ...). A mismatch
+produces silent serialization errors: topics publish but subscribers receive
+garbage.
+:::
+
+---
+
+## Build tasks
+
+Define all build and launch operations as pixi tasks. Every task runs inside
+the activated environment, so `ros2`, `colcon`, `cmake`, and `nvcc` are all
+on `PATH`.
+
+```toml
+[tasks]
+# Build all packages with symlink install and compile commands export
+build = "colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1"
+
+# Remove all colcon output
+clean = "rm -rf build install log"
+
+# Run all tests with live console output
+test = "colcon test --event-handlers console_direct+"
+
+# Launch control nodes only (PX4 running externally)
+launch = { cmd = "ros2 launch my_bringup sitl.launch.py",
+           depends-on = ["build"] }
+
+# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes
+px4-sitl = { cmd = "ros2 launch my_bringup px4_sitl.launch.py \
+                     launch_px4:=true launch_agent:=true record_bag:=false",
+             depends-on = ["build"] }
+
+# Canned trajectories
+hover = { cmd = "ros2 launch my_bringup px4_sitl.launch.py \
+                 launch_px4:=true launch_agent:=true \
+                 trajectory_type:=hover z:=2.0 duration:=90.0",
+          depends-on = ["build"] }
+
+lemniscate = { cmd = "ros2 launch my_bringup px4_sitl.launch.py \
+                      launch_px4:=true launch_agent:=true \
+                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0",
+               depends-on = ["build"] }
+
+circular = { cmd = "ros2 launch my_bringup px4_sitl.launch.py \
+                    launch_px4:=true launch_agent:=true \
+                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0",
+             depends-on = ["build"] }
+```
+
+Run any task with:
+
+```bash
+pixi run build
+pixi run px4-sitl
+pixi run hover
+```
+
+The `depends-on` field guarantees the workspace is rebuilt before launching.
+
+---
+
+## Daily workflow
+
+```bash
+# After adding or updating packages in pixi.toml
+pixi install
+
+# Build all ROS 2 packages
+pixi run build
+
+# Run tests
+pixi run test
+
+# Interactive shell with the full environment active
+pixi shell
+
+# Clean rebuild
+pixi run clean
+pixi run build
+```
+
+---
+
+## Troubleshooting
+
+### `package 'xxx' not found` after adding a new ROS package
+
+The colcon install overlay is stale. Run `pixi run build`.
+
+### `ros2: command not found` inside pixi shell
+
+The activation script did not run. Verify:
+
+1. `activate.sh` exists at the project root.
+2. `pixi.toml` contains `[activation] scripts = ["activate.sh"]`.
+3. You entered the environment with `pixi shell` or `pixi run <task>`.
+
+### CUDA compiler (`nvcc`) not found
+
+1. Confirm `cuda-toolkit = ">=12.0,<13"` is in `[dependencies]`.
+2. Run `pixi install` to fetch it.
+3. Inside `pixi shell`, `which nvcc` should resolve to `.pixi/envs/default/bin/nvcc`.
+
+### colcon picks up system Python instead of pixi Python
+
+pixi prepends its environment to `PATH`, but a stale shell may still resolve
+system Python. Exit and re-enter with `pixi shell`.
+
+### pixi.lock conflicts on `git pull`
+
+`pixi.lock` is a committed file. If it conflicts, accept the incoming version
+and run `pixi install` to re-sync your local environment.
