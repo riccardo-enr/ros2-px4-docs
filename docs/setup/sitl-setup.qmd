@@ -28,18 +28,24 @@ Re-run it if a new PX4 checkout changes the required dependencies.
 
 ---
 
-## Building PX4 for Gazebo SITL
+## Building and launching
 
 ```bash
 cd PX4-Autopilot
 make px4_sitl gz_x500
 ```
 
-This compiles the SITL binary and generates a Gazebo world with the x500
-quadrotor model. The first build takes ~5 minutes; subsequent builds are
-incremental.
+This compiles the SITL binary and launches both PX4 and the Gazebo GUI. The
+first build takes ~5 minutes; subsequent builds are incremental.
 
-To confirm the build succeeded:
+On launch, PX4 prints its version string (`PX4 v1.16.x`) and drops into the
+NuttShell:
+
+```
+nsh>
+```
+
+Confirm the build binary exists:
 
 ```bash
 ls build/px4_sitl_default/bin/px4
@@ -47,92 +53,158 @@ ls build/px4_sitl_default/bin/px4
 
 ---
 
-## Launching SITL standalone
+## Supported vehicle models
+
+All `make` targets have the prefix `gz_`. The `PX4_SYS_AUTOSTART` ID is the
+airframe number used when launching the binary directly (without `make`).
+
+| Vehicle | `make` target | `PX4_SYS_AUTOSTART` |
+|---------|---------------|---------------------|
+| x500 quadrotor | `gz_x500` | 4001 |
+| x500 + depth camera (front) | `gz_x500_depth` | 4002 |
+| x500 + visual odometry | `gz_x500_vision` | 4005 |
+| x500 + 1D lidar (down) | `gz_x500_lidar_down` | 4016 |
+| x500 + 2D lidar | `gz_x500_lidar_2d` | 4013 |
+| x500 + 1D lidar (front) | `gz_x500_lidar_front` | 4017 |
+| x500 + gimbal (front) | `gz_x500_gimbal` | 4019 |
+| Standard VTOL | `gz_standard_vtol` | 4004 |
+| RC Cessna (plane) | `gz_rc_cessna` | 4003 |
+| Differential rover | `gz_rover_differential` | 50000 |
+| Ackermann rover | `gz_rover_ackermann` | 51000 |
+
+---
+
+## Supported worlds
+
+Append the world name to the model target, or set `PX4_GZ_WORLD`:
 
 ```bash
-cd PX4-Autopilot
-make px4_sitl gz_x500
+make px4_sitl gz_x500_windy
+# equivalent:
+PX4_GZ_WORLD=windy make px4_sitl gz_x500
 ```
 
-On launch, PX4 prints its version string (`PX4 v1.16.x`) and the Gazebo window
-opens with the x500 model on the ground.
+| World | Description |
+|-------|-------------|
+| `default` | Empty flat plane (used when no world is specified) |
+| `windy` | Empty world with wind enabled |
+| `baylands` | Terrain surrounded by water |
+| `aruco` | Empty world with ArUco marker for precision landing testing |
+| `walls` | Walled arena for collision-prevention testing |
+| `lawn` | Lawn surface for rover testing |
+| `moving_platform` | Moving takeoff/landing platform |
 
-To choose a different vehicle model:
-
-```bash
-make px4_sitl gz_x500_depth        # x500 with depth camera
-make px4_sitl gz_x500_lidar        # x500 with lidar
-make px4_sitl gz_rc_cessna         # fixed-wing
-```
+::: {.callout-warning}
+Do **not** specify `gz_x500_default` explicitly — PX4 will fail to launch. Use
+`gz_x500` (no suffix) for the default world.
+:::
 
 ---
 
 ## Key environment variables
 
-PX4 SITL reads several environment variables at launch. Set them before calling
-`make` or running the PX4 binary directly.
+Set these before calling `make` or running the PX4 binary directly.
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `PX4_GZ_MODEL` | Override the vehicle model name | `x500` |
-| `PX4_GZ_WORLD` | Override the Gazebo world file | `default` |
-| `PX4_SYS_AUTOSTART` | Airframe ID (overrides the model default) | `4001` |
-| `PX4_GZ_MODEL_POSE` | Initial spawn pose `x,y,z,roll,pitch,yaw` | `0,0,0.1,0,0,0` |
-| `HEADLESS` | Disable the Gazebo GUI (useful on servers) | `1` |
+| `PX4_SIM_MODEL` | Spawn a new vehicle model by name | `gz_x500` |
+| `PX4_GZ_MODEL_NAME` | Bind to an **existing** Gazebo model by name | `x500` |
+| `PX4_SYS_AUTOSTART` | Airframe ID (required when running binary directly) | `4001` |
+| `PX4_GZ_WORLD` | Override the Gazebo world file | `windy` |
+| `PX4_GZ_MODEL_POSE` | Spawn pose `x,y,z,roll,pitch,yaw` (metres, radians) | `0,2,0,0,0,0` |
+| `PX4_HOME_LAT` | Home latitude (degrees) | `51.1788` |
+| `PX4_HOME_LON` | Home longitude (degrees) | `-1.8263` |
+| `PX4_HOME_ALT` | Home altitude (metres AMSL) | `101` |
+| `HEADLESS` | Disable Gazebo GUI | `1` |
+| `PX4_SIM_SPEED_FACTOR` | Run faster/slower than real-time | `2` |
+| `PX4_GZ_STANDALONE` | Start PX4 only; connect to a separately-running Gazebo | `1` |
+| `PX4_GZ_SIM_RENDER_ENGINE` | Override render engine (use `ogre` on VMs) | `ogre` |
 
-Example — spawn in a custom pose without the GUI:
+::: {.callout-note}
+`PX4_SIM_MODEL` and `PX4_GZ_MODEL_NAME` are mutually exclusive. Use
+`PX4_SIM_MODEL` to spawn a new vehicle; use `PX4_GZ_MODEL_NAME` to attach a
+new PX4 instance to a model that Gazebo has already spawned.
+:::
+
+### Examples
 
 ```bash
+# Headless, custom spawn pose
 HEADLESS=1 PX4_GZ_MODEL_POSE="0,0,0.5,0,0,1.57" make px4_sitl gz_x500
+
+# Run at 2x real-time speed
+PX4_SIM_SPEED_FACTOR=2 make px4_sitl gz_x500
+
+# Custom home location (GPS origin)
+export PX4_HOME_LAT=51.1788
+export PX4_HOME_LON=-1.8263
+export PX4_HOME_ALT=101
+make px4_sitl gz_x500
+
+# VM with poor OpenGL support
+PX4_GZ_SIM_RENDER_ENGINE=ogre make px4_sitl gz_x500
 ```
+
+---
+
+## Standalone mode
+
+In standalone mode PX4 and Gazebo run in separate terminals. This is useful for
+attaching to an already-running Gazebo instance, or for running them on
+different machines.
+
+**Terminal 1 — start Gazebo:**
+
+```bash
+# Download the simulation-gazebo launcher script (once)
+wget https://raw.githubusercontent.com/PX4/PX4-gazebo-models/main/simulation-gazebo
+python3 simulation-gazebo
+```
+
+`simulation-gazebo` downloads models and worlds to `~/.simulation-gazebo` on
+first run and re-uses them on subsequent runs.
+
+**Terminal 2 — start PX4:**
+
+```bash
+cd PX4-Autopilot
+PX4_GZ_STANDALONE=1 make px4_sitl gz_x500
+```
+
+PX4 will print `WARN [gz bridge] Service call timed out` until Gazebo starts —
+this is normal. Once Gazebo is up, PX4 connects automatically.
 
 ---
 
 ## Integrating with the pixi workspace
 
-The recommended pattern is to store the path to the PX4 source tree as a pixi
-variable and expose it as an environment variable in the activation script.
+Store the path to the PX4 source tree as a pixi variable and expose it via the
+activation environment.
 
 **`pixi.toml`**:
 
 ```toml
-[workspace.variables]
-PX4_SRC = "/home/user/PX4-Autopilot"
-
 [activation]
-scripts = ["activate.sh"]
-env = { PX4_AUTOPILOT = "$PX4_SRC" }
-```
+env = { PX4_AUTOPILOT = "/home/user/PX4-Autopilot" }
 
-Then the launch task can start PX4 directly:
-
-```toml
 [tasks]
 px4 = { cmd = "cd $PX4_AUTOPILOT && make px4_sitl gz_x500" }
+px4-headless = { cmd = "cd $PX4_AUTOPILOT && HEADLESS=1 make px4_sitl gz_x500" }
 ```
-
-Or launch from a Python launch file using `subprocess` inside a ROS 2 launch
-action (see the launch file pattern in the Package Setup page).
 
 ---
 
 ## Confirming SITL is running
 
-Once PX4 starts, the NuttShell prompt appears:
-
-```
-nsh>
-```
-
-Check that the EKF has initialised and that the vehicle is ready:
+Check EKF and commander state from the NuttShell:
 
 ```
 nsh> ekf2 status
 nsh> commander status
 ```
 
-In a second terminal, confirm the DDS bridge topics are visible after starting
-the micro-XRCE-DDS agent (see [DDS Agent Setup](uxrce-dds-agent.qmd)):
+In a separate terminal, confirm DDS topics appear after starting the
+micro-XRCE-DDS agent (see [DDS Agent Setup](uxrce-dds-agent.qmd)):
 
 ```bash
 ros2 topic list | grep fmu
@@ -142,10 +214,14 @@ ros2 topic list | grep fmu
 
 ## Troubleshooting
 
-### Gazebo window does not open
+### `ninja: error: unknown target 'gz_x500'`
 
-The display is not forwarded. Either set `HEADLESS=1`, or on a remote machine
-export `DISPLAY=:0` before running SITL.
+The build tree is stale. Run `make distclean` then retry:
+
+```bash
+make distclean
+make px4_sitl gz_x500
+```
 
 ### `make px4_sitl gz_x500` fails with missing submodules
 
@@ -155,15 +231,21 @@ The PX4 repo was cloned without `--recursive`:
 git submodule update --init --recursive
 ```
 
+### Gazebo window does not open
+
+The display is not forwarded or the GPU driver lacks OpenGL 3.3 support. Either
+set `HEADLESS=1`, or try the OGRE 1 renderer:
+
+```bash
+PX4_GZ_SIM_RENDER_ENGINE=ogre make px4_sitl gz_x500
+```
+
 ### PX4 exits immediately after launch
 
-Lockstep mode is waiting for a Gazebo clock. Ensure Gazebo is running — the
-`gz_x500` target launches both. If you are running the PX4 binary directly
-(without `make`), launch Gazebo first.
+Lockstep is waiting for a Gazebo clock. Ensure Gazebo is running — the `gz_x500`
+target launches both. In standalone mode, start Gazebo before PX4.
 
 ### `EKF2 ERROR` at startup
 
-Normal on the first few seconds while sensors initialise. If it persists past
-~10 s the IMU or barometer simulation is misconfigured — check that `gz-harmonic`
-is installed and that the Gazebo sensors plugin loaded without errors in the
-terminal output.
+Normal for the first ~5 s while sensors initialise. If it persists, check that
+`gz-harmonic` is installed and the Gazebo sensors plugin loaded without errors.
