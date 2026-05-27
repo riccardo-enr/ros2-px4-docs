@@ -256,7 +256,7 @@
     "href": "docs/control/control-allocation.html#motor-layout-x500-sitl-top-view-ned",
     "title": "Control Allocation: Wrench to Motor Throttles",
     "section": "Motor layout (x500 SITL, top view, NED)",
-    "text": "Motor layout (x500 SITL, top view, NED)\n        x (North)\n        ^\n   FL(2)   FR(0)\n       \\\\ /\n        X\n       / \\\\\n   RL(1)   RR(3)\n\nSpin directions (viewed from above):\n  FR(0): CCW    RL(1): CCW    FL(2): CW    RR(3): CW\nMotor indices 0–3 map directly to ActuatorMotors.control[0..3]. Slots 4–11 must be NaN for a 4-motor vehicle.",
+    "text": "Motor layout (x500 SITL, top view, NED)\n\n\n\n\n\n\nFigure 1: x500 SITL X-frame motor layout with motor indices and spin directions.\n\n\n\nMotor indices 0–3 map directly to ActuatorMotors.control[0..3]. Slots 4–11 must be NaN for a 4-motor vehicle.",
     "crumbs": [
       "Home",
       "Control",

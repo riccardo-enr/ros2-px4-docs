@@ -510,16 +510,16 @@ window.Quarto = {
 <hr>
 <section id="motor-layout-x500-sitl-top-view-ned" class="level2">
 <h2 class="anchored" data-anchor-id="motor-layout-x500-sitl-top-view-ned">Motor layout (x500 SITL, top view, NED)</h2>
-<pre><code>        x (North)
-        ^
-   FL(2)   FR(0)
-       \\ /
-        X
-       / \\
-   RL(1)   RR(3)
-
-Spin directions (viewed from above):
-  FR(0): CCW    RL(1): CCW    FL(2): CW    RR(3): CW</code></pre>
+<div id="fig-x500-motor-layout" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Top-view X-frame quadrotor layout in NED: x points North, FR motor 0 and RL motor 1 spin counterclockwise, FL motor 2 and RR motor 3 spin clockwise.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-x500-motor-layout-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="assets/x500-motor-layout.svg" class="img-fluid figure-img" style="width:70.0%" alt="Top-view X-frame quadrotor layout in NED: x points North, FR motor 0 and RL motor 1 spin counterclockwise, FL motor 2 and RR motor 3 spin clockwise.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-x500-motor-layout-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: x500 SITL X-frame motor layout with motor indices and spin directions.
+</figcaption>
+</figure>
+</div>
 <p>Motor indices 0–3 map directly to <code>ActuatorMotors.control[0..3]</code>. Slots 4–11 must be <code>NaN</code> for a 4-motor vehicle.</p>
 <hr>
 </section>
@@ -609,69 +609,69 @@ k_s &amp; -k_s &amp;  k_s &amp; -k_s \\
 </section>
 <section id="c-implementation" class="level2">
 <h2 class="anchored" data-anchor-id="c-implementation">C++ implementation</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* motor_allocator.hpp */</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> MotorAllocatorConfig <span class="op">{</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> arm_length <span class="op">=</span> <span class="fl">0.25</span><span class="op">;</span>       <span class="co">// m</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> k_T        <span class="op">=</span> <span class="fl">8.54858e-6</span><span class="op">;</span> <span class="co">// N/(rad/s)^2</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> k_M_ratio  <span class="op">=</span> <span class="fl">0.019</span><span class="op">;</span>      <span class="co">// k_m = k_M_ratio * k_T</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> omega_max  <span class="op">=</span> <span class="fl">1047.2</span><span class="op">;</span>     <span class="co">// rad/s</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> omega_min  <span class="op">=</span> <span class="fl">150.0</span><span class="op">;</span>      <span class="co">// rad/s</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MotorAllocator <span class="op">{</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> initialize<span class="op">(</span><span class="at">const</span> MotorAllocatorConfig<span class="op">&amp;</span> cfg<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        <span class="va">cfg_</span> <span class="op">=</span> cfg<span class="op">;</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>        build_inverse<span class="op">();</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>array<span class="op">&lt;</span><span class="dt">float</span><span class="op">,</span> <span class="dv">12</span><span class="op">&gt;</span> allocate<span class="op">(</span><span class="dt">double</span> T<span class="op">,</span> <span class="at">const</span> Eigen<span class="op">::</span>Vector3d<span class="op">&amp;</span> tau<span class="op">)</span> <span class="at">const</span> <span class="op">{</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Vector4d wrench<span class="op">(</span>tau<span class="op">(</span><span class="dv">0</span><span class="op">),</span> tau<span class="op">(</span><span class="dv">1</span><span class="op">),</span> tau<span class="op">(</span><span class="dv">2</span><span class="op">),</span> T<span class="op">);</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Vector4d omega_sq <span class="op">=</span> <span class="va">inv_</span> <span class="op">*</span> wrench<span class="op">;</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>        <span class="bu">std::</span>array<span class="op">&lt;</span><span class="dt">float</span><span class="op">,</span> <span class="dv">12</span><span class="op">&gt;</span> result<span class="op">;</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>        <span class="dt">double</span> range <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>omega_max <span class="op">-</span> <span class="va">cfg_</span><span class="op">.</span>omega_min<span class="op">;</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">4</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>            <span class="dt">double</span> w <span class="op">=</span> <span class="bu">std::</span>sqrt<span class="op">(</span><span class="bu">std::</span>max<span class="op">(</span><span class="fl">0.0</span><span class="op">,</span> omega_sq<span class="op">(</span>i<span class="op">)));</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>            result<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">float</span><span class="op">&gt;(</span><span class="bu">std::</span>clamp<span class="op">(</span></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>                <span class="op">(</span>w <span class="op">-</span> <span class="va">cfg_</span><span class="op">.</span>omega_min<span class="op">)</span> <span class="op">/</span> range<span class="op">,</span> <span class="fl">0.0</span><span class="op">,</span> <span class="fl">1.0</span><span class="op">));</span></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">4</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">12</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>            result<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">);</span>   <span class="co">// unused slots must be NaN</span></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result<span class="op">;</span></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> build_inverse<span class="op">()</span> <span class="op">{</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">const</span> <span class="dt">double</span> kS <span class="op">=</span> <span class="bu">std::</span>sin<span class="op">(</span>M_PI <span class="op">/</span> <span class="fl">4.0</span><span class="op">);</span></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>        <span class="dt">double</span> kt <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>k_T<span class="op">,</span>  km <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>k_M_ratio <span class="op">*</span> kt<span class="op">,</span>  L <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>arm_length<span class="op">;</span></span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Matrix4d B<span class="op">;</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>        B <span class="op">&lt;&lt;</span> <span class="op">-</span>kS<span class="op">,</span>  kS<span class="op">,</span>  kS<span class="op">,</span> <span class="op">-</span>kS<span class="op">,</span></span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>               kS<span class="op">,</span> <span class="op">-</span>kS<span class="op">,</span>  kS<span class="op">,</span> <span class="op">-</span>kS<span class="op">,</span></span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>                <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">,</span>  <span class="op">-</span><span class="dv">1</span><span class="op">,</span>  <span class="op">-</span><span class="dv">1</span><span class="op">,</span></span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>                <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">;</span></span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Vector4d k<span class="op">(</span>kt <span class="op">*</span> L<span class="op">,</span> kt <span class="op">*</span> L<span class="op">,</span> km<span class="op">,</span> kt<span class="op">);</span></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Matrix4d A <span class="op">=</span> k<span class="op">.</span>asDiagonal<span class="op">()</span> <span class="op">*</span> B<span class="op">;</span></span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>        <span class="va">inv_</span> <span class="op">=</span> A<span class="op">.</span>completeOrthogonalDecomposition<span class="op">().</span>pseudoInverse<span class="op">();</span></span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    MotorAllocatorConfig <span class="va">cfg_</span><span class="op">;</span></span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    Eigen<span class="op">::</span>Matrix4d <span class="va">inv_</span><span class="op">;</span></span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* motor_allocator.hpp */</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> MotorAllocatorConfig <span class="op">{</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> arm_length <span class="op">=</span> <span class="fl">0.25</span><span class="op">;</span>       <span class="co">// m</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> k_T        <span class="op">=</span> <span class="fl">8.54858e-6</span><span class="op">;</span> <span class="co">// N/(rad/s)^2</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> k_M_ratio  <span class="op">=</span> <span class="fl">0.019</span><span class="op">;</span>      <span class="co">// k_m = k_M_ratio * k_T</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> omega_max  <span class="op">=</span> <span class="fl">1047.2</span><span class="op">;</span>     <span class="co">// rad/s</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> omega_min  <span class="op">=</span> <span class="fl">150.0</span><span class="op">;</span>      <span class="co">// rad/s</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MotorAllocator <span class="op">{</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> initialize<span class="op">(</span><span class="at">const</span> MotorAllocatorConfig<span class="op">&amp;</span> cfg<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        <span class="va">cfg_</span> <span class="op">=</span> cfg<span class="op">;</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        build_inverse<span class="op">();</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>array<span class="op">&lt;</span><span class="dt">float</span><span class="op">,</span> <span class="dv">12</span><span class="op">&gt;</span> allocate<span class="op">(</span><span class="dt">double</span> T<span class="op">,</span> <span class="at">const</span> Eigen<span class="op">::</span>Vector3d<span class="op">&amp;</span> tau<span class="op">)</span> <span class="at">const</span> <span class="op">{</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Vector4d wrench<span class="op">(</span>tau<span class="op">(</span><span class="dv">0</span><span class="op">),</span> tau<span class="op">(</span><span class="dv">1</span><span class="op">),</span> tau<span class="op">(</span><span class="dv">2</span><span class="op">),</span> T<span class="op">);</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Vector4d omega_sq <span class="op">=</span> <span class="va">inv_</span> <span class="op">*</span> wrench<span class="op">;</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        <span class="bu">std::</span>array<span class="op">&lt;</span><span class="dt">float</span><span class="op">,</span> <span class="dv">12</span><span class="op">&gt;</span> result<span class="op">;</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        <span class="dt">double</span> range <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>omega_max <span class="op">-</span> <span class="va">cfg_</span><span class="op">.</span>omega_min<span class="op">;</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">4</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>            <span class="dt">double</span> w <span class="op">=</span> <span class="bu">std::</span>sqrt<span class="op">(</span><span class="bu">std::</span>max<span class="op">(</span><span class="fl">0.0</span><span class="op">,</span> omega_sq<span class="op">(</span>i<span class="op">)));</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>            result<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">float</span><span class="op">&gt;(</span><span class="bu">std::</span>clamp<span class="op">(</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>                <span class="op">(</span>w <span class="op">-</span> <span class="va">cfg_</span><span class="op">.</span>omega_min<span class="op">)</span> <span class="op">/</span> range<span class="op">,</span> <span class="fl">0.0</span><span class="op">,</span> <span class="fl">1.0</span><span class="op">));</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">4</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">12</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>            result<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">);</span>   <span class="co">// unused slots must be NaN</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result<span class="op">;</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> build_inverse<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">const</span> <span class="dt">double</span> kS <span class="op">=</span> <span class="bu">std::</span>sin<span class="op">(</span>M_PI <span class="op">/</span> <span class="fl">4.0</span><span class="op">);</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>        <span class="dt">double</span> kt <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>k_T<span class="op">,</span>  km <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>k_M_ratio <span class="op">*</span> kt<span class="op">,</span>  L <span class="op">=</span> <span class="va">cfg_</span><span class="op">.</span>arm_length<span class="op">;</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Matrix4d B<span class="op">;</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>        B <span class="op">&lt;&lt;</span> <span class="op">-</span>kS<span class="op">,</span>  kS<span class="op">,</span>  kS<span class="op">,</span> <span class="op">-</span>kS<span class="op">,</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>               kS<span class="op">,</span> <span class="op">-</span>kS<span class="op">,</span>  kS<span class="op">,</span> <span class="op">-</span>kS<span class="op">,</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>                <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">,</span>  <span class="op">-</span><span class="dv">1</span><span class="op">,</span>  <span class="op">-</span><span class="dv">1</span><span class="op">,</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>                <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">,</span>   <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Vector4d k<span class="op">(</span>kt <span class="op">*</span> L<span class="op">,</span> kt <span class="op">*</span> L<span class="op">,</span> km<span class="op">,</span> kt<span class="op">);</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>        Eigen<span class="op">::</span>Matrix4d A <span class="op">=</span> k<span class="op">.</span>asDiagonal<span class="op">()</span> <span class="op">*</span> B<span class="op">;</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>        <span class="va">inv_</span> <span class="op">=</span> A<span class="op">.</span>completeOrthogonalDecomposition<span class="op">().</span>pseudoInverse<span class="op">();</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>    MotorAllocatorConfig <span class="va">cfg_</span><span class="op">;</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    Eigen<span class="op">::</span>Matrix4d <span class="va">inv_</span><span class="op">;</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The matrix is built once at initialization; <code>allocate</code> is called at 100 Hz in the control loop.</p>
 <hr>
 </section>
 <section id="publishing-to-px4" class="level2">
 <h2 class="anchored" data-anchor-id="publishing-to-px4">Publishing to PX4</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> msg <span class="op">=</span> <span class="bu">std::</span>make_unique<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>ActuatorMotors<span class="op">&gt;();</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>msg<span class="op">-&gt;</span>timestamp        <span class="op">=</span> px4_timestamp_us<span class="op">;</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>msg<span class="op">-&gt;</span>timestamp_sample <span class="op">=</span> px4_timestamp_us<span class="op">;</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>msg<span class="op">-&gt;</span>reversible_flags <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">12</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">-&gt;</span>control<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> motors<span class="op">[</span>i<span class="op">];</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="va">motor_pub_</span><span class="op">-&gt;</span>publish<span class="op">(</span><span class="bu">std::</span>move<span class="op">(</span>msg<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> msg <span class="op">=</span> <span class="bu">std::</span>make_unique<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>ActuatorMotors<span class="op">&gt;();</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>msg<span class="op">-&gt;</span>timestamp        <span class="op">=</span> px4_timestamp_us<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>msg<span class="op">-&gt;</span>timestamp_sample <span class="op">=</span> px4_timestamp_us<span class="op">;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>msg<span class="op">-&gt;</span>reversible_flags <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">12</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    msg<span class="op">-&gt;</span>control<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> motors<span class="op">[</span>i<span class="op">];</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="va">motor_pub_</span><span class="op">-&gt;</span>publish<span class="op">(</span><span class="bu">std::</span>move<span class="op">(</span>msg<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -731,7 +731,7 @@ Warning
 <section id="python-reference-mixing-matrix-test" class="level2">
 <h2 class="anchored" data-anchor-id="python-reference-mixing-matrix-test">Python reference (mixing matrix test)</h2>
 <p>The <code>scripts/test_mixing.py</code> script replicates the C++ logic exactly and runs eight checks: hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip wrench reconstruction, and a diagnostic for observed motor patterns.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/test_mixing.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/test_mixing.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>
