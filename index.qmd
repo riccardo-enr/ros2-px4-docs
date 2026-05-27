@@ -10,8 +10,8 @@ Python type checking. No system-level ROS install required.
 
 | Guide | Description |
 |-------|-------------|
-| [Workspace Setup](workspace-setup.qmd) | pixi.toml, channels, dependencies, activation, submodules, build tasks |
-| [Type Checking](basedpyright.qmd) | basedpyright configuration, pixi env resolution, ROS-specific notes, VSCode |
+| [Workspace Setup](docs/setup/workspace-setup.qmd) | pixi.toml, channels, dependencies, activation, submodules, build tasks |
+| [Type Checking](docs/tooling/basedpyright.qmd) | basedpyright configuration, pixi env resolution, ROS-specific notes, VSCode |
 
 ## Stack overview
 
