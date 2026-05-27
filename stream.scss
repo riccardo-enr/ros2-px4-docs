@@ -1,0 +1,85 @@
+/*-- scss:defaults --*/
+
+/* Palette */
+$charcoal-blue:  #2b3a4e;
+$blue-slate:     #4a5a75;
+$autumn-leaf:    #e56b25;
+$sandy-brown:    #f2a365;
+$gunmetal:       #3b3b3b;
+
+/* Base */
+$body-bg:             #f8f7f5;
+$body-color:          $gunmetal;
+$link-color:          $autumn-leaf;
+$link-hover-color:    darken($autumn-leaf, 12%);
+
+/* Navbar */
+$navbar-bg:           $charcoal-blue;
+$navbar-fg:           #e8e4dc;
+$navbar-hl:           $sandy-brown;
+
+/* Sidebar */
+$sidebar-bg:          #f0ede8;
+$sidebar-fg:          $gunmetal;
+$sidebar-hl:          $autumn-leaf;
+
+/* Headings */
+$headings-color:      $charcoal-blue;
+
+/* Code */
+$code-bg:             #eeebe5;
+$code-color:          $charcoal-blue;
+
+/* TOC */
+$toc-color:           $blue-slate;
+$toc-active-border:   $autumn-leaf;
+$toc-inactive-border: transparent;
+
+/* Border */
+$border-color:        #d4cec6;
+
+/*-- scss:rules --*/
+
+.sidebar-item-text.sidebar-link.active,
+.sidebar-link:hover {
+  color: $autumn-leaf !important;
+  font-weight: 600;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.callout-note    { border-left-color: $blue-slate;  }
+.callout-warning { border-left-color: $autumn-leaf; }
+.callout-tip     { border-left-color: $sandy-brown; }
+.callout-caution { border-left-color: $autumn-leaf; }
+
+pre.sourceCode {
+  border-left: 3px solid $blue-slate;
+  border-radius: 4px;
+}
+
+code:not(pre > code) {
+  color: $charcoal-blue;
+  background-color: $code-bg;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+}
+
+h1, h2 {
+  border-bottom: 2px solid $sandy-brown;
+  padding-bottom: 0.2em;
+}
+
+h3 { color: $blue-slate; }
+
+table thead {
+  background-color: $charcoal-blue;
+  color: #f8f7f5;
+}
+
+table tbody tr:nth-child(even) {
+  background-color: #f0ede8;
+}
