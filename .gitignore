@@ -1,2 +1,8 @@
 _site/
 .quarto/
+
+# AI
+CLAUDE.md
+.claude/
+/.quarto/
+**/*.quarto_ipynb
