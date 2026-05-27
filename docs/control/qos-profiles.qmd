@@ -1,0 +1,162 @@
+---
+title: "QoS Profiles for PX4 Topics"
+---
+
+ROS 2 Quality of Service (QoS) settings must match between publisher and
+subscriber. PX4 publishes all `/fmu/out/*` topics with **BEST_EFFORT**
+reliability. If your subscriber uses the default **RELIABLE** profile, ROS 2
+silently drops the connection — the subscription is created with no error, but
+the callback never fires.
+
+---
+
+## Why QoS mismatches are silent
+
+ROS 2 DDS does not error on a QoS incompatibility. The subscription is
+registered, the topic appears in `ros2 topic list`, but the middleware
+determines the publisher and subscriber are incompatible and simply sends no
+data. `ros2 topic hz` reports 0 Hz.
+
+---
+
+## PX4 publisher profile
+
+All PX4 `/fmu/out/*` topics use:
+
+| Setting | Value |
+|---------|-------|
+| Reliability | `BEST_EFFORT` |
+| Durability | `VOLATILE` |
+| History | `KEEP_LAST(10)` |
+
+**BEST_EFFORT** means packets may be dropped under load — acceptable for
+high-rate sensor streams where stale data is worse than missing data.
+**VOLATILE** means the publisher does not persist messages for late-joining
+subscribers.
+
+---
+
+## Subscriber QoS
+
+Match the publisher profile exactly:
+
+```cpp
+#include <rclcpp/qos.hpp>
+
+// Correct: matches PX4 publisher profile
+auto qos = rclcpp::QoS(10).best_effort();
+
+sub_ = create_subscription<px4_msgs::msg::VehicleOdometry>(
+    "/fmu/out/vehicle_odometry", qos, callback);
+```
+
+The `rclcpp::QoS(10)` constructor sets history depth to 10 and defaults
+durability to `VOLATILE`. `.best_effort()` switches reliability from the
+default `RELIABLE` to `BEST_EFFORT`.
+
+::: {.callout-warning}
+The ROS 2 default QoS (`rclcpp::SystemDefaultsQoS()` or
+`rclcpp::QoS(rclcpp::KeepLast(10))`) uses `RELIABLE` reliability.
+Using it for PX4 subscriptions results in silent starvation.
+:::
+
+---
+
+## Publisher QoS (ROS 2 -> PX4)
+
+For `/fmu/in/*` topics (commands sent **to** PX4), use the same profile:
+
+```cpp
+auto qos = rclcpp::QoS(10).best_effort();
+
+pub_ = create_publisher<px4_msgs::msg::OffboardControlMode>(
+    "/fmu/in/offboard_control_mode", qos);
+```
+
+PX4's DDS client subscribes to these topics with BEST_EFFORT. A RELIABLE
+publisher will time out waiting for acknowledgements that never come.
+
+---
+
+## Convenience wrapper
+
+Define a single helper to avoid repeating the QoS setup:
+
+```cpp
+/* px4_qos.hpp */
+#pragma once
+#include <rclcpp/qos.hpp>
+
+inline rclcpp::QoS px4_qos(std::size_t depth = 10) {
+    return rclcpp::QoS(depth).best_effort();
+}
+```
+
+Usage:
+
+```cpp
+#include "my_package/px4_qos.hpp"
+
+odom_sub_   = create_subscription<...>("/fmu/out/...", px4_qos(), cb);
+cmd_pub_    = create_publisher<...>   ("/fmu/in/...",  px4_qos());
+```
+
+---
+
+## Diagnosing a mismatch
+
+```bash
+# Check publisher QoS
+ros2 topic info /fmu/out/vehicle_odometry --verbose
+
+# Expected:
+# Publisher count: 1
+#   QoS profile:
+#     Reliability: BEST_EFFORT
+#     Durability: VOLATILE
+```
+
+If your subscriber shows `Reliability: RELIABLE` while the publisher shows
+`BEST_EFFORT`, the middleware will log an incompatibility warning at the `DEBUG`
+level. Enable it:
+
+```bash
+export RCUTILS_LOGGING_SEVERITY=DEBUG
+ros2 run my_package my_node
+# look for: "NEW_QOS_POLICY_REQUEST_INCOMPATIBLE_QOS"
+```
+
+---
+
+## Python subscribers
+
+The same rule applies to `rclpy`:
+
+```python
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+px4_qos = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    durability=DurabilityPolicy.VOLATILE,
+    depth=10,
+)
+
+self.sub = self.create_subscription(
+    VehicleOdometry,
+    "/fmu/out/vehicle_odometry",
+    self.callback,
+    px4_qos,
+)
+```
+
+---
+
+## Summary
+
+| Topic direction | Reliability | Durability |
+|-----------------|-------------|------------|
+| `/fmu/out/*` (PX4 -> ROS 2) | BEST_EFFORT | VOLATILE |
+| `/fmu/in/*`  (ROS 2 -> PX4) | BEST_EFFORT | VOLATILE |
+
+Use `.best_effort()` on every QoS object that touches a PX4 topic. There are
+no exceptions.

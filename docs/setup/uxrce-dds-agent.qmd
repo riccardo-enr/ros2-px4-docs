@@ -1,0 +1,191 @@
+---
+title: "micro-XRCE-DDS Agent"
+---
+
+The **micro-XRCE-DDS agent** (also called the **uXRCE-DDS agent** or
+**MicroXRCEAgent**) is the bridge between PX4 and ROS 2. PX4 runs a
+micro-XRCE-DDS **client** internally; the agent runs on the companion computer
+(or SITL host) and forwards messages to the ROS 2 DDS middleware.
+
+Without the agent, no `/fmu/*` topics appear and all ROS 2 subscribers receive
+nothing.
+
+---
+
+## How it works
+
+```
+PX4 (SITL or hardware)           Companion / workstation
++------------------------+        +---------------------------+
+| micro-XRCE-DDS client  | <----> | micro-XRCE-DDS agent      |
+| (runs in PX4 firmware) |  UDP   | (MicroXRCEAgent binary)   |
++------------------------+        +-----------+---------------+
+                                              |
+                                       ROS 2 DDS (rmw)
+                                              |
+                                    +---------+---------+
+                                    | /fmu/out/* topics |
+                                    | /fmu/in/*  topics |
+                                    +-------------------+
+```
+
+The agent converts between the XRCE wire protocol and native DDS. It is
+stateless — restart it freely without restarting PX4 or your ROS 2 nodes.
+
+---
+
+## Installation
+
+### Option A -- Snap (recommended for SITL on Ubuntu)
+
+```bash
+sudo snap install micro-xrce-dds-agent --edge
+```
+
+Run:
+
+```bash
+MicroXRCEAgent udp4 -p 8888
+```
+
+### Option B -- Build from source
+
+```bash
+git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
+cd Micro-XRCE-DDS-Agent
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+```
+
+Run:
+
+```bash
+MicroXRCEAgent udp4 -p 8888
+```
+
+### Option C -- pixi task (SITL-only)
+
+Add the snap binary as a pixi task so it starts with the full SITL stack:
+
+```toml
+[tasks]
+agent = "MicroXRCEAgent udp4 -p 8888"
+
+px4-sitl = { cmd = "ros2 launch my_bringup px4_sitl.launch.py \
+                    launch_px4:=true launch_agent:=true",
+             depends-on = ["build"] }
+```
+
+The launch file is responsible for starting the agent subprocess — the `agent`
+task is kept separate for manual use.
+
+---
+
+## Transport options
+
+| Transport | Flag | Typical use |
+|-----------|------|-------------|
+| UDP IPv4 | `udp4 -p 8888` | SITL on localhost or LAN |
+| UDP IPv6 | `udp6 -p 8888` | IPv6 networks |
+| Serial | `serial -D /dev/ttyUSB0 -b 921600` | Pixhawk via UART |
+| Serial (pseudo-TTY) | `serial -D /dev/ttyACM0 -b 57600` | Pixhawk via USB |
+
+For SITL, always use `udp4 -p 8888`. PX4's default client config targets
+`localhost:8888` on UDP.
+
+---
+
+## PX4-side configuration (SITL)
+
+PX4 SITL already has the uXRCE-DDS client enabled by default. No parameter
+changes are needed. On real hardware, ensure these parameters are set:
+
+| Parameter | Value | Meaning |
+|-----------|-------|---------|
+| `UXRCE_DDS_CFG` | `1002` (TELEM2) or `0` (disabled) | Serial port for client |
+| `UXRCE_DDS_AG_IP` | `192.168.x.x` | Agent IP (ethernet) |
+| `UXRCE_DDS_PRT` | `8888` | Agent UDP port |
+
+After changing parameters, reboot PX4.
+
+---
+
+## Verifying the bridge
+
+With PX4 SITL running and the agent started, open a new terminal inside the
+pixi environment and check that topics appear:
+
+```bash
+pixi shell
+ros2 topic list | grep fmu
+```
+
+Expected output (subset):
+
+```
+/fmu/in/actuator_motors
+/fmu/in/offboard_control_mode
+/fmu/in/vehicle_attitude_setpoint
+/fmu/in/vehicle_command
+/fmu/in/vehicle_thrust_setpoint
+/fmu/in/vehicle_torque_setpoint
+/fmu/out/vehicle_angular_velocity
+/fmu/out/vehicle_attitude
+/fmu/out/vehicle_local_position
+/fmu/out/vehicle_odometry
+/fmu/out/vehicle_status_v1
+```
+
+If the list is empty, the agent is not connected. Check:
+
+1. The agent process is running (`ps aux | grep MicroXRCE`).
+2. Port 8888 is not blocked (`ss -u -l -n | grep 8888`).
+3. PX4 printed `INFO [uxrce_dds_client] synchronized with agent` at startup.
+
+Check publish rate on a key topic:
+
+```bash
+ros2 topic hz /fmu/out/vehicle_odometry
+```
+
+Expected: ~50 Hz. If rate is 0, the QoS profile is mismatched — see
+[QoS Profiles](../control/qos-profiles.qmd).
+
+---
+
+## Namespace isolation (multiple vehicles)
+
+To run multiple SITL instances on the same machine, start each PX4 instance on
+a different port and run a separate agent for each:
+
+```bash
+# Vehicle 1
+MicroXRCEAgent udp4 -p 8888 -n uav0
+
+# Vehicle 2
+MicroXRCEAgent udp4 -p 8889 -n uav1
+```
+
+The `-n` flag sets a ROS 2 namespace prefix. Topics appear as
+`/uav0/fmu/out/...` and `/uav1/fmu/out/...`.
+
+---
+
+## Troubleshooting
+
+### `MicroXRCEAgent: command not found`
+
+The snap is not on `PATH`. Try `/snap/bin/MicroXRCEAgent`, or add
+`/snap/bin` to `PATH` in `~/.zshrc`.
+
+### Agent connects but topics stop after a few seconds
+
+PX4 SITL exited or crashed. The agent streams data only while the PX4 client is
+alive. Check the PX4 terminal for errors.
+
+### Topics appear but subscriber callbacks never fire
+
+QoS mismatch. PX4 publishes with `BEST_EFFORT` reliability. See
+[QoS Profiles](../control/qos-profiles.qmd).

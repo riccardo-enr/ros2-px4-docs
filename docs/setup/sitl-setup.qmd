@@ -1,0 +1,169 @@
+---
+title: "PX4 SITL Setup"
+---
+
+This page covers how to build PX4 firmware, launch the Gazebo SITL simulator,
+and wire it into the pixi workspace for use with the ROS 2 integration.
+
+---
+
+## Prerequisites
+
+PX4 SITL requires a native Ubuntu build environment. The PX4 source tree is
+**not** managed inside the ROS 2 workspace — it lives separately and is built
+with its own toolchain.
+
+```bash
+# Install PX4 build dependencies (run once)
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive
+cd PX4-Autopilot
+bash ./Tools/setup/ubuntu.sh
+```
+
+::: {.callout-note}
+`ubuntu.sh` installs system packages including `gcc-arm-none-eabi`, `ninja`,
+and Python dependencies. It also installs `gz-harmonic` (Gazebo) for SITL.
+Re-run it if a new PX4 checkout changes the required dependencies.
+:::
+
+---
+
+## Building PX4 for Gazebo SITL
+
+```bash
+cd PX4-Autopilot
+make px4_sitl gz_x500
+```
+
+This compiles the SITL binary and generates a Gazebo world with the x500
+quadrotor model. The first build takes ~5 minutes; subsequent builds are
+incremental.
+
+To confirm the build succeeded:
+
+```bash
+ls build/px4_sitl_default/bin/px4
+```
+
+---
+
+## Launching SITL standalone
+
+```bash
+cd PX4-Autopilot
+make px4_sitl gz_x500
+```
+
+On launch, PX4 prints its version string (`PX4 v1.16.x`) and the Gazebo window
+opens with the x500 model on the ground.
+
+To choose a different vehicle model:
+
+```bash
+make px4_sitl gz_x500_depth        # x500 with depth camera
+make px4_sitl gz_x500_lidar        # x500 with lidar
+make px4_sitl gz_rc_cessna         # fixed-wing
+```
+
+---
+
+## Key environment variables
+
+PX4 SITL reads several environment variables at launch. Set them before calling
+`make` or running the PX4 binary directly.
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `PX4_GZ_MODEL` | Override the vehicle model name | `x500` |
+| `PX4_GZ_WORLD` | Override the Gazebo world file | `default` |
+| `PX4_SYS_AUTOSTART` | Airframe ID (overrides the model default) | `4001` |
+| `PX4_GZ_MODEL_POSE` | Initial spawn pose `x,y,z,roll,pitch,yaw` | `0,0,0.1,0,0,0` |
+| `HEADLESS` | Disable the Gazebo GUI (useful on servers) | `1` |
+
+Example — spawn in a custom pose without the GUI:
+
+```bash
+HEADLESS=1 PX4_GZ_MODEL_POSE="0,0,0.5,0,0,1.57" make px4_sitl gz_x500
+```
+
+---
+
+## Integrating with the pixi workspace
+
+The recommended pattern is to store the path to the PX4 source tree as a pixi
+variable and expose it as an environment variable in the activation script.
+
+**`pixi.toml`**:
+
+```toml
+[workspace.variables]
+PX4_SRC = "/home/user/PX4-Autopilot"
+
+[activation]
+scripts = ["activate.sh"]
+env = { PX4_AUTOPILOT = "$PX4_SRC" }
+```
+
+Then the launch task can start PX4 directly:
+
+```toml
+[tasks]
+px4 = { cmd = "cd $PX4_AUTOPILOT && make px4_sitl gz_x500" }
+```
+
+Or launch from a Python launch file using `subprocess` inside a ROS 2 launch
+action (see the launch file pattern in the Package Setup page).
+
+---
+
+## Confirming SITL is running
+
+Once PX4 starts, the NuttShell prompt appears:
+
+```
+nsh>
+```
+
+Check that the EKF has initialised and that the vehicle is ready:
+
+```
+nsh> ekf2 status
+nsh> commander status
+```
+
+In a second terminal, confirm the DDS bridge topics are visible after starting
+the micro-XRCE-DDS agent (see [DDS Agent Setup](uxrce-dds-agent.qmd)):
+
+```bash
+ros2 topic list | grep fmu
+```
+
+---
+
+## Troubleshooting
+
+### Gazebo window does not open
+
+The display is not forwarded. Either set `HEADLESS=1`, or on a remote machine
+export `DISPLAY=:0` before running SITL.
+
+### `make px4_sitl gz_x500` fails with missing submodules
+
+The PX4 repo was cloned without `--recursive`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### PX4 exits immediately after launch
+
+Lockstep mode is waiting for a Gazebo clock. Ensure Gazebo is running — the
+`gz_x500` target launches both. If you are running the PX4 binary directly
+(without `make`), launch Gazebo first.
+
+### `EKF2 ERROR` at startup
+
+Normal on the first few seconds while sensors initialise. If it persists past
+~10 s the IMU or barometer simulation is misconfigured — check that `gz-harmonic`
+is installed and that the Gazebo sensors plugin loaded without errors in the
+terminal output.

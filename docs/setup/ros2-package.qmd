@@ -1,0 +1,247 @@
+---
+title: "ROS 2 Package Structure"
+---
+
+This page describes the minimal layout and boilerplate for a ROS 2 C++ package
+that builds correctly under colcon inside the pixi workspace.
+
+---
+
+## Directory layout
+
+```
+src/
++-- my_package/
+    +-- include/
+    |   +-- my_package/
+    |       +-- my_node.hpp
+    +-- src/
+    |   +-- my_node.cpp
+    |   +-- main.cpp
+    +-- launch/
+    |   +-- my_node.launch.py
+    +-- CMakeLists.txt
+    +-- package.xml
+```
+
+Headers live under `include/<package_name>/` so they are importable as
+`#include "my_package/my_node.hpp"` from any package that depends on this one.
+
+---
+
+## package.xml
+
+```xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+            schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_package</name>
+  <version>0.1.0</version>
+  <description>My ROS 2 package</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>px4_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+```
+
+Use `<depend>` (not `<build_depend>` + `<exec_depend>`) for libraries that are
+needed at both build and runtime — which covers most ROS packages.
+
+---
+
+## CMakeLists.txt
+
+```cmake
+cmake_minimum_required(VERSION 3.8)
+project(my_package)
+
+# --- compiler settings ---
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# --- find dependencies ---
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+# --- build target ---
+add_executable(my_node
+  src/my_node.cpp
+  src/main.cpp
+)
+
+target_include_directories(my_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${EIGEN3_INCLUDE_DIR}
+)
+
+target_compile_features(my_node PUBLIC cxx_std_17)
+
+ament_target_dependencies(my_node
+  rclcpp
+  std_msgs
+  geometry_msgs
+  px4_msgs
+)
+
+# --- install ---
+install(TARGETS my_node DESTINATION lib/${PROJECT_NAME})
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+
+ament_package()
+```
+
+::: {.callout-note}
+`ament_target_dependencies` handles both include paths and link libraries for
+ament packages. Only use `target_link_libraries` for non-ament deps (Eigen,
+yaml-cpp, etc.) that expose CMake targets directly.
+:::
+
+---
+
+## Node boilerplate (C++)
+
+**`include/my_package/my_node.hpp`**:
+
+```cpp
+#pragma once
+
+#include <rclcpp/rclcpp.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
+
+class MyNode : public rclcpp::Node {
+public:
+    explicit MyNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+
+private:
+    void odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
+
+    rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odom_sub_;
+};
+```
+
+**`src/my_node.cpp`**:
+
+```cpp
+#include "my_package/my_node.hpp"
+#include <rclcpp/qos.hpp>
+
+MyNode::MyNode(const rclcpp::NodeOptions& options)
+: Node("my_node", options)
+{
+    /* PX4 topics require BEST_EFFORT QoS — see QoS Profiles page. */
+    auto qos = rclcpp::QoS(10).best_effort();
+
+    odom_sub_ = create_subscription<px4_msgs::msg::VehicleOdometry>(
+        "/fmu/out/vehicle_odometry", qos,
+        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {
+            odometry_callback(msg);
+        });
+}
+
+void MyNode::odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
+{
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+        "pos: [%.2f, %.2f, %.2f]",
+        msg->position[0], msg->position[1], msg->position[2]);
+}
+```
+
+**`src/main.cpp`**:
+
+```cpp
+#include <rclcpp/rclcpp.hpp>
+#include "my_package/my_node.hpp"
+
+int main(int argc, char* argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<MyNode>());
+    rclcpp::shutdown();
+    return 0;
+}
+```
+
+---
+
+## Launch file
+
+**`launch/my_node.launch.py`**:
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package="my_package",
+            executable="my_node",
+            name="my_node",
+            output="screen",
+            parameters=[],
+        )
+    ])
+```
+
+Launch with:
+
+```bash
+ros2 launch my_package my_node.launch.py
+```
+
+Or via pixi:
+
+```bash
+pixi run launch   # if you defined a 'launch' task in pixi.toml
+```
+
+---
+
+## Building and running
+
+```bash
+# Build the workspace (all packages under src/)
+pixi run build
+
+# Run the node directly
+pixi run -- ros2 run my_package my_node
+
+# Or via launch file
+pixi run -- ros2 launch my_package my_node.launch.py
+```
+
+After editing source files, re-run `pixi run build`. With `--symlink-install`
+(default in the build task), Python and resource files are symlinked so they
+update without a rebuild — C++ sources still require a rebuild.
+
+---
+
+## Adding a new package
+
+1. Create the directory under `src/`:
+   ```bash
+   mkdir -p src/my_new_package/{include/my_new_package,src,launch}
+   ```
+2. Write `package.xml` and `CMakeLists.txt` as shown above.
+3. Run `pixi run build` — colcon discovers the new package automatically.
+
+No registration in `pixi.toml` is needed. colcon scans `src/` recursively for
+`package.xml` files.

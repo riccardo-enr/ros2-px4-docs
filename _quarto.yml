@@ -8,18 +8,34 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: docs/setup/workspace-setup.qmd
-        text: Workspace Setup
-      - href: docs/tooling/basedpyright.qmd
-        text: Type Checking
-      - href: docs/tooling/clangd.qmd
-        text: C++ Tooling
-      - href: docs/control/frame-conventions.qmd
-        text: Frame Conventions
-      - href: docs/control/low-level-control.qmd
-        text: Low-Level Control
-      - href: docs/control/control-allocation.qmd
-        text: Control Allocation
+      - text: Setup
+        menu:
+          - href: docs/setup/workspace-setup.qmd
+            text: Workspace Setup
+          - href: docs/setup/sitl-setup.qmd
+            text: PX4 SITL
+          - href: docs/setup/uxrce-dds-agent.qmd
+            text: DDS Agent
+          - href: docs/setup/ros2-package.qmd
+            text: Package Structure
+      - text: Tooling
+        menu:
+          - href: docs/tooling/basedpyright.qmd
+            text: Type Checking
+          - href: docs/tooling/clangd.qmd
+            text: C++ Tooling
+      - text: Control
+        menu:
+          - href: docs/control/qos-profiles.qmd
+            text: QoS Profiles
+          - href: docs/control/frame-conventions.qmd
+            text: Frame Conventions
+          - href: docs/control/arming-offboard.qmd
+            text: Arming & Offboard
+          - href: docs/control/low-level-control.qmd
+            text: Low-Level Control
+          - href: docs/control/control-allocation.qmd
+            text: Control Allocation
   sidebar:
     style: docked
     contents:
@@ -29,13 +45,18 @@ website:
       - section: "Setup"
         contents:
           - docs/setup/workspace-setup.qmd
+          - docs/setup/sitl-setup.qmd
+          - docs/setup/uxrce-dds-agent.qmd
+          - docs/setup/ros2-package.qmd
       - section: "Tooling"
         contents:
           - docs/tooling/basedpyright.qmd
           - docs/tooling/clangd.qmd
       - section: "Control"
         contents:
+          - docs/control/qos-profiles.qmd
           - docs/control/frame-conventions.qmd
+          - docs/control/arming-offboard.qmd
           - docs/control/low-level-control.qmd
           - docs/control/control-allocation.qmd
 
