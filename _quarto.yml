@@ -14,6 +14,8 @@ website:
         text: Type Checking
       - href: docs/tooling/clangd.qmd
         text: C++ Tooling
+      - href: docs/control/low-level-control.qmd
+        text: Low-Level Control
   sidebar:
     style: docked
     contents:
@@ -27,6 +29,9 @@ website:
         contents:
           - docs/tooling/basedpyright.qmd
           - docs/tooling/clangd.qmd
+      - section: "Control"
+        contents:
+          - docs/control/low-level-control.qmd
 
 format:
   html:

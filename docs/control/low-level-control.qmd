@@ -1,0 +1,249 @@
+---
+title: "Low-Level Offboard Control"
+---
+
+Low-level offboard control means bypassing PX4's position/velocity controllers
+and sending commands directly to the inner loops. Three levels are available,
+selected at runtime via a ROS 2 parameter:
+
+| Mode | `control_mode` | PX4 message | What you command |
+|------|:--------------:|-------------|-----------------|
+| Attitude | 1 | `VehicleAttitudeSetpoint` | Desired quaternion + collective thrust |
+| Thrust + Torque | 2 | `VehicleThrustSetpoint` + `VehicleTorqueSetpoint` | Body-frame wrench |
+| Direct actuator | 3 | `ActuatorMotors` | Per-motor throttle [0, 1] |
+
+Reference implementation:
+[SaxionMechatronics/px4_offboard_lowlevel](https://github.com/SaxionMechatronics/px4_offboard_lowlevel).
+
+---
+
+## OffboardControlMode heartbeat
+
+PX4 requires a continuous `OffboardControlMode` heartbeat at ~3 Hz or it
+exits offboard mode. The active fields must match the command type being sent:
+
+```cpp
+px4_msgs::msg::OffboardControlMode msg{};
+msg.position          = false;
+msg.velocity          = false;
+msg.acceleration      = false;
+msg.body_rate         = false;
+
+// mode 1 — attitude
+msg.attitude          = true;
+msg.thrust_and_torque = false;
+msg.direct_actuator   = false;
+
+// mode 2 — thrust + torque
+// msg.thrust_and_torque = true; (attitude and direct_actuator = false)
+
+// mode 3 — direct actuator
+// msg.direct_actuator = true; (attitude and thrust_and_torque = false)
+
+msg.timestamp = node->get_clock()->now().nanoseconds() / 1000;
+offboard_control_mode_pub->publish(msg);
+```
+
+The heartbeat timer and the controller output timer are independent:
+
+```cpp
+// 3 Hz heartbeat
+offboard_timer = create_wall_timer(333ms, [=]() { publishOffboardControlModeMsg(); });
+
+// 100 Hz control loop
+controller_timer = create_wall_timer(10ms,  [=]() { updateControllerOutput(); });
+```
+
+---
+
+## Frame conventions
+
+PX4 uses **NED / FRD** (North-East-Down, Front-Right-Down). ROS and most
+controllers use **ENU / FLU** (East-North-Up, Front-Left-Up). Conversions are
+required before publishing any setpoint.
+
+### Quaternion (ENU -> NED)
+
+```cpp
+Eigen::Quaterniond rotateQuaternionFromToENU_NED(const Eigen::Quaterniond& q) {
+    // 180 deg rotation around x+y axes
+    static const Eigen::Quaterniond q_NED_ENU(0.0, 0.7071, 0.7071, 0.0);
+    return q_NED_ENU * q;
+}
+```
+
+### Torque vector (FLU -> FRD)
+
+```cpp
+Eigen::Vector3d rotateVectorFromToFRD_FLU(const Eigen::Vector3d& v) {
+    return Eigen::Vector3d(v.x(), -v.y(), -v.z());
+}
+```
+
+### Thrust sign
+
+Thrust in PX4's body-NED frame points **downward** (negative z):
+
+```cpp
+thrust_sp_msg.xyz[2] = -collective_thrust;   // minus sign required
+```
+
+---
+
+## Mode 1: Attitude setpoint
+
+Publish `VehicleAttitudeSetpoint` with a desired quaternion and collective
+thrust. The PX4 attitude controller tracks the quaternion error.
+
+```cpp
+px4_msgs::msg::VehicleAttitudeSetpoint msg{};
+msg.timestamp = node->get_clock()->now().nanoseconds() / 1000;
+
+Eigen::Quaterniond q_ned = rotateQuaternionFromToENU_NED(desired_q);
+msg.q_d[0] = q_ned.w();
+msg.q_d[1] = q_ned.x();
+msg.q_d[2] = q_ned.y();
+msg.q_d[3] = q_ned.z();
+
+msg.thrust_body[0] = 0.0;
+msg.thrust_body[1] = 0.0;
+msg.thrust_body[2] = -collective_thrust;   // NED: downward = negative
+
+attitude_setpoint_pub->publish(msg);
+```
+
+---
+
+## Mode 2: Thrust + torque setpoint
+
+Publish separate `VehicleThrustSetpoint` and `VehicleTorqueSetpoint` messages.
+PX4 uses these directly — no attitude controller in the loop.
+
+```cpp
+px4_msgs::msg::VehicleThrustSetpoint thrust_msg{};
+px4_msgs::msg::VehicleTorqueSetpoint torque_msg{};
+
+uint64_t ts = node->get_clock()->now().nanoseconds() / 1000;
+thrust_msg.timestamp = thrust_msg.timestamp_sample = ts;
+torque_msg.timestamp = torque_msg.timestamp_sample = ts;
+
+thrust_msg.xyz[0] = 0.0;
+thrust_msg.xyz[1] = 0.0;
+thrust_msg.xyz[2] = -collective_thrust;   // NED sign
+
+// Rotate torque from controller FLU frame to FRD
+Eigen::Vector3d tau_frd = rotateVectorFromToFRD_FLU(torque_flu);
+torque_msg.xyz[0] = tau_frd.x();
+torque_msg.xyz[1] = tau_frd.y();
+torque_msg.xyz[2] = tau_frd.z();
+
+thrust_pub->publish(thrust_msg);
+torque_pub->publish(torque_msg);
+```
+
+---
+
+## Mode 3: Direct actuator commands
+
+Publish `ActuatorMotors` with per-motor throttles in [0, 1]. Unused slots
+must be `NaN`.
+
+```cpp
+px4_msgs::msg::ActuatorMotors msg{};
+msg.control = {
+    (float) throttles[0], (float) throttles[1],
+    (float) throttles[2], (float) throttles[3],
+    std::nanf("1"), std::nanf("1"), std::nanf("1"), std::nanf("1"),
+    std::nanf("1"), std::nanf("1"), std::nanf("1"), std::nanf("1")
+};
+msg.reversible_flags = 0;
+msg.timestamp = msg.timestamp_sample = node->get_clock()->now().nanoseconds() / 1000;
+actuator_motors_pub->publish(msg);
+```
+
+::: {.callout-warning}
+**Lockstep must be disabled** for direct actuator control in Gazebo SITL.
+Set `lockstep: false` in the model's `model.sdf` and in PX4's SITL config.
+:::
+
+---
+
+## Control allocation (wrench -> throttles)
+
+To produce per-motor throttles from a desired wrench `[tau_x, tau_y, tau_z, T]`:
+
+$$
+\boldsymbol{\omega} = \mathbf{M}^+ \mathbf{w}, \quad
+\text{PWM}_i = c_2 \omega_i^2 + c_1 \omega_i + c_0, \quad
+\delta_i = \frac{\text{PWM}_i - \text{PWM}_\text{min}}{\text{PWM}_\text{max} - \text{PWM}_\text{min}}
+$$
+
+where $\mathbf{M}$ is the control allocation matrix (arm geometry + motor
+constants) and $\mathbf{M}^+$ is its pseudoinverse.
+
+For a symmetric X-quadrotor with arm length $l$ and thrust/moment constants
+$k_T$, $k_M$:
+
+$$
+\mathbf{M} = \begin{pmatrix}
+-k_T l \sin 45^\circ & k_T l \sin 45^\circ & k_T l \sin 45^\circ & -k_T l \sin 45^\circ \\
+-k_T l \sin 45^\circ & k_T l \sin 45^\circ & -k_T l \sin 45^\circ & k_T l \sin 45^\circ \\
+-k_M k_T & -k_M k_T & k_M k_T & k_M k_T \\
+k_T & k_T & k_T & k_T
+\end{pmatrix}
+$$
+
+SITL skips the PWM conversion and maps throttles directly via `SIM_GZ_EC_MIN`
+/ `SIM_GZ_EC_MAX` (rotor speed limits in rad/s).
+
+### x500 parameters (reference)
+
+```yaml
+uav_parameters:
+  mass: 2.064              # kg
+  arm_length: 0.25         # m
+  num_of_arms: 4
+  inertia: {x: 0.08612, y: 0.08962, z: 0.16088}   # kg.m^2
+  thrust_constant: 8.54858e-06   # N.s^2/rad^2
+  moment_constant: 0.016         # m
+  max_rotor_speed: 1000          # rad/s
+  gravity: 9.81
+  omega_to_pwm_coefficient: {x_2: 0.001142, x_1: 0.2273, x_0: 914.2}
+  PWM_MIN: 1075
+  PWM_MAX: 1950
+  SIM_GZ_EC_MAX: 1000    # rad/s
+  SIM_GZ_EC_MIN: 150     # rad/s
+```
+
+---
+
+## Topic map
+
+| Direction | Topic | Message type |
+|-----------|-------|-------------|
+| in | `/fmu/out/vehicle_odometry` | `VehicleOdometry` |
+| in | `/fmu/out/vehicle_status_v1` | `VehicleStatus` |
+| out | `/fmu/in/offboard_control_mode` | `OffboardControlMode` |
+| out | `/fmu/in/vehicle_command` | `VehicleCommand` |
+| out | `/fmu/in/vehicle_attitude_setpoint` | `VehicleAttitudeSetpoint` |
+| out | `/fmu/in/vehicle_thrust_setpoint` | `VehicleThrustSetpoint` |
+| out | `/fmu/in/vehicle_torque_setpoint` | `VehicleTorqueSetpoint` |
+| out | `/fmu/in/actuator_motors` | `ActuatorMotors` |
+
+Note the versioned topic name for `VehicleStatus` — see
+[version mismatch](../setup/workspace-setup.qmd#versioned-topic-names).
+
+---
+
+## Switching modes at runtime
+
+The control mode can be changed without restarting the node:
+
+```bash
+ros2 param set /offboard_controller control_mode 2   # -> thrust + torque
+ros2 param set /offboard_controller control_mode 3   # -> direct actuator
+ros2 param set /offboard_controller control_mode 1   # -> attitude (default)
+```
+
+The `OffboardControlMode` heartbeat automatically switches its active field
+on the next publish cycle.
