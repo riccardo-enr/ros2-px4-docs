@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-6fd515f92ba33719ae621d034b335f62.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-3b67c4cfd3d735f8b15c63a8e56500e9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -246,6 +246,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#adding-the-submodule" id="toc-adding-the-submodule" class="nav-link" data-scroll-target="#adding-the-submodule">Adding the submodule</a></li>
   <li><a href="#restoring-on-a-fresh-clone" id="toc-restoring-on-a-fresh-clone" class="nav-link" data-scroll-target="#restoring-on-a-fresh-clone">Restoring on a fresh clone</a></li>
   <li><a href="#gitmodules-entry" id="toc-gitmodules-entry" class="nav-link" data-scroll-target="#gitmodules-entry">.gitmodules entry</a></li>
+  <li><a href="#versioned-topic-names" id="toc-versioned-topic-names" class="nav-link" data-scroll-target="#versioned-topic-names">Versioned topic names</a></li>
+  <li><a href="#diagnosing-version-mismatches" id="toc-diagnosing-version-mismatches" class="nav-link" data-scroll-target="#diagnosing-version-mismatches">Diagnosing version mismatches</a></li>
   </ul></li>
   <li><a href="#build-tasks" id="toc-build-tasks" class="nav-link" data-scroll-target="#build-tasks">Build tasks</a></li>
   <li><a href="#daily-workflow" id="toc-daily-workflow" class="nav-link" data-scroll-target="#daily-workflow">Daily workflow</a></li>
@@ -428,70 +430,101 @@ Warning
 <p>Always pin <code>px4_msgs</code> to the same release branch as the PX4 firmware used for SITL (<code>release/1.14</code>, <code>release/1.15</code>, <code>release/1.16</code>, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.</p>
 </div>
 </div>
+</section>
+<section id="versioned-topic-names" class="level3">
+<h3 class="anchored" data-anchor-id="versioned-topic-names">Versioned topic names</h3>
+<p>From PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is <code>VehicleStatus</code>, which moved from:</p>
+<pre><code>/fmu/out/vehicle_status      # pre-v1.14
+/fmu/out/vehicle_status_v1   # v1.14+</code></pre>
+<p>If your subscriber listens on the wrong topic name it receives <strong>no data at all</strong> — the subscription simply never fires. Auto-arming logic that waits for <code>arming_state == ARMING_STATE_ARMED</code> blocks forever, and the vehicle never arms.</p>
+<p>The fix is to subscribe to the versioned topic:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// px4_interface.cpp / px4_manager_node.cpp</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="va">status_sub_</span> <span class="op">=</span> <span class="va">node_</span><span class="op">-&gt;</span>create_subscription<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleStatus<span class="op">&gt;(</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"/fmu/out/vehicle_status_v1"</span><span class="op">,</span> qos<span class="op">,</span> callback<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Check which topics are actually being published by the running firmware:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> vehicle_status</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Use whichever name appears — it tells you exactly what the firmware is advertising.</p>
+</section>
+<section id="diagnosing-version-mismatches" class="level3">
+<h3 class="anchored" data-anchor-id="diagnosing-version-mismatches">Diagnosing version mismatches</h3>
+<p>If the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># commit that your workspace px4_msgs is pinned to</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> src/px4_msgs rev-parse HEAD</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># PX4 version string printed at SITL startup, e.g. "PX4 v1.15.2"</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co"># must correspond to the same release branch</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To fix, update the submodule to the branch matching your firmware:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> src/px4_msgs</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout release/1.16   <span class="co"># match PX4 firmware version</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ../..</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--symlink-install</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add src/px4_msgs</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">"chore: pin px4_msgs to release/1.16"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 </section>
 <section id="build-tasks" class="level2">
 <h2 class="anchored" data-anchor-id="build-tasks">Build tasks</h2>
 <p>Define all build and launch operations as pixi tasks. Every task runs inside the activated environment, so <code>ros2</code>, <code>colcon</code>, <code>cmake</code>, and <code>nvcc</code> are all on <code>PATH</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all packages with symlink install and compile commands export</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="dt">build</span> <span class="op">=</span> <span class="st">"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1"</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove all colcon output</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="dt">clean</span> <span class="op">=</span> <span class="st">"rm -rf build install log"</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Run all tests with live console output</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="dt">test</span> <span class="op">=</span> <span class="st">"colcon test --event-handlers console_direct+"</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Launch control nodes only (PX4 running externally)</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="dt">launch</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup sitl.launch.py"</span><span class="op">,</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="op">           </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes</span></span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-sitl</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="op">                     </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">record_bag</span><span class="op">:=</span><span class="cn">false</span><span class="dt">",</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Canned trajectories</span></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="dt">hover</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">hover</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="op"> </span><span class="dt">duration</span><span class="op">:=</span><span class="fl">90.0</span><span class="dt">",</span></span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="op">          </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="dt">lemniscate</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">lemniscate</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="op">               </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="dt">circular</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">circular</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all packages with symlink install and compile commands export</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="dt">build</span> <span class="op">=</span> <span class="st">"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1"</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove all colcon output</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="dt">clean</span> <span class="op">=</span> <span class="st">"rm -rf build install log"</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Run all tests with live console output</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="dt">test</span> <span class="op">=</span> <span class="st">"colcon test --event-handlers console_direct+"</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Launch control nodes only (PX4 running externally)</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="dt">launch</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup sitl.launch.py"</span><span class="op">,</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="op">           </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-sitl</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="op">                     </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">record_bag</span><span class="op">:=</span><span class="cn">false</span><span class="dt">",</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Canned trajectories</span></span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="dt">hover</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="op">                 </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">hover</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="op"> </span><span class="dt">duration</span><span class="op">:=</span><span class="fl">90.0</span><span class="dt">",</span></span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="op">          </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="dt">lemniscate</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="op">                      </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">lemniscate</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a><span class="op">               </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="dt">circular</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="op"> \</span></span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">trajectory_type</span><span class="op">:=</span><span class="dt">circular</span><span class="op"> </span><span class="dt">A</span><span class="op">:=</span><span class="fl">3.0</span><span class="op"> </span><span class="dt">omega</span><span class="op">:=</span><span class="fl">0.2</span><span class="op"> </span><span class="dt">z</span><span class="op">:=</span><span class="fl">2.0</span><span class="dt">",</span></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Run any task with:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run px4-sitl</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run hover</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run px4-sitl</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run hover</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>depends-on</code> field guarantees the workspace is rebuilt before launching.</p>
 <hr>
 </section>
 <section id="daily-workflow" class="level2">
 <h2 class="anchored" data-anchor-id="daily-workflow">Daily workflow</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># After adding or updating packages in pixi.toml</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> install</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all ROS 2 packages</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run test</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Interactive shell with the full environment active</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> shell</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean rebuild</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run clean</span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># After adding or updating packages in pixi.toml</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> install</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build all ROS 2 packages</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run test</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Interactive shell with the full environment active</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> shell</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean rebuild</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run clean</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 <section id="troubleshooting" class="level2">
