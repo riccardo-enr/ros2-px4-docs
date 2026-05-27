@@ -1,0 +1,370 @@
+---
+title: "Testing ROS 2 Nodes"
+---
+
+Automated testing catches regressions before they reach the UAV. This page covers
+unit tests for isolated logic and integration tests that launch real nodes against
+a mock DDS bridge or a full PX4 SITL.
+
+The integration test patterns follow the official
+[ROS 2 integration testing tutorial](https://docs.ros.org/en/rolling/Tutorials/Intermediate/Testing/Integration.html),
+adapted for PX4 nodes and a colcon + pixi workspace.
+
+---
+
+## Unit tests
+
+### C++: gtest
+
+Add `gtest/gtest.h` and use the standard macros. No ROS context is needed for
+pure logic:
+
+```cpp
+#include <gtest/gtest.h>
+#include "my_pkg/math_utils.hpp"
+
+TEST(WrapAngleSuite, WrapsPositive) {
+    EXPECT_NEAR(wrap_pi(4.0), 4.0 - 2 * M_PI, 1e-9);
+}
+
+TEST(WrapAngleSuite, WrapsNegative) {
+    EXPECT_NEAR(wrap_pi(-4.0), -4.0 + 2 * M_PI, 1e-9);
+}
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+```
+
+Register in `CMakeLists.txt`:
+
+```cmake
+find_package(ament_cmake_gtest REQUIRED)
+ament_add_gtest(test_math_utils test/test_math_utils.cpp)
+target_link_libraries(test_math_utils ${PROJECT_NAME})
+```
+
+### Python: pytest
+
+pytest auto-discovers any function named `test_*`. For pure-logic tests no ROS
+context is needed:
+
+```python
+from my_pkg.math_utils import wrap_pi
+import math
+
+def test_wraps_positive():
+    assert abs(wrap_pi(4.0) - (4.0 - 2 * math.pi)) < 1e-9
+
+def test_wraps_negative():
+    assert abs(wrap_pi(-4.0) - (-4.0 + 2 * math.pi)) < 1e-9
+```
+
+Register:
+
+```cmake
+find_package(ament_cmake_pytest REQUIRED)
+ament_add_pytest_test(test_math_utils test/test_math_utils.py)
+```
+
+---
+
+## Integration tests
+
+Integration tests launch actual nodes and verify behaviour over real topics. The
+key tool is the [launch_testing](https://docs.ros.org/en/rolling/p/launch_testing/)
+package, which wraps a ROS 2 launch file with a `unittest` harness.
+
+::: {.callout-important}
+Integration tests rely on `unittest`, **not** pytest. Do not mix them in the
+same file — post-shutdown tests silently disappear when the file is wrapped by
+pytest.
+:::
+
+### Test file structure
+
+Integration test files live in `test/test_*.py`. Four elements make up every
+launch test:
+
+| Element | Purpose |
+|---|---|
+| `generate_test_description()` | Declares what to launch, analogous to `generate_launch_description` |
+| `launch_testing.actions.ReadyToTest()` | Signals the framework that nodes are ready and active tests can start |
+| Undecorated `unittest.TestCase` subclass | Active tests that run while nodes are alive |
+| `@launch_testing.post_shutdown_test()` subclass | Tests that run after all nodes exit (e.g. exit-code checks) |
+
+### Example: controller node test
+
+```python
+import time
+import unittest
+
+import launch
+import launch_ros.actions
+import launch_testing
+import launch_testing.actions
+import launch_testing.asserts
+import rclpy
+from px4_msgs.msg import TrajectorySetpoint
+
+
+def generate_test_description():
+    controller_node = launch_ros.actions.Node(
+        package="my_pkg",
+        executable="controller_node",
+        name="controller",
+        output="screen",
+    )
+
+    return (
+        launch.LaunchDescription([
+            controller_node,
+            # give the node 0.5 s to start before running tests
+            launch.actions.TimerAction(
+                period=0.5,
+                actions=[launch_testing.actions.ReadyToTest()],
+            ),
+        ]),
+        {"controller_node": controller_node},
+    )
+
+
+# Active tests -- run while the node is alive
+class TestControllerActive(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        rclpy.init()
+
+    @classmethod
+    def tearDownClass(cls):
+        rclpy.shutdown()
+
+    def setUp(self):
+        # fresh node per test reduces cross-test interference
+        self.node = rclpy.create_node("test_controller_listener")
+
+    def tearDown(self):
+        self.node.destroy_node()
+
+    def test_publishes_trajectory_setpoint(self, proc_output):
+        """Node must publish at least one TrajectorySetpoint within 10 s."""
+        msgs = []
+        sub = self.node.create_subscription(
+            TrajectorySetpoint,
+            "/fmu/in/trajectory_setpoint",
+            lambda m: msgs.append(m),
+            10,
+        )
+        try:
+            end_time = time.time() + 10
+            while time.time() < end_time:
+                rclpy.spin_once(self.node, timeout_sec=1)
+            assert len(msgs) > 0, "no TrajectorySetpoint received within 10 s"
+        finally:
+            self.node.destroy_subscription(sub)
+
+    def test_logs_init(self, proc_output):
+        """Node must log its startup message."""
+        proc_output.assertWaitFor(
+            "controller initialized",
+            timeout=5,
+            stream="stderr",
+        )
+
+
+# Post-shutdown tests -- run after all nodes exit
+@launch_testing.post_shutdown_test()
+class TestControllerShutdown(unittest.TestCase):
+    def test_exit_codes(self, proc_info, controller_node):
+        """All launched processes must exit cleanly."""
+        launch_testing.asserts.assertExitCodes(
+            proc_info, process=controller_node
+        )
+```
+
+### Domain isolation
+
+By default, `add_launch_test` assigns domain ID 0 to every test, causing
+parallel tests to cross-talk. The `ament_cmake_ros` package ships a runner that
+picks a unique, free domain ID per test:
+
+```cmake
+find_package(ament_cmake_ros REQUIRED)
+find_package(launch_testing_ament_cmake REQUIRED)
+
+function(add_ros_isolated_launch_test path)
+  set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
+  add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
+endfunction()
+
+add_ros_isolated_launch_test(test/test_integration.py)
+```
+
+::: {.callout-note}
+`ROS_DOMAIN_ID` must **not** be set in the environment when using the isolated
+runner — the coordinator selects a free ID automatically.
+:::
+
+### Full `CMakeLists.txt` snippet
+
+```cmake
+if(BUILD_TESTING)
+  # C++ unit tests
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_math_utils test/test_math_utils.cpp)
+  target_link_libraries(test_math_utils ${PROJECT_NAME})
+
+  # Python unit tests
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_utils test/test_math_utils.py)
+
+  # Integration tests (isolated domain)
+  find_package(ament_cmake_ros REQUIRED)
+  find_package(launch_testing_ament_cmake REQUIRED)
+  function(add_ros_isolated_launch_test path)
+    set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
+    add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
+  endfunction()
+  add_ros_isolated_launch_test(test/test_integration.py)
+endif()
+```
+
+### `package.xml` test dependencies
+
+Test-only dependencies use `<test_depend>` so they are not pulled into
+production builds:
+
+```xml
+<test_depend>ament_cmake_gtest</test_depend>
+<test_depend>ament_cmake_pytest</test_depend>
+<test_depend>ament_cmake_ros</test_depend>
+<test_depend>launch</test_depend>
+<test_depend>launch_ros</test_depend>
+<test_depend>launch_testing</test_depend>
+<test_depend>launch_testing_ament_cmake</test_depend>
+<test_depend>rclpy</test_depend>
+<test_depend>px4_msgs</test_depend>
+```
+
+---
+
+## Running and reviewing tests
+
+### Run all tests
+
+```bash
+colcon test
+```
+
+Stream live output while developing:
+
+```bash
+colcon test --event-handlers console_direct+
+```
+
+Run only one package:
+
+```bash
+colcon test --packages-select my_pkg
+```
+
+### Check results
+
+```bash
+colcon test-result --all
+```
+
+Example output:
+
+```
+build/my_pkg/test_results/my_pkg/test_math_utils.gtest.xml:              2 tests, 0 errors, 0 failures
+build/my_pkg/test_results/my_pkg/test_test_integration.py.xunit.xml:     3 tests, 0 errors, 1 failure
+```
+
+For a richer HTML report, install
+[xunit-viewer](https://github.com/lukejpreston/xunit-viewer):
+
+```bash
+npm install -g xunit-viewer
+xunit-viewer -r build/my_pkg/test_results -c    # terminal summary
+xunit-viewer -r build/my_pkg/test_results       # HTML report -> results.html
+```
+
+The XUnit files are also suitable for CI/CD report parsing (GitHub Actions,
+GitLab CI, Jenkins).
+
+### Run a single test file directly
+
+Useful when iterating without a full rebuild:
+
+```bash
+# C++ gtest binary
+./build/my_pkg/test_math_utils
+
+# Python pytest
+pytest src/my_pkg/test/test_math_utils.py -v
+
+# Launch test (no isolation, for quick manual iteration)
+python3 -m pytest src/my_pkg/test/test_integration.py -v
+```
+
+---
+
+## Testing against SITL
+
+For end-to-end tests that require a running flight stack, launch PX4 SITL and
+the DDS agent inside `generate_test_description`:
+
+```python
+import launch
+import launch.actions
+import launch_ros.actions
+import launch_testing
+import launch_testing.actions
+
+
+def generate_test_description():
+    px4 = launch.actions.ExecuteProcess(
+        cmd=["bash", "-c", "cd $PX4_ROOT && make px4_sitl gz_x500"],
+        output="screen",
+    )
+
+    agent = launch_ros.actions.Node(
+        package="micro_ros_agent",
+        executable="micro_ros_agent",
+        arguments=["udp4", "--port", "8888"],
+        output="screen",
+    )
+
+    return (
+        launch.LaunchDescription([
+            px4,
+            launch.actions.TimerAction(period=5.0, actions=[agent]),
+            launch.actions.TimerAction(
+                period=10.0,
+                actions=[launch_testing.actions.ReadyToTest()],
+            ),
+        ]),
+        {},
+    )
+```
+
+::: {.callout-warning}
+SITL tests take 20--60 s each. Gate them behind a CMake option so CI can skip
+them on quick build checks:
+
+```cmake
+option(TEST_SITL "Build SITL integration tests" OFF)
+if(TEST_SITL)
+  add_ros_isolated_launch_test(test/test_sitl.py)
+endif()
+```
+
+Build with SITL tests enabled:
+
+```bash
+colcon build --cmake-args -DTEST_SITL=ON
+colcon test  --packages-select my_pkg
+```
+:::

@@ -20,16 +20,24 @@ website:
             text: C++ Node Package
           - href: docs/setup/ros2-bringup-package.qmd
             text: Bringup Package
+          - href: docs/setup/sitl-combined-launch.qmd
+            text: One-Command SITL Launch
       - text: Tooling
         menu:
           - href: docs/tooling/basedpyright.qmd
             text: Type Checking
           - href: docs/tooling/clangd.qmd
             text: C++ Tooling
+          - href: docs/tooling/testing.qmd
+            text: Testing
       - text: Control
         menu:
           - href: docs/control/qos-profiles.qmd
             text: QoS Profiles
+          - href: docs/control/control-loop.qmd
+            text: Control Loop Architecture
+          - href: docs/control/ros-parameters.qmd
+            text: Node Parameters
           - href: docs/control/frame-conventions.qmd
             text: Frame Conventions
           - href: docs/control/arming-offboard.qmd
@@ -51,13 +59,17 @@ website:
           - docs/setup/uxrce-dds-agent.qmd
           - docs/setup/ros2-cpp-package.qmd
           - docs/setup/ros2-bringup-package.qmd
+          - docs/setup/sitl-combined-launch.qmd
       - section: "Tooling"
         contents:
           - docs/tooling/basedpyright.qmd
           - docs/tooling/clangd.qmd
+          - docs/tooling/testing.qmd
       - section: "Control"
         contents:
           - docs/control/qos-profiles.qmd
+          - docs/control/control-loop.qmd
+          - docs/control/ros-parameters.qmd
           - docs/control/frame-conventions.qmd
           - docs/control/arming-offboard.qmd
           - docs/control/low-level-control.qmd
