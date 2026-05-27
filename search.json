@@ -252,99 +252,219 @@
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html",
-    "href": "docs/setup/workspace-setup.html",
-    "title": "Workspace Setup",
+    "objectID": "docs/setup/ros2-cpp-package.html",
+    "href": "docs/setup/ros2-cpp-package.html",
+    "title": "C++ Node Package",
     "section": "",
-    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "text": "A ROS 2 C++ package contains the compiled nodes that perform control, estimation, state machines, and any other compute-intensive logic. This page covers the minimal boilerplate to get a node building under colcon inside a pixi workspace.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#project-structure",
-    "href": "docs/setup/workspace-setup.html#project-structure",
-    "title": "Workspace Setup",
-    "section": "Project structure",
-    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "objectID": "docs/setup/ros2-cpp-package.html#directory-layout",
+    "href": "docs/setup/ros2-cpp-package.html#directory-layout",
+    "title": "C++ Node Package",
+    "section": "Directory layout",
+    "text": "Directory layout\nsrc/\n+-- my_pkg/\n    +-- include/\n    |   +-- my_pkg/\n    |       +-- controller.hpp\n    |       +-- estimator.hpp\n    +-- src/\n    |   +-- controller.cpp\n    |   +-- estimator.cpp\n    |   +-- main.cpp\n    +-- launch/\n    |   +-- node.launch.py          # minimal single-node launch\n    +-- CMakeLists.txt\n    +-- package.xml\nHeaders live under include/&lt;package_name&gt;/ so they resolve as #include \"my_pkg/controller.hpp\" from any downstream package.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
-    "href": "docs/setup/workspace-setup.html#pixi.toml",
-    "title": "Workspace Setup",
-    "section": "pixi.toml",
-    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "objectID": "docs/setup/ros2-cpp-package.html#package.xml",
+    "href": "docs/setup/ros2-cpp-package.html#package.xml",
+    "title": "C++ Node Package",
+    "section": "package.xml",
+    "text": "package.xml\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_pkg&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;Control and estimation nodes&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;!-- runtime + build: use &lt;depend&gt; for packages needed at both stages --&gt;\n  &lt;depend&gt;rclcpp&lt;/depend&gt;\n  &lt;depend&gt;rclcpp_components&lt;/depend&gt;\n  &lt;depend&gt;std_msgs&lt;/depend&gt;\n  &lt;depend&gt;geometry_msgs&lt;/depend&gt;\n  &lt;depend&gt;nav_msgs&lt;/depend&gt;\n  &lt;depend&gt;px4_msgs&lt;/depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;\nUse &lt;depend&gt; (not &lt;build_depend&gt; + &lt;exec_depend&gt;) for libraries needed at both build and runtime — which covers most ROS packages.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
-    "href": "docs/setup/workspace-setup.html#workspace-activation",
-    "title": "Workspace Setup",
-    "section": "Workspace activation",
-    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "objectID": "docs/setup/ros2-cpp-package.html#cmakelists.txt",
+    "href": "docs/setup/ros2-cpp-package.html#cmakelists.txt",
+    "title": "C++ Node Package",
+    "section": "CMakeLists.txt",
+    "text": "CMakeLists.txt\ncmake_minimum_required(VERSION 3.8)\nproject(my_pkg)\n\nif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES \"Clang\")\n  add_compile_options(-Wall -Wextra -Wpedantic)\nendif()\n\n# --- dependencies ---\nfind_package(ament_cmake REQUIRED)\nfind_package(rclcpp REQUIRED)\nfind_package(rclcpp_components REQUIRED)\nfind_package(std_msgs REQUIRED)\nfind_package(geometry_msgs REQUIRED)\nfind_package(nav_msgs REQUIRED)\nfind_package(px4_msgs REQUIRED)\nfind_package(Eigen3 REQUIRED)\n\n# --- shared library (enables composable-node registration) ---\nadd_library(${PROJECT_NAME} SHARED\n  src/controller.cpp\n  src/estimator.cpp\n)\n\ntarget_include_directories(${PROJECT_NAME} PUBLIC\n  $&lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;\n  $&lt;INSTALL_INTERFACE:include&gt;\n  ${EIGEN3_INCLUDE_DIR}\n)\n\ntarget_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)\n\nament_target_dependencies(${PROJECT_NAME}\n  rclcpp\n  rclcpp_components\n  std_msgs\n  geometry_msgs\n  nav_msgs\n  px4_msgs\n)\n\n# --- register composable nodes ---\nrclcpp_components_register_node(${PROJECT_NAME}\n  PLUGIN \"my_pkg::Controller\"\n  EXECUTABLE controller_node\n)\n\nrclcpp_components_register_node(${PROJECT_NAME}\n  PLUGIN \"my_pkg::Estimator\"\n  EXECUTABLE estimator_node\n)\n\n# --- install ---\ninstall(TARGETS ${PROJECT_NAME}\n  ARCHIVE DESTINATION lib\n  LIBRARY DESTINATION lib\n  RUNTIME DESTINATION bin\n)\n\ninstall(DIRECTORY include/ DESTINATION include)\ninstall(DIRECTORY launch   DESTINATION share/${PROJECT_NAME})\n\nament_package()\n\n\n\n\n\n\nNote\n\n\n\nBuilding as a shared library and using rclcpp_components_register_node lets the bringup package load nodes in a ComponentContainer without spawning separate processes. The EXECUTABLE argument also produces a standalone binary for direct ros2 run use.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "title": "Workspace Setup",
-    "section": "PX4 message definitions (submodule)",
-    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.\n\n\n\n\nVersioned topic names\nFrom PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is VehicleStatus, which moved from:\n/fmu/out/vehicle_status      # pre-v1.14\n/fmu/out/vehicle_status_v1   # v1.14+\nIf your subscriber listens on the wrong topic name it receives no data at all — the subscription simply never fires. Auto-arming logic that waits for arming_state == ARMING_STATE_ARMED blocks forever, and the vehicle never arms.\nThe fix is to subscribe to the versioned topic:\n// px4_interface.cpp / px4_manager_node.cpp\nstatus_sub_ = node_-&gt;create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos, callback);\nCheck which topics are actually being published by the running firmware:\nros2 topic list | grep vehicle_status\nUse whichever name appears — it tells you exactly what the firmware is advertising.\n\n\nDiagnosing version mismatches\nIf the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:\n# commit that your workspace px4_msgs is pinned to\ngit -C src/px4_msgs rev-parse HEAD\n\n# PX4 version string printed at SITL startup, e.g. \"PX4 v1.15.2\"\n# must correspond to the same release branch\nTo fix, update the submodule to the branch matching your firmware:\ncd src/px4_msgs\ngit fetch\ngit checkout release/1.16   # match PX4 firmware version\ncd ../..\ncolcon build --symlink-install\ngit add src/px4_msgs\ngit commit -m \"chore: pin px4_msgs to release/1.16\"",
+    "objectID": "docs/setup/ros2-cpp-package.html#node-boilerplate-c",
+    "href": "docs/setup/ros2-cpp-package.html#node-boilerplate-c",
+    "title": "C++ Node Package",
+    "section": "Node boilerplate (C++)",
+    "text": "Node boilerplate (C++)\n\nHeader — include/my_pkg/controller.hpp\n#pragma once\n\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;geometry_msgs/msg/pose_stamped.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n#include &lt;px4_msgs/msg/trajectory_setpoint.hpp&gt;\n\nnamespace my_pkg {\n\nclass Controller : public rclcpp::Node {\npublic:\n    explicit Controller(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());\n\nprivate:\n    void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);\n    void setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);\n\n    rclcpp::Subscription&lt;px4_msgs::msg::VehicleOdometry&gt;::SharedPtr odom_sub_;\n    rclcpp::Subscription&lt;geometry_msgs::msg::PoseStamped&gt;::SharedPtr setpoint_sub_;\n    rclcpp::Publisher&lt;px4_msgs::msg::TrajectorySetpoint&gt;::SharedPtr cmd_pub_;\n    rclcpp::TimerBase::SharedPtr timer_;\n};\n\n}  // namespace my_pkg\n\n\nImplementation — src/controller.cpp\n#include \"my_pkg/controller.hpp\"\n#include &lt;rclcpp/qos.hpp&gt;\n\nnamespace my_pkg {\n\nController::Controller(const rclcpp::NodeOptions& options)\n: Node(\"controller\", options)\n{\n    /* PX4 uORB topics require BEST_EFFORT QoS -- see QoS Profiles page. */\n    auto px4_qos = rclcpp::QoS(10).best_effort();\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n        \"/fmu/out/vehicle_odometry\", px4_qos,\n        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {\n            odom_callback(msg);\n        });\n\n    setpoint_sub_ = create_subscription&lt;geometry_msgs::msg::PoseStamped&gt;(\n        \"~/setpoint\", rclcpp::QoS(1),\n        [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {\n            setpoint_callback(msg);\n        });\n\n    cmd_pub_ = create_publisher&lt;px4_msgs::msg::TrajectorySetpoint&gt;(\n        \"/fmu/in/trajectory_setpoint\", px4_qos);\n\n    /* declare parameters with defaults */\n    declare_parameter(\"control_rate_hz\", 50.0);\n    double rate = get_parameter(\"control_rate_hz\").as_double();\n\n    timer_ = create_wall_timer(\n        std::chrono::duration&lt;double&gt;(1.0 / rate),\n        [this]() { /* run control loop */ });\n}\n\nvoid Controller::odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)\n{\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,\n        \"pos: [%.2f, %.2f, %.2f]\",\n        msg-&gt;position[0], msg-&gt;position[1], msg-&gt;position[2]);\n}\n\nvoid Controller::setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr /*msg*/)\n{\n    /* store latest goal */\n}\n\n}  // namespace my_pkg\n\n/* composable-node entry point (used by ComponentContainer) */\n#include \"rclcpp_components/register_node_macro.hpp\"\nRCLCPP_COMPONENTS_REGISTER_NODE(my_pkg::Controller)\n\n\nStandalone entry point — src/main.cpp\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include \"my_pkg/controller.hpp\"\n\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    rclcpp::spin(std::make_shared&lt;my_pkg::Controller&gt;());\n    rclcpp::shutdown();\n    return 0;\n}",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#build-tasks",
-    "href": "docs/setup/workspace-setup.html#build-tasks",
-    "title": "Workspace Setup",
-    "section": "Build tasks",
-    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
+    "objectID": "docs/setup/ros2-cpp-package.html#minimal-launch-file",
+    "href": "docs/setup/ros2-cpp-package.html#minimal-launch-file",
+    "title": "C++ Node Package",
+    "section": "Minimal launch file",
+    "text": "Minimal launch file\nThis launch file lives in the node package itself and is only used for quick manual testing. For full system bringup see the Bringup Package page.\nlaunch/node.launch.py:\nfrom launch import LaunchDescription\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        Node(\n            package=\"my_pkg\",\n            executable=\"controller_node\",\n            name=\"controller\",\n            output=\"screen\",\n        ),\n    ])",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
-    "href": "docs/setup/workspace-setup.html#daily-workflow",
-    "title": "Workspace Setup",
-    "section": "Daily workflow",
-    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
+    "objectID": "docs/setup/ros2-cpp-package.html#building-and-running",
+    "href": "docs/setup/ros2-cpp-package.html#building-and-running",
+    "title": "C++ Node Package",
+    "section": "Building and running",
+    "text": "Building and running\n# build all packages under src/\npixi run build\n\n# standalone binary\npixi run -- ros2 run my_pkg controller_node\n\n# or via launch file\npixi run -- ros2 launch my_pkg node.launch.py\nAfter editing source files re-run pixi run build. Python and resource files installed with --symlink-install update without a rebuild; C++ sources always require a rebuild.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
-    "href": "docs/setup/workspace-setup.html#troubleshooting",
-    "title": "Workspace Setup",
-    "section": "Troubleshooting",
-    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "objectID": "docs/setup/ros2-cpp-package.html#adding-a-new-node",
+    "href": "docs/setup/ros2-cpp-package.html#adding-a-new-node",
+    "title": "C++ Node Package",
+    "section": "Adding a new node",
+    "text": "Adding a new node\n\nAdd the header under include/my_pkg/.\nAdd the source file under src/.\nRegister it in CMakeLists.txt with rclcpp_components_register_node.\nRun pixi run build.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html",
+    "href": "docs/setup/ros2-bringup-package.html",
+    "title": "Bringup Package",
+    "section": "",
+    "text": "A bringup package follows the nav2 convention: it contains only launch files, YAML parameter files, and static assets (RViz configs, maps). It has no compiled code of its own — it just wires together the node packages and configures them for a specific deployment.\nKeeping bringup separate from node code means you can reconfigure a full system without recompiling anything.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#directory-layout",
+    "href": "docs/setup/ros2-bringup-package.html#directory-layout",
+    "title": "Bringup Package",
+    "section": "Directory layout",
+    "text": "Directory layout\nsrc/\n+-- my_bringup/\n    +-- launch/\n    |   +-- bringup.launch.py      # top-level entry point\n    |   +-- nodes.launch.py        # node composition sub-launch\n    |   +-- sim.launch.py          # simulation-specific overrides\n    +-- params/\n    |   +-- controller.yaml\n    |   +-- estimator.yaml\n    +-- rviz/\n    |   +-- default.rviz\n    +-- CMakeLists.txt\n    +-- package.xml",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#package.xml",
+    "href": "docs/setup/ros2-bringup-package.html#package.xml",
+    "title": "Bringup Package",
+    "section": "package.xml",
+    "text": "package.xml\nThe bringup package does not build any library, so all node packages it launches are &lt;exec_depend&gt; only.\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_bringup&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;System bringup launch files and parameters&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;!-- nodes this bringup launches --&gt;\n  &lt;exec_depend&gt;my_pkg&lt;/exec_depend&gt;\n  &lt;exec_depend&gt;robot_state_publisher&lt;/exec_depend&gt;\n\n  &lt;!-- launch infrastructure --&gt;\n  &lt;exec_depend&gt;ros2launch&lt;/exec_depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#cmakelists.txt",
+    "href": "docs/setup/ros2-bringup-package.html#cmakelists.txt",
+    "title": "Bringup Package",
+    "section": "CMakeLists.txt",
+    "text": "CMakeLists.txt\nThe CMakeLists.txt only installs the non-compiled assets.\ncmake_minimum_required(VERSION 3.8)\nproject(my_bringup)\n\nfind_package(ament_cmake REQUIRED)\n\ninstall(DIRECTORY launch params rviz\n  DESTINATION share/${PROJECT_NAME}\n)\n\nament_package()",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#top-level-launch-launchbringup.launch.py",
+    "href": "docs/setup/ros2-bringup-package.html#top-level-launch-launchbringup.launch.py",
+    "title": "Bringup Package",
+    "section": "Top-level launch — launch/bringup.launch.py",
+    "text": "Top-level launch — launch/bringup.launch.py\nThe top-level file declares user-facing arguments and delegates to sub-launches. Mirrors the nav2 bringup_launch.py pattern.\nimport os\nfrom ament_index_python.packages import get_package_share_directory\nfrom launch import LaunchDescription\nfrom launch.actions import (\n    DeclareLaunchArgument,\n    GroupAction,\n    IncludeLaunchDescription,\n    OpaqueFunction,\n)\nfrom launch.conditions import IfCondition\nfrom launch.launch_description_sources import PythonLaunchDescriptionSource\nfrom launch.substitutions import LaunchConfiguration, PathJoinSubstitution\nfrom launch_ros.substitutions import FindPackageShare\n\n\ndef generate_launch_description():\n    bringup_dir = get_package_share_directory(\"my_bringup\")\n\n    # --- declare arguments ---\n    use_sim_time_arg = DeclareLaunchArgument(\n        \"use_sim_time\",\n        default_value=\"true\",\n        description=\"Use simulation (Gazebo) clock\",\n    )\n    namespace_arg = DeclareLaunchArgument(\n        \"namespace\",\n        default_value=\"\",\n        description=\"Top-level namespace\",\n    )\n    params_file_arg = DeclareLaunchArgument(\n        \"params_file\",\n        default_value=os.path.join(bringup_dir, \"params\", \"controller.yaml\"),\n        description=\"Path to the controller parameter file\",\n    )\n    use_rviz_arg = DeclareLaunchArgument(\n        \"use_rviz\",\n        default_value=\"true\",\n        description=\"Launch RViz\",\n    )\n\n    # --- sub-launches ---\n    nodes_launch = IncludeLaunchDescription(\n        PythonLaunchDescriptionSource(\n            os.path.join(bringup_dir, \"launch\", \"nodes.launch.py\")\n        ),\n        launch_arguments={\n            \"use_sim_time\": LaunchConfiguration(\"use_sim_time\"),\n            \"namespace\":    LaunchConfiguration(\"namespace\"),\n            \"params_file\":  LaunchConfiguration(\"params_file\"),\n        }.items(),\n    )\n\n    rviz_node = IncludeLaunchDescription(\n        PythonLaunchDescriptionSource(\n            os.path.join(bringup_dir, \"launch\", \"rviz.launch.py\")\n        ),\n        condition=IfCondition(LaunchConfiguration(\"use_rviz\")),\n    )\n\n    return LaunchDescription([\n        use_sim_time_arg,\n        namespace_arg,\n        params_file_arg,\n        use_rviz_arg,\n        nodes_launch,\n        rviz_node,\n    ])",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#composable-nodes-launchnodes.launch.py",
+    "href": "docs/setup/ros2-bringup-package.html#composable-nodes-launchnodes.launch.py",
+    "title": "Bringup Package",
+    "section": "Composable nodes — launch/nodes.launch.py",
+    "text": "Composable nodes — launch/nodes.launch.py\nLoading nodes into a shared ComponentContainer avoids inter-process message serialization and is the nav2 standard for production deployments.\nimport os\nfrom ament_index_python.packages import get_package_share_directory\nfrom launch import LaunchDescription\nfrom launch.actions import DeclareLaunchArgument, GroupAction\nfrom launch.substitutions import LaunchConfiguration\nfrom launch_ros.actions import ComposableNodeContainer, Node\nfrom launch_ros.descriptions import ComposableNode\n\n\ndef generate_launch_description():\n    params_file = LaunchConfiguration(\"params_file\")\n    use_sim_time = LaunchConfiguration(\"use_sim_time\")\n    namespace    = LaunchConfiguration(\"namespace\")\n\n    container = ComposableNodeContainer(\n        name=\"my_container\",\n        namespace=namespace,\n        package=\"rclcpp_components\",\n        executable=\"component_container\",\n        composable_node_descriptions=[\n            ComposableNode(\n                package=\"my_pkg\",\n                plugin=\"my_pkg::Controller\",\n                name=\"controller\",\n                parameters=[params_file, {\"use_sim_time\": use_sim_time}],\n                remappings=[\n                    (\"/fmu/out/vehicle_odometry\", \"/fmu/out/vehicle_odometry\"),\n                ],\n            ),\n            ComposableNode(\n                package=\"my_pkg\",\n                plugin=\"my_pkg::Estimator\",\n                name=\"estimator\",\n                parameters=[params_file, {\"use_sim_time\": use_sim_time}],\n            ),\n        ],\n        output=\"screen\",\n    )\n\n    return LaunchDescription([\n        DeclareLaunchArgument(\"params_file\"),\n        DeclareLaunchArgument(\"use_sim_time\", default_value=\"true\"),\n        DeclareLaunchArgument(\"namespace\",    default_value=\"\"),\n        container,\n    ])\n\n\n\n\n\n\nNote\n\n\n\nComposableNode requires that the node package registers its plugin with rclcpp_components_register_node in CMakeLists.txt — see the C++ Node Package page.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#yaml-parameter-file-paramscontroller.yaml",
+    "href": "docs/setup/ros2-bringup-package.html#yaml-parameter-file-paramscontroller.yaml",
+    "title": "Bringup Package",
+    "section": "YAML parameter file — params/controller.yaml",
+    "text": "YAML parameter file — params/controller.yaml\nParameter files follow the standard ROS 2 format: &lt;node_name&gt; -&gt; ros__parameters -&gt; key-value pairs. Relative node names (no leading /) apply regardless of namespace.\ncontroller:\n  ros__parameters:\n    control_rate_hz: 50.0\n    max_velocity_mps: 5.0\n    max_acceleration_mpss: 3.0\n\nestimator:\n  ros__parameters:\n    use_sim_time: true\n    process_noise_std: 0.01\n    measurement_noise_std: 0.05\n\n\n\n\n\n\nTip\n\n\n\nSeparate controller.yaml and estimator.yaml files work fine; just pass both in the parameters list of ComposableNode: parameters=[controller_params, estimator_params, {\"use_sim_time\": use_sim_time}]",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#passing-launch-arguments-from-the-cli",
+    "href": "docs/setup/ros2-bringup-package.html#passing-launch-arguments-from-the-cli",
+    "title": "Bringup Package",
+    "section": "Passing launch arguments from the CLI",
+    "text": "Passing launch arguments from the CLI\n# default (sim, with RViz)\nros2 launch my_bringup bringup.launch.py\n\n# hardware run without RViz, custom params\nros2 launch my_bringup bringup.launch.py \\\n  use_sim_time:=false \\\n  use_rviz:=false \\\n  params_file:=/path/to/hw_params.yaml\nVia pixi (add a task in pixi.toml):\n[tasks]\nbringup     = \"ros2 launch my_bringup bringup.launch.py\"\nbringup-hw  = \"ros2 launch my_bringup bringup.launch.py use_sim_time:=false use_rviz:=false\"\npixi run bringup\npixi run bringup-hw",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#building",
+    "href": "docs/setup/ros2-bringup-package.html#building",
+    "title": "Bringup Package",
+    "section": "Building",
+    "text": "Building\nThe bringup package has nothing to compile; colcon still needs to process it to install the share files:\npixi run build\nBecause the assets are installed (not symlinked by default under --merge-install), you must rebuild after editing YAML files or launch scripts. Use --symlink-install to skip this:\ncolcon build --symlink-install --packages-select my_bringup",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-bringup-package.html#simulation-override-launchsim.launch.py",
+    "href": "docs/setup/ros2-bringup-package.html#simulation-override-launchsim.launch.py",
+    "title": "Bringup Package",
+    "section": "Simulation override — launch/sim.launch.py",
+    "text": "Simulation override — launch/sim.launch.py\nA separate simulation sub-launch can start Gazebo and the DDS agent before including the main bringup:\nfrom launch import LaunchDescription\nfrom launch.actions import IncludeLaunchDescription\nfrom launch.launch_description_sources import PythonLaunchDescriptionSource\nfrom ament_index_python.packages import get_package_share_directory\nimport os\n\n\ndef generate_launch_description():\n    bringup_dir = get_package_share_directory(\"my_bringup\")\n\n    # start Gazebo + PX4 SITL (adapt to your sim launch)\n    sitl_launch = IncludeLaunchDescription(\n        PythonLaunchDescriptionSource(\n            os.path.join(\n                get_package_share_directory(\"px4_sitl_launch\"),\n                \"launch\", \"gazebo.launch.py\",\n            )\n        )\n    )\n\n    system_launch = IncludeLaunchDescription(\n        PythonLaunchDescriptionSource(\n            os.path.join(bringup_dir, \"launch\", \"bringup.launch.py\")\n        ),\n        launch_arguments={\"use_sim_time\": \"true\"}.items(),\n    )\n\n    return LaunchDescription([sitl_launch, system_launch])",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Bringup Package"
     ]
   },
   {
@@ -900,100 +1020,156 @@
     ]
   },
   {
+    "objectID": "docs/setup/workspace-setup.html",
+    "href": "docs/setup/workspace-setup.html",
+    "title": "Workspace Setup",
+    "section": "",
+    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#project-structure",
+    "href": "docs/setup/workspace-setup.html#project-structure",
+    "title": "Workspace Setup",
+    "section": "Project structure",
+    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
+    "href": "docs/setup/workspace-setup.html#pixi.toml",
+    "title": "Workspace Setup",
+    "section": "pixi.toml",
+    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
+    "href": "docs/setup/workspace-setup.html#workspace-activation",
+    "title": "Workspace Setup",
+    "section": "Workspace activation",
+    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "title": "Workspace Setup",
+    "section": "PX4 message definitions (submodule)",
+    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.\n\n\n\n\nVersioned topic names\nFrom PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is VehicleStatus, which moved from:\n/fmu/out/vehicle_status      # pre-v1.14\n/fmu/out/vehicle_status_v1   # v1.14+\nIf your subscriber listens on the wrong topic name it receives no data at all — the subscription simply never fires. Auto-arming logic that waits for arming_state == ARMING_STATE_ARMED blocks forever, and the vehicle never arms.\nThe fix is to subscribe to the versioned topic:\n// px4_interface.cpp / px4_manager_node.cpp\nstatus_sub_ = node_-&gt;create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos, callback);\nCheck which topics are actually being published by the running firmware:\nros2 topic list | grep vehicle_status\nUse whichever name appears — it tells you exactly what the firmware is advertising.\n\n\nDiagnosing version mismatches\nIf the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:\n# commit that your workspace px4_msgs is pinned to\ngit -C src/px4_msgs rev-parse HEAD\n\n# PX4 version string printed at SITL startup, e.g. \"PX4 v1.15.2\"\n# must correspond to the same release branch\nTo fix, update the submodule to the branch matching your firmware:\ncd src/px4_msgs\ngit fetch\ngit checkout release/1.16   # match PX4 firmware version\ncd ../..\ncolcon build --symlink-install\ngit add src/px4_msgs\ngit commit -m \"chore: pin px4_msgs to release/1.16\"",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#build-tasks",
+    "href": "docs/setup/workspace-setup.html#build-tasks",
+    "title": "Workspace Setup",
+    "section": "Build tasks",
+    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
+    "href": "docs/setup/workspace-setup.html#daily-workflow",
+    "title": "Workspace Setup",
+    "section": "Daily workflow",
+    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
+    "href": "docs/setup/workspace-setup.html#troubleshooting",
+    "title": "Workspace Setup",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
     "objectID": "docs/setup/ros2-package.html",
     "href": "docs/setup/ros2-package.html",
     "title": "ROS 2 Package Structure",
     "section": "",
-    "text": "This page describes the minimal layout and boilerplate for a ROS 2 C++ package that builds correctly under colcon inside the pixi workspace.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "This page describes the minimal layout and boilerplate for a ROS 2 C++ package that builds correctly under colcon inside the pixi workspace."
   },
   {
     "objectID": "docs/setup/ros2-package.html#directory-layout",
     "href": "docs/setup/ros2-package.html#directory-layout",
     "title": "ROS 2 Package Structure",
     "section": "Directory layout",
-    "text": "Directory layout\nsrc/\n+-- my_package/\n    +-- include/\n    |   +-- my_package/\n    |       +-- my_node.hpp\n    +-- src/\n    |   +-- my_node.cpp\n    |   +-- main.cpp\n    +-- launch/\n    |   +-- my_node.launch.py\n    +-- CMakeLists.txt\n    +-- package.xml\nHeaders live under include/&lt;package_name&gt;/ so they are importable as #include \"my_package/my_node.hpp\" from any package that depends on this one.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "Directory layout\nsrc/\n+-- my_package/\n    +-- include/\n    |   +-- my_package/\n    |       +-- my_node.hpp\n    +-- src/\n    |   +-- my_node.cpp\n    |   +-- main.cpp\n    +-- launch/\n    |   +-- my_node.launch.py\n    +-- CMakeLists.txt\n    +-- package.xml\nHeaders live under include/&lt;package_name&gt;/ so they are importable as #include \"my_package/my_node.hpp\" from any package that depends on this one."
   },
   {
     "objectID": "docs/setup/ros2-package.html#package.xml",
     "href": "docs/setup/ros2-package.html#package.xml",
     "title": "ROS 2 Package Structure",
     "section": "package.xml",
-    "text": "package.xml\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_package&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;My ROS 2 package&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;depend&gt;rclcpp&lt;/depend&gt;\n  &lt;depend&gt;std_msgs&lt;/depend&gt;\n  &lt;depend&gt;geometry_msgs&lt;/depend&gt;\n  &lt;depend&gt;px4_msgs&lt;/depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;\nUse &lt;depend&gt; (not &lt;build_depend&gt; + &lt;exec_depend&gt;) for libraries that are needed at both build and runtime — which covers most ROS packages.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "package.xml\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_package&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;My ROS 2 package&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;depend&gt;rclcpp&lt;/depend&gt;\n  &lt;depend&gt;std_msgs&lt;/depend&gt;\n  &lt;depend&gt;geometry_msgs&lt;/depend&gt;\n  &lt;depend&gt;px4_msgs&lt;/depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;\nUse &lt;depend&gt; (not &lt;build_depend&gt; + &lt;exec_depend&gt;) for libraries that are needed at both build and runtime — which covers most ROS packages."
   },
   {
     "objectID": "docs/setup/ros2-package.html#cmakelists.txt",
     "href": "docs/setup/ros2-package.html#cmakelists.txt",
     "title": "ROS 2 Package Structure",
     "section": "CMakeLists.txt",
-    "text": "CMakeLists.txt\ncmake_minimum_required(VERSION 3.8)\nproject(my_package)\n\n# --- compiler settings ---\nif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES \"Clang\")\n  add_compile_options(-Wall -Wextra -Wpedantic)\nendif()\n\n# --- find dependencies ---\nfind_package(ament_cmake REQUIRED)\nfind_package(rclcpp REQUIRED)\nfind_package(std_msgs REQUIRED)\nfind_package(geometry_msgs REQUIRED)\nfind_package(px4_msgs REQUIRED)\nfind_package(Eigen3 REQUIRED)\n\n# --- build target ---\nadd_executable(my_node\n  src/my_node.cpp\n  src/main.cpp\n)\n\ntarget_include_directories(my_node PUBLIC\n  $&lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;\n  $&lt;INSTALL_INTERFACE:include&gt;\n  ${EIGEN3_INCLUDE_DIR}\n)\n\ntarget_compile_features(my_node PUBLIC cxx_std_17)\n\nament_target_dependencies(my_node\n  rclcpp\n  std_msgs\n  geometry_msgs\n  px4_msgs\n)\n\n# --- install ---\ninstall(TARGETS my_node DESTINATION lib/${PROJECT_NAME})\ninstall(DIRECTORY launch DESTINATION share/${PROJECT_NAME})\n\nament_package()\n\n\n\n\n\n\nNote\n\n\n\nament_target_dependencies handles both include paths and link libraries for ament packages. Only use target_link_libraries for non-ament deps (Eigen, yaml-cpp, etc.) that expose CMake targets directly.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "CMakeLists.txt\ncmake_minimum_required(VERSION 3.8)\nproject(my_package)\n\n# --- compiler settings ---\nif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES \"Clang\")\n  add_compile_options(-Wall -Wextra -Wpedantic)\nendif()\n\n# --- find dependencies ---\nfind_package(ament_cmake REQUIRED)\nfind_package(rclcpp REQUIRED)\nfind_package(std_msgs REQUIRED)\nfind_package(geometry_msgs REQUIRED)\nfind_package(px4_msgs REQUIRED)\nfind_package(Eigen3 REQUIRED)\n\n# --- build target ---\nadd_executable(my_node\n  src/my_node.cpp\n  src/main.cpp\n)\n\ntarget_include_directories(my_node PUBLIC\n  $&lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;\n  $&lt;INSTALL_INTERFACE:include&gt;\n  ${EIGEN3_INCLUDE_DIR}\n)\n\ntarget_compile_features(my_node PUBLIC cxx_std_17)\n\nament_target_dependencies(my_node\n  rclcpp\n  std_msgs\n  geometry_msgs\n  px4_msgs\n)\n\n# --- install ---\ninstall(TARGETS my_node DESTINATION lib/${PROJECT_NAME})\ninstall(DIRECTORY launch DESTINATION share/${PROJECT_NAME})\n\nament_package()\n\n\n\n\n\n\nNote\n\n\n\nament_target_dependencies handles both include paths and link libraries for ament packages. Only use target_link_libraries for non-ament deps (Eigen, yaml-cpp, etc.) that expose CMake targets directly."
   },
   {
     "objectID": "docs/setup/ros2-package.html#node-boilerplate-c",
     "href": "docs/setup/ros2-package.html#node-boilerplate-c",
     "title": "ROS 2 Package Structure",
     "section": "Node boilerplate (C++)",
-    "text": "Node boilerplate (C++)\ninclude/my_package/my_node.hpp:\n#pragma once\n\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n\nclass MyNode : public rclcpp::Node {\npublic:\n    explicit MyNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());\n\nprivate:\n    void odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);\n\n    rclcpp::Subscription&lt;px4_msgs::msg::VehicleOdometry&gt;::SharedPtr odom_sub_;\n};\nsrc/my_node.cpp:\n#include \"my_package/my_node.hpp\"\n#include &lt;rclcpp/qos.hpp&gt;\n\nMyNode::MyNode(const rclcpp::NodeOptions& options)\n: Node(\"my_node\", options)\n{\n    /* PX4 topics require BEST_EFFORT QoS — see QoS Profiles page. */\n    auto qos = rclcpp::QoS(10).best_effort();\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n        \"/fmu/out/vehicle_odometry\", qos,\n        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {\n            odometry_callback(msg);\n        });\n}\n\nvoid MyNode::odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)\n{\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,\n        \"pos: [%.2f, %.2f, %.2f]\",\n        msg-&gt;position[0], msg-&gt;position[1], msg-&gt;position[2]);\n}\nsrc/main.cpp:\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include \"my_package/my_node.hpp\"\n\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    rclcpp::spin(std::make_shared&lt;MyNode&gt;());\n    rclcpp::shutdown();\n    return 0;\n}",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "Node boilerplate (C++)\ninclude/my_package/my_node.hpp:\n#pragma once\n\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n\nclass MyNode : public rclcpp::Node {\npublic:\n    explicit MyNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());\n\nprivate:\n    void odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);\n\n    rclcpp::Subscription&lt;px4_msgs::msg::VehicleOdometry&gt;::SharedPtr odom_sub_;\n};\nsrc/my_node.cpp:\n#include \"my_package/my_node.hpp\"\n#include &lt;rclcpp/qos.hpp&gt;\n\nMyNode::MyNode(const rclcpp::NodeOptions& options)\n: Node(\"my_node\", options)\n{\n    /* PX4 topics require BEST_EFFORT QoS — see QoS Profiles page. */\n    auto qos = rclcpp::QoS(10).best_effort();\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n        \"/fmu/out/vehicle_odometry\", qos,\n        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {\n            odometry_callback(msg);\n        });\n}\n\nvoid MyNode::odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)\n{\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,\n        \"pos: [%.2f, %.2f, %.2f]\",\n        msg-&gt;position[0], msg-&gt;position[1], msg-&gt;position[2]);\n}\nsrc/main.cpp:\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include \"my_package/my_node.hpp\"\n\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    rclcpp::spin(std::make_shared&lt;MyNode&gt;());\n    rclcpp::shutdown();\n    return 0;\n}"
   },
   {
     "objectID": "docs/setup/ros2-package.html#launch-file",
     "href": "docs/setup/ros2-package.html#launch-file",
     "title": "ROS 2 Package Structure",
     "section": "Launch file",
-    "text": "Launch file\nlaunch/my_node.launch.py:\nfrom launch import LaunchDescription\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        Node(\n            package=\"my_package\",\n            executable=\"my_node\",\n            name=\"my_node\",\n            output=\"screen\",\n            parameters=[],\n        )\n    ])\nLaunch with:\nros2 launch my_package my_node.launch.py\nOr via pixi:\npixi run launch   # if you defined a 'launch' task in pixi.toml",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "Launch file\nlaunch/my_node.launch.py:\nfrom launch import LaunchDescription\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        Node(\n            package=\"my_package\",\n            executable=\"my_node\",\n            name=\"my_node\",\n            output=\"screen\",\n            parameters=[],\n        )\n    ])\nLaunch with:\nros2 launch my_package my_node.launch.py\nOr via pixi:\npixi run launch   # if you defined a 'launch' task in pixi.toml"
   },
   {
     "objectID": "docs/setup/ros2-package.html#building-and-running",
     "href": "docs/setup/ros2-package.html#building-and-running",
     "title": "ROS 2 Package Structure",
     "section": "Building and running",
-    "text": "Building and running\n# Build the workspace (all packages under src/)\npixi run build\n\n# Run the node directly\npixi run -- ros2 run my_package my_node\n\n# Or via launch file\npixi run -- ros2 launch my_package my_node.launch.py\nAfter editing source files, re-run pixi run build. With --symlink-install (default in the build task), Python and resource files are symlinked so they update without a rebuild — C++ sources still require a rebuild.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "Building and running\n# Build the workspace (all packages under src/)\npixi run build\n\n# Run the node directly\npixi run -- ros2 run my_package my_node\n\n# Or via launch file\npixi run -- ros2 launch my_package my_node.launch.py\nAfter editing source files, re-run pixi run build. With --symlink-install (default in the build task), Python and resource files are symlinked so they update without a rebuild — C++ sources still require a rebuild."
   },
   {
     "objectID": "docs/setup/ros2-package.html#adding-a-new-package",
     "href": "docs/setup/ros2-package.html#adding-a-new-package",
     "title": "ROS 2 Package Structure",
     "section": "Adding a new package",
-    "text": "Adding a new package\n\nCreate the directory under src/:\nmkdir -p src/my_new_package/{include/my_new_package,src,launch}\nWrite package.xml and CMakeLists.txt as shown above.\nRun pixi run build — colcon discovers the new package automatically.\n\nNo registration in pixi.toml is needed. colcon scans src/ recursively for package.xml files.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "ROS 2 Package Structure"
-    ]
+    "text": "Adding a new package\n\nCreate the directory under src/:\nmkdir -p src/my_new_package/{include/my_new_package,src,launch}\nWrite package.xml and CMakeLists.txt as shown above.\nRun pixi run build — colcon discovers the new package automatically.\n\nNo registration in pixi.toml is needed. colcon scans src/ recursively for package.xml files."
   },
   {
     "objectID": "docs/setup/uxrce-dds-agent.html",

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>PX4 SITL Setup – ROS 2 + PX4 Dev Guide</title>
+<title>Bringup Package – ROS 2 + PX4 Dev Guide</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -377,7 +377,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/sitl-setup.html">PX4 SITL Setup</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/ros2-bringup-package.html">Bringup Package</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -423,7 +423,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/sitl-setup.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../docs/setup/sitl-setup.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">PX4 SITL Setup</span></a>
   </div>
 </li>
@@ -441,7 +441,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/ros2-bringup-package.html" class="sidebar-item-text sidebar-link">
+  <a href="../../docs/setup/ros2-bringup-package.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Bringup Package</span></a>
   </div>
 </li>
@@ -521,25 +521,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link active" data-scroll-target="#prerequisites">Prerequisites</a></li>
-  <li><a href="#building-and-launching" id="toc-building-and-launching" class="nav-link" data-scroll-target="#building-and-launching">Building and launching</a></li>
-  <li><a href="#supported-vehicle-models" id="toc-supported-vehicle-models" class="nav-link" data-scroll-target="#supported-vehicle-models">Supported vehicle models</a></li>
-  <li><a href="#supported-worlds" id="toc-supported-worlds" class="nav-link" data-scroll-target="#supported-worlds">Supported worlds</a></li>
-  <li><a href="#key-environment-variables" id="toc-key-environment-variables" class="nav-link" data-scroll-target="#key-environment-variables">Key environment variables</a>
-  <ul class="collapse">
-  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
-  </ul></li>
-  <li><a href="#standalone-mode" id="toc-standalone-mode" class="nav-link" data-scroll-target="#standalone-mode">Standalone mode</a></li>
-  <li><a href="#integrating-with-the-pixi-workspace" id="toc-integrating-with-the-pixi-workspace" class="nav-link" data-scroll-target="#integrating-with-the-pixi-workspace">Integrating with the pixi workspace</a></li>
-  <li><a href="#confirming-sitl-is-running" id="toc-confirming-sitl-is-running" class="nav-link" data-scroll-target="#confirming-sitl-is-running">Confirming SITL is running</a></li>
-  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
-  <ul class="collapse">
-  <li><a href="#ninja-error-unknown-target-gz_x500" id="toc-ninja-error-unknown-target-gz_x500" class="nav-link" data-scroll-target="#ninja-error-unknown-target-gz_x500"><code>ninja: error: unknown target 'gz_x500'</code></a></li>
-  <li><a href="#make-px4_sitl-gz_x500-fails-with-missing-submodules" id="toc-make-px4_sitl-gz_x500-fails-with-missing-submodules" class="nav-link" data-scroll-target="#make-px4_sitl-gz_x500-fails-with-missing-submodules"><code>make px4_sitl gz_x500</code> fails with missing submodules</a></li>
-  <li><a href="#gazebo-window-does-not-open" id="toc-gazebo-window-does-not-open" class="nav-link" data-scroll-target="#gazebo-window-does-not-open">Gazebo window does not open</a></li>
-  <li><a href="#px4-exits-immediately-after-launch" id="toc-px4-exits-immediately-after-launch" class="nav-link" data-scroll-target="#px4-exits-immediately-after-launch">PX4 exits immediately after launch</a></li>
-  <li><a href="#ekf2-error-at-startup" id="toc-ekf2-error-at-startup" class="nav-link" data-scroll-target="#ekf2-error-at-startup"><code>EKF2 ERROR</code> at startup</a></li>
-  </ul></li>
+  <li><a href="#directory-layout" id="toc-directory-layout" class="nav-link active" data-scroll-target="#directory-layout">Directory layout</a></li>
+  <li><a href="#package.xml" id="toc-package.xml" class="nav-link" data-scroll-target="#package.xml">package.xml</a></li>
+  <li><a href="#cmakelists.txt" id="toc-cmakelists.txt" class="nav-link" data-scroll-target="#cmakelists.txt">CMakeLists.txt</a></li>
+  <li><a href="#top-level-launch-launchbringup.launch.py" id="toc-top-level-launch-launchbringup.launch.py" class="nav-link" data-scroll-target="#top-level-launch-launchbringup.launch.py">Top-level launch — <code>launch/bringup.launch.py</code></a></li>
+  <li><a href="#composable-nodes-launchnodes.launch.py" id="toc-composable-nodes-launchnodes.launch.py" class="nav-link" data-scroll-target="#composable-nodes-launchnodes.launch.py">Composable nodes — <code>launch/nodes.launch.py</code></a></li>
+  <li><a href="#yaml-parameter-file-paramscontroller.yaml" id="toc-yaml-parameter-file-paramscontroller.yaml" class="nav-link" data-scroll-target="#yaml-parameter-file-paramscontroller.yaml">YAML parameter file — <code>params/controller.yaml</code></a></li>
+  <li><a href="#passing-launch-arguments-from-the-cli" id="toc-passing-launch-arguments-from-the-cli" class="nav-link" data-scroll-target="#passing-launch-arguments-from-the-cli">Passing launch arguments from the CLI</a></li>
+  <li><a href="#building" id="toc-building" class="nav-link" data-scroll-target="#building">Building</a></li>
+  <li><a href="#simulation-override-launchsim.launch.py" id="toc-simulation-override-launchsim.launch.py" class="nav-link" data-scroll-target="#simulation-override-launchsim.launch.py">Simulation override — <code>launch/sim.launch.py</code></a></li>
   </ul>
 </nav>
     </div>
@@ -547,9 +537,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/sitl-setup.html">PX4 SITL Setup</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/ros2-bringup-package.html">Bringup Package</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">PX4 SITL Setup</h1>
+<h1 class="title">Bringup Package</h1>
 </div>
 
 
@@ -566,15 +556,189 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This page covers how to build PX4 firmware, launch the Gazebo SITL simulator, and wire it into the pixi workspace for use with the ROS 2 integration.</p>
+<p>A <strong>bringup package</strong> follows the nav2 convention: it contains only launch files, YAML parameter files, and static assets (RViz configs, maps). It has no compiled code of its own — it just wires together the node packages and configures them for a specific deployment.</p>
+<p>Keeping bringup separate from node code means you can reconfigure a full system without recompiling anything.</p>
 <hr>
-<section id="prerequisites" class="level2">
-<h2 class="anchored" data-anchor-id="prerequisites">Prerequisites</h2>
-<p>PX4 SITL requires a native Ubuntu build environment. The PX4 source tree is <strong>not</strong> managed inside the ROS 2 workspace — it lives separately and is built with its own toolchain.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install PX4 build dependencies (run once)</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/PX4/PX4-Autopilot.git <span class="at">--recursive</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> ./Tools/setup/ubuntu.sh</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="directory-layout" class="level2">
+<h2 class="anchored" data-anchor-id="directory-layout">Directory layout</h2>
+<pre><code>src/
++-- my_bringup/
+    +-- launch/
+    |   +-- bringup.launch.py      # top-level entry point
+    |   +-- nodes.launch.py        # node composition sub-launch
+    |   +-- sim.launch.py          # simulation-specific overrides
+    +-- params/
+    |   +-- controller.yaml
+    |   +-- estimator.yaml
+    +-- rviz/
+    |   +-- default.rviz
+    +-- CMakeLists.txt
+    +-- package.xml</code></pre>
+<hr>
+</section>
+<section id="package.xml" class="level2">
+<h2 class="anchored" data-anchor-id="package.xml">package.xml</h2>
+<p>The bringup package does not build any library, so all node packages it launches are <code>&lt;exec_depend&gt;</code> only.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">&lt;?xml</span> <span class="ot">version=</span><span class="st">"1.0"</span><span class="fu">?&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">&lt;?xml-model</span> href="http://download.ros.org/schema/package_format3.xsd"</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>            schematypens="http://www.w3.org/2001/XMLSchema"<span class="fu">?&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">package</span> <span class="ot">format=</span><span class="st">"3"</span>&gt;</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">name</span>&gt;my_bringup&lt;/<span class="kw">name</span>&gt;</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">version</span>&gt;0.1.0&lt;/<span class="kw">version</span>&gt;</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">description</span>&gt;System bringup launch files and parameters&lt;/<span class="kw">description</span>&gt;</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">maintainer</span> <span class="ot">email=</span><span class="st">"you@example.com"</span>&gt;Your Name&lt;/<span class="kw">maintainer</span>&gt;</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">license</span>&gt;MIT&lt;/<span class="kw">license</span>&gt;</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">buildtool_depend</span>&gt;ament_cmake&lt;/<span class="kw">buildtool_depend</span>&gt;</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="co">&lt;!-- nodes this bringup launches --&gt;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">exec_depend</span>&gt;my_pkg&lt;/<span class="kw">exec_depend</span>&gt;</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">exec_depend</span>&gt;robot_state_publisher&lt;/<span class="kw">exec_depend</span>&gt;</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="co">&lt;!-- launch infrastructure --&gt;</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">exec_depend</span>&gt;ros2launch&lt;/<span class="kw">exec_depend</span>&gt;</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">export</span>&gt;</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    &lt;<span class="kw">build_type</span>&gt;ament_cmake&lt;/<span class="kw">build_type</span>&gt;</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  &lt;/<span class="kw">export</span>&gt;</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">package</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="cmakelists.txt" class="level2">
+<h2 class="anchored" data-anchor-id="cmakelists.txt">CMakeLists.txt</h2>
+<p>The CMakeLists.txt only installs the non-compiled assets.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode cmake code-with-copy"><code class="sourceCode cmake"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">cmake_minimum_required</span>(<span class="ot">VERSION</span> <span class="dt">3.8</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">project</span>(my_bringup)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(ament_cmake <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">install</span>(<span class="ot">DIRECTORY</span> launch params rviz</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="ot">DESTINATION</span> share/<span class="dv">${PROJECT_NAME}</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ament_package</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="top-level-launch-launchbringup.launch.py" class="level2">
+<h2 class="anchored" data-anchor-id="top-level-launch-launchbringup.launch.py">Top-level launch — <code>launch/bringup.launch.py</code></h2>
+<p>The top-level file declares user-facing arguments and delegates to sub-launches. Mirrors the nav2 <code>bringup_launch.py</code> pattern.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ament_index_python.packages <span class="im">import</span> get_package_share_directory</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch <span class="im">import</span> LaunchDescription</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.actions <span class="im">import</span> (</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    DeclareLaunchArgument,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    GroupAction,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    IncludeLaunchDescription,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    OpaqueFunction,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.conditions <span class="im">import</span> IfCondition</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.launch_description_sources <span class="im">import</span> PythonLaunchDescriptionSource</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.substitutions <span class="im">import</span> LaunchConfiguration, PathJoinSubstitution</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch_ros.substitutions <span class="im">import</span> FindPackageShare</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_launch_description():</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    bringup_dir <span class="op">=</span> get_package_share_directory(<span class="st">"my_bringup"</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># --- declare arguments ---</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    use_sim_time_arg <span class="op">=</span> DeclareLaunchArgument(</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"use_sim_time"</span>,</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        default_value<span class="op">=</span><span class="st">"true"</span>,</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        description<span class="op">=</span><span class="st">"Use simulation (Gazebo) clock"</span>,</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    namespace_arg <span class="op">=</span> DeclareLaunchArgument(</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        <span class="st">"namespace"</span>,</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        default_value<span class="op">=</span><span class="st">""</span>,</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        description<span class="op">=</span><span class="st">"Top-level namespace"</span>,</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    params_file_arg <span class="op">=</span> DeclareLaunchArgument(</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>        <span class="st">"params_file"</span>,</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        default_value<span class="op">=</span>os.path.join(bringup_dir, <span class="st">"params"</span>, <span class="st">"controller.yaml"</span>),</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        description<span class="op">=</span><span class="st">"Path to the controller parameter file"</span>,</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    use_rviz_arg <span class="op">=</span> DeclareLaunchArgument(</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        <span class="st">"use_rviz"</span>,</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        default_value<span class="op">=</span><span class="st">"true"</span>,</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        description<span class="op">=</span><span class="st">"Launch RViz"</span>,</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    <span class="co"># --- sub-launches ---</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    nodes_launch <span class="op">=</span> IncludeLaunchDescription(</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        PythonLaunchDescriptionSource(</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>            os.path.join(bringup_dir, <span class="st">"launch"</span>, <span class="st">"nodes.launch.py"</span>)</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>        launch_arguments<span class="op">=</span>{</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>            <span class="st">"use_sim_time"</span>: LaunchConfiguration(<span class="st">"use_sim_time"</span>),</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>            <span class="st">"namespace"</span>:    LaunchConfiguration(<span class="st">"namespace"</span>),</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>            <span class="st">"params_file"</span>:  LaunchConfiguration(<span class="st">"params_file"</span>),</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>        }.items(),</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>    rviz_node <span class="op">=</span> IncludeLaunchDescription(</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>        PythonLaunchDescriptionSource(</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>            os.path.join(bringup_dir, <span class="st">"launch"</span>, <span class="st">"rviz.launch.py"</span>)</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>        condition<span class="op">=</span>IfCondition(LaunchConfiguration(<span class="st">"use_rviz"</span>)),</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> LaunchDescription([</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        use_sim_time_arg,</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>        namespace_arg,</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>        params_file_arg,</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>        use_rviz_arg,</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>        nodes_launch,</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>        rviz_node,</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>    ])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="composable-nodes-launchnodes.launch.py" class="level2">
+<h2 class="anchored" data-anchor-id="composable-nodes-launchnodes.launch.py">Composable nodes — <code>launch/nodes.launch.py</code></h2>
+<p>Loading nodes into a shared <code>ComponentContainer</code> avoids inter-process message serialization and is the nav2 standard for production deployments.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ament_index_python.packages <span class="im">import</span> get_package_share_directory</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch <span class="im">import</span> LaunchDescription</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.actions <span class="im">import</span> DeclareLaunchArgument, GroupAction</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.substitutions <span class="im">import</span> LaunchConfiguration</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch_ros.actions <span class="im">import</span> ComposableNodeContainer, Node</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch_ros.descriptions <span class="im">import</span> ComposableNode</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_launch_description():</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    params_file <span class="op">=</span> LaunchConfiguration(<span class="st">"params_file"</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    use_sim_time <span class="op">=</span> LaunchConfiguration(<span class="st">"use_sim_time"</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    namespace    <span class="op">=</span> LaunchConfiguration(<span class="st">"namespace"</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    container <span class="op">=</span> ComposableNodeContainer(</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        name<span class="op">=</span><span class="st">"my_container"</span>,</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        namespace<span class="op">=</span>namespace,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        package<span class="op">=</span><span class="st">"rclcpp_components"</span>,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        executable<span class="op">=</span><span class="st">"component_container"</span>,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        composable_node_descriptions<span class="op">=</span>[</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>            ComposableNode(</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>                package<span class="op">=</span><span class="st">"my_pkg"</span>,</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>                plugin<span class="op">=</span><span class="st">"my_pkg::Controller"</span>,</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>                name<span class="op">=</span><span class="st">"controller"</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>                parameters<span class="op">=</span>[params_file, {<span class="st">"use_sim_time"</span>: use_sim_time}],</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>                remappings<span class="op">=</span>[</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>                    (<span class="st">"/fmu/out/vehicle_odometry"</span>, <span class="st">"/fmu/out/vehicle_odometry"</span>),</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>                ],</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>            ),</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>            ComposableNode(</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>                package<span class="op">=</span><span class="st">"my_pkg"</span>,</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>                plugin<span class="op">=</span><span class="st">"my_pkg::Estimator"</span>,</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>                name<span class="op">=</span><span class="st">"estimator"</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>                parameters<span class="op">=</span>[params_file, {<span class="st">"use_sim_time"</span>: use_sim_time}],</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>            ),</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>        output<span class="op">=</span><span class="st">"screen"</span>,</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> LaunchDescription([</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>        DeclareLaunchArgument(<span class="st">"params_file"</span>),</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>        DeclareLaunchArgument(<span class="st">"use_sim_time"</span>, default_value<span class="op">=</span><span class="st">"true"</span>),</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>        DeclareLaunchArgument(<span class="st">"namespace"</span>,    default_value<span class="op">=</span><span class="st">""</span>),</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>        container,</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>    ])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -585,330 +749,99 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>ubuntu.sh</code> installs system packages including <code>gcc-arm-none-eabi</code>, <code>ninja</code>, and Python dependencies. It also installs <code>gz-harmonic</code> (Gazebo) for SITL. Re-run it if a new PX4 checkout changes the required dependencies.</p>
+<p><code>ComposableNode</code> requires that the node package registers its plugin with <code>rclcpp_components_register_node</code> in CMakeLists.txt — see the <a href="../../docs/setup/ros2-cpp-package.html">C++ Node Package</a> page.</p>
 </div>
 </div>
 <hr>
 </section>
-<section id="building-and-launching" class="level2">
-<h2 class="anchored" data-anchor-id="building-and-launching">Building and launching</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This compiles the SITL binary and launches both PX4 and the Gazebo GUI. The first build takes ~5 minutes; subsequent builds are incremental.</p>
-<p>On launch, PX4 prints its version string (<code>PX4 v1.16.x</code>) and drops into the NuttShell:</p>
-<pre><code>nsh&gt;</code></pre>
-<p>Confirm the build binary exists:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> build/px4_sitl_default/bin/px4</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<hr>
-</section>
-<section id="supported-vehicle-models" class="level2">
-<h2 class="anchored" data-anchor-id="supported-vehicle-models">Supported vehicle models</h2>
-<p>All <code>make</code> targets have the prefix <code>gz_</code>. The <code>PX4_SYS_AUTOSTART</code> ID is the airframe number used when launching the binary directly (without <code>make</code>).</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Vehicle</th>
-<th><code>make</code> target</th>
-<th><code>PX4_SYS_AUTOSTART</code></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>x500 quadrotor</td>
-<td><code>gz_x500</code></td>
-<td>4001</td>
-</tr>
-<tr class="even">
-<td>x500 + depth camera (front)</td>
-<td><code>gz_x500_depth</code></td>
-<td>4002</td>
-</tr>
-<tr class="odd">
-<td>x500 + visual odometry</td>
-<td><code>gz_x500_vision</code></td>
-<td>4005</td>
-</tr>
-<tr class="even">
-<td>x500 + 1D lidar (down)</td>
-<td><code>gz_x500_lidar_down</code></td>
-<td>4016</td>
-</tr>
-<tr class="odd">
-<td>x500 + 2D lidar</td>
-<td><code>gz_x500_lidar_2d</code></td>
-<td>4013</td>
-</tr>
-<tr class="even">
-<td>x500 + 1D lidar (front)</td>
-<td><code>gz_x500_lidar_front</code></td>
-<td>4017</td>
-</tr>
-<tr class="odd">
-<td>x500 + gimbal (front)</td>
-<td><code>gz_x500_gimbal</code></td>
-<td>4019</td>
-</tr>
-<tr class="even">
-<td>Standard VTOL</td>
-<td><code>gz_standard_vtol</code></td>
-<td>4004</td>
-</tr>
-<tr class="odd">
-<td>RC Cessna (plane)</td>
-<td><code>gz_rc_cessna</code></td>
-<td>4003</td>
-</tr>
-<tr class="even">
-<td>Differential rover</td>
-<td><code>gz_rover_differential</code></td>
-<td>50000</td>
-</tr>
-<tr class="odd">
-<td>Ackermann rover</td>
-<td><code>gz_rover_ackermann</code></td>
-<td>51000</td>
-</tr>
-</tbody>
-</table>
-<hr>
-</section>
-<section id="supported-worlds" class="level2">
-<h2 class="anchored" data-anchor-id="supported-worlds">Supported worlds</h2>
-<p>Append the world name to the model target, or set <code>PX4_GZ_WORLD</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500_windy</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># equivalent:</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_WORLD</span><span class="op">=</span>windy <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>World</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>default</code></td>
-<td>Empty flat plane (used when no world is specified)</td>
-</tr>
-<tr class="even">
-<td><code>windy</code></td>
-<td>Empty world with wind enabled</td>
-</tr>
-<tr class="odd">
-<td><code>baylands</code></td>
-<td>Terrain surrounded by water</td>
-</tr>
-<tr class="even">
-<td><code>aruco</code></td>
-<td>Empty world with ArUco marker for precision landing testing</td>
-</tr>
-<tr class="odd">
-<td><code>walls</code></td>
-<td>Walled arena for collision-prevention testing</td>
-</tr>
-<tr class="even">
-<td><code>lawn</code></td>
-<td>Lawn surface for rover testing</td>
-</tr>
-<tr class="odd">
-<td><code>moving_platform</code></td>
-<td>Moving takeoff/landing platform</td>
-</tr>
-</tbody>
-</table>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Do <strong>not</strong> specify <code>gz_x500_default</code> explicitly — PX4 will fail to launch. Use <code>gz_x500</code> (no suffix) for the default world.</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="key-environment-variables" class="level2">
-<h2 class="anchored" data-anchor-id="key-environment-variables">Key environment variables</h2>
-<p>Set these before calling <code>make</code> or running the PX4 binary directly.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 32%">
-<col style="width: 32%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Variable</th>
-<th>Purpose</th>
-<th>Example</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>PX4_SIM_MODEL</code></td>
-<td>Spawn a new vehicle model by name</td>
-<td><code>gz_x500</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_GZ_MODEL_NAME</code></td>
-<td>Bind to an <strong>existing</strong> Gazebo model by name</td>
-<td><code>x500</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_SYS_AUTOSTART</code></td>
-<td>Airframe ID (required when running binary directly)</td>
-<td><code>4001</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_GZ_WORLD</code></td>
-<td>Override the Gazebo world file</td>
-<td><code>windy</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_GZ_MODEL_POSE</code></td>
-<td>Spawn pose <code>x,y,z,roll,pitch,yaw</code> (metres, radians)</td>
-<td><code>0,2,0,0,0,0</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_HOME_LAT</code></td>
-<td>Home latitude (degrees)</td>
-<td><code>51.1788</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_HOME_LON</code></td>
-<td>Home longitude (degrees)</td>
-<td><code>-1.8263</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_HOME_ALT</code></td>
-<td>Home altitude (metres AMSL)</td>
-<td><code>101</code></td>
-</tr>
-<tr class="odd">
-<td><code>HEADLESS</code></td>
-<td>Disable Gazebo GUI</td>
-<td><code>1</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_SIM_SPEED_FACTOR</code></td>
-<td>Run faster/slower than real-time</td>
-<td><code>2</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_GZ_STANDALONE</code></td>
-<td>Start PX4 only; connect to a separately-running Gazebo</td>
-<td><code>1</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_GZ_SIM_RENDER_ENGINE</code></td>
-<td>Override render engine (use <code>ogre</code> on VMs)</td>
-<td><code>ogre</code></td>
-</tr>
-</tbody>
-</table>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>PX4_SIM_MODEL</code> and <code>PX4_GZ_MODEL_NAME</code> are mutually exclusive. Use <code>PX4_SIM_MODEL</code> to spawn a new vehicle; use <code>PX4_GZ_MODEL_NAME</code> to attach a new PX4 instance to a model that Gazebo has already spawned.</p>
-</div>
-</div>
-<section id="examples" class="level3">
-<h3 class="anchored" data-anchor-id="examples">Examples</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Headless, custom spawn pose</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="va">HEADLESS</span><span class="op">=</span>1 <span class="va">PX4_GZ_MODEL_POSE</span><span class="op">=</span><span class="st">"0,0,0.5,0,0,1.57"</span> <span class="fu">make</span> px4_sitl gz_x500</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run at 2x real-time speed</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_SIM_SPEED_FACTOR</span><span class="op">=</span>2 <span class="fu">make</span> px4_sitl gz_x500</span>
+<section id="yaml-parameter-file-paramscontroller.yaml" class="level2">
+<h2 class="anchored" data-anchor-id="yaml-parameter-file-paramscontroller.yaml">YAML parameter file — <code>params/controller.yaml</code></h2>
+<p>Parameter files follow the standard ROS 2 format: <code>&lt;node_name&gt;</code> -&gt; <code>ros__parameters</code> -&gt; key-value pairs. Relative node names (no leading <code>/</code>) apply regardless of namespace.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">controller</span><span class="kw">:</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">ros__parameters</span><span class="kw">:</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">control_rate_hz</span><span class="kw">:</span><span class="at"> </span><span class="fl">50.0</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">max_velocity_mps</span><span class="kw">:</span><span class="at"> </span><span class="fl">5.0</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">max_acceleration_mpss</span><span class="kw">:</span><span class="at"> </span><span class="fl">3.0</span></span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Custom home location (GPS origin)</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PX4_HOME_LAT</span><span class="op">=</span>51.1788</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PX4_HOME_LON</span><span class="op">=</span>-1.8263</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PX4_HOME_ALT</span><span class="op">=</span>101</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co"># VM with poor OpenGL support</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_SIM_RENDER_ENGINE</span><span class="op">=</span>ogre <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="fu">estimator</span><span class="kw">:</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">ros__parameters</span><span class="kw">:</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">use_sim_time</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">process_noise_std</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.01</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">measurement_noise_std</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.05</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Separate <code>controller.yaml</code> and <code>estimator.yaml</code> files work fine; just pass both in the <code>parameters</code> list of <code>ComposableNode</code>: <code>parameters=[controller_params, estimator_params, {"use_sim_time": use_sim_time}]</code></p>
+</div>
+</div>
 <hr>
 </section>
-</section>
-<section id="standalone-mode" class="level2">
-<h2 class="anchored" data-anchor-id="standalone-mode">Standalone mode</h2>
-<p>In standalone mode PX4 and Gazebo run in separate terminals. This is useful for attaching to an already-running Gazebo instance, or for running them on different machines.</p>
-<p><strong>Terminal 1 — start Gazebo:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Download the simulation-gazebo launcher script (once)</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">wget</span> https://raw.githubusercontent.com/PX4/PX4-gazebo-models/main/simulation-gazebo</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> simulation-gazebo</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>simulation-gazebo</code> downloads models and worlds to <code>~/.simulation-gazebo</code> on first run and re-uses them on subsequent runs.</p>
-<p><strong>Terminal 2 — start PX4:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_STANDALONE</span><span class="op">=</span>1 <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>PX4 will print <code>WARN [gz bridge] Service call timed out</code> until Gazebo starts — this is normal. Once Gazebo is up, PX4 connects automatically.</p>
+<section id="passing-launch-arguments-from-the-cli" class="level2">
+<h2 class="anchored" data-anchor-id="passing-launch-arguments-from-the-cli">Passing launch arguments from the CLI</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># default (sim, with RViz)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> launch my_bringup bringup.launch.py</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># hardware run without RViz, custom params</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> launch my_bringup bringup.launch.py <span class="dt">\</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  use_sim_time:=false <span class="dt">\</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  use_rviz:=false <span class="dt">\</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  params_file:=/path/to/hw_params.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Via pixi (add a task in <code>pixi.toml</code>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="dt">bringup</span>     <span class="op">=</span> <span class="st">"ros2 launch my_bringup bringup.launch.py"</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="dt">bringup-hw</span>  <span class="op">=</span> <span class="st">"ros2 launch my_bringup bringup.launch.py use_sim_time:=false use_rviz:=false"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run bringup</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run bringup-hw</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-<section id="integrating-with-the-pixi-workspace" class="level2">
-<h2 class="anchored" data-anchor-id="integrating-with-the-pixi-workspace">Integrating with the pixi workspace</h2>
-<p>Store the path to the PX4 source tree as a pixi variable and expose it via the activation environment.</p>
-<p><strong><code>pixi.toml</code></strong>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[activation]</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">env</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">PX4_AUTOPILOT</span><span class="op"> =</span> <span class="st">"/home/user/PX4-Autopilot"</span><span class="op"> }</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="dt">px4</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"cd $PX4_AUTOPILOT &amp;&amp; make px4_sitl gz_x500"</span><span class="op"> }</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-headless</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"cd $PX4_AUTOPILOT &amp;&amp; HEADLESS=1 make px4_sitl gz_x500"</span><span class="op"> }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="building" class="level2">
+<h2 class="anchored" data-anchor-id="building">Building</h2>
+<p>The bringup package has nothing to compile; colcon still needs to process it to install the share files:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Because the assets are installed (not symlinked by default under <code>--merge-install</code>), you must rebuild after editing YAML files or launch scripts. Use <code>--symlink-install</code> to skip this:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--symlink-install</span> <span class="at">--packages-select</span> my_bringup</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-<section id="confirming-sitl-is-running" class="level2">
-<h2 class="anchored" data-anchor-id="confirming-sitl-is-running">Confirming SITL is running</h2>
-<p>Check EKF and commander state from the NuttShell:</p>
-<pre><code>nsh&gt; ekf2 status
-nsh&gt; commander status</code></pre>
-<p>In a separate terminal, confirm DDS topics appear after starting the micro-XRCE-DDS agent (see <a href="../../docs/setup/uxrce-dds-agent.html">DDS Agent Setup</a>):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> fmu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<hr>
-</section>
-<section id="troubleshooting" class="level2">
-<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<section id="ninja-error-unknown-target-gz_x500" class="level3">
-<h3 class="anchored" data-anchor-id="ninja-error-unknown-target-gz_x500"><code>ninja: error: unknown target 'gz_x500'</code></h3>
-<p>The build tree is stale. Run <code>make distclean</code> then retry:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> distclean</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="make-px4_sitl-gz_x500-fails-with-missing-submodules" class="level3">
-<h3 class="anchored" data-anchor-id="make-px4_sitl-gz_x500-fails-with-missing-submodules"><code>make px4_sitl gz_x500</code> fails with missing submodules</h3>
-<p>The PX4 repo was cloned without <code>--recursive</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="gazebo-window-does-not-open" class="level3">
-<h3 class="anchored" data-anchor-id="gazebo-window-does-not-open">Gazebo window does not open</h3>
-<p>The display is not forwarded or the GPU driver lacks OpenGL 3.3 support. Either set <code>HEADLESS=1</code>, or try the OGRE 1 renderer:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_SIM_RENDER_ENGINE</span><span class="op">=</span>ogre <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="px4-exits-immediately-after-launch" class="level3">
-<h3 class="anchored" data-anchor-id="px4-exits-immediately-after-launch">PX4 exits immediately after launch</h3>
-<p>Lockstep is waiting for a Gazebo clock. Ensure Gazebo is running — the <code>gz_x500</code> target launches both. In standalone mode, start Gazebo before PX4.</p>
-</section>
-<section id="ekf2-error-at-startup" class="level3">
-<h3 class="anchored" data-anchor-id="ekf2-error-at-startup"><code>EKF2 ERROR</code> at startup</h3>
-<p>Normal for the first ~5 s while sensors initialise. If it persists, check that <code>gz-harmonic</code> is installed and the Gazebo sensors plugin loaded without errors.</p>
+<section id="simulation-override-launchsim.launch.py" class="level2">
+<h2 class="anchored" data-anchor-id="simulation-override-launchsim.launch.py">Simulation override — <code>launch/sim.launch.py</code></h2>
+<p>A separate simulation sub-launch can start Gazebo and the DDS agent before including the main bringup:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch <span class="im">import</span> LaunchDescription</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.actions <span class="im">import</span> IncludeLaunchDescription</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.launch_description_sources <span class="im">import</span> PythonLaunchDescriptionSource</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ament_index_python.packages <span class="im">import</span> get_package_share_directory</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_launch_description():</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    bringup_dir <span class="op">=</span> get_package_share_directory(<span class="st">"my_bringup"</span>)</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># start Gazebo + PX4 SITL (adapt to your sim launch)</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    sitl_launch <span class="op">=</span> IncludeLaunchDescription(</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>        PythonLaunchDescriptionSource(</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>            os.path.join(</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>                get_package_share_directory(<span class="st">"px4_sitl_launch"</span>),</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>                <span class="st">"launch"</span>, <span class="st">"gazebo.launch.py"</span>,</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    system_launch <span class="op">=</span> IncludeLaunchDescription(</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>        PythonLaunchDescriptionSource(</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>            os.path.join(bringup_dir, <span class="st">"launch"</span>, <span class="st">"bringup.launch.py"</span>)</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>        launch_arguments<span class="op">=</span>{<span class="st">"use_sim_time"</span>: <span class="st">"true"</span>}.items(),</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> LaunchDescription([sitl_launch, system_launch])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
-</section>
 </section>
 
 </main> <!-- /main -->

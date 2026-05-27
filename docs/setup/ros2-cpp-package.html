@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>PX4 SITL Setup – ROS 2 + PX4 Dev Guide</title>
+<title>C++ Node Package – ROS 2 + PX4 Dev Guide</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -377,7 +377,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/sitl-setup.html">PX4 SITL Setup</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/ros2-cpp-package.html">C++ Node Package</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -423,7 +423,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/sitl-setup.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../docs/setup/sitl-setup.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">PX4 SITL Setup</span></a>
   </div>
 </li>
@@ -435,7 +435,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/ros2-cpp-package.html" class="sidebar-item-text sidebar-link">
+  <a href="../../docs/setup/ros2-cpp-package.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">C++ Node Package</span></a>
   </div>
 </li>
@@ -521,25 +521,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link active" data-scroll-target="#prerequisites">Prerequisites</a></li>
-  <li><a href="#building-and-launching" id="toc-building-and-launching" class="nav-link" data-scroll-target="#building-and-launching">Building and launching</a></li>
-  <li><a href="#supported-vehicle-models" id="toc-supported-vehicle-models" class="nav-link" data-scroll-target="#supported-vehicle-models">Supported vehicle models</a></li>
-  <li><a href="#supported-worlds" id="toc-supported-worlds" class="nav-link" data-scroll-target="#supported-worlds">Supported worlds</a></li>
-  <li><a href="#key-environment-variables" id="toc-key-environment-variables" class="nav-link" data-scroll-target="#key-environment-variables">Key environment variables</a>
+  <li><a href="#directory-layout" id="toc-directory-layout" class="nav-link active" data-scroll-target="#directory-layout">Directory layout</a></li>
+  <li><a href="#package.xml" id="toc-package.xml" class="nav-link" data-scroll-target="#package.xml">package.xml</a></li>
+  <li><a href="#cmakelists.txt" id="toc-cmakelists.txt" class="nav-link" data-scroll-target="#cmakelists.txt">CMakeLists.txt</a></li>
+  <li><a href="#node-boilerplate-c" id="toc-node-boilerplate-c" class="nav-link" data-scroll-target="#node-boilerplate-c">Node boilerplate (C++)</a>
   <ul class="collapse">
-  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#header-includemy_pkgcontroller.hpp" id="toc-header-includemy_pkgcontroller.hpp" class="nav-link" data-scroll-target="#header-includemy_pkgcontroller.hpp">Header — <code>include/my_pkg/controller.hpp</code></a></li>
+  <li><a href="#implementation-srccontroller.cpp" id="toc-implementation-srccontroller.cpp" class="nav-link" data-scroll-target="#implementation-srccontroller.cpp">Implementation — <code>src/controller.cpp</code></a></li>
+  <li><a href="#standalone-entry-point-srcmain.cpp" id="toc-standalone-entry-point-srcmain.cpp" class="nav-link" data-scroll-target="#standalone-entry-point-srcmain.cpp">Standalone entry point — <code>src/main.cpp</code></a></li>
   </ul></li>
-  <li><a href="#standalone-mode" id="toc-standalone-mode" class="nav-link" data-scroll-target="#standalone-mode">Standalone mode</a></li>
-  <li><a href="#integrating-with-the-pixi-workspace" id="toc-integrating-with-the-pixi-workspace" class="nav-link" data-scroll-target="#integrating-with-the-pixi-workspace">Integrating with the pixi workspace</a></li>
-  <li><a href="#confirming-sitl-is-running" id="toc-confirming-sitl-is-running" class="nav-link" data-scroll-target="#confirming-sitl-is-running">Confirming SITL is running</a></li>
-  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
-  <ul class="collapse">
-  <li><a href="#ninja-error-unknown-target-gz_x500" id="toc-ninja-error-unknown-target-gz_x500" class="nav-link" data-scroll-target="#ninja-error-unknown-target-gz_x500"><code>ninja: error: unknown target 'gz_x500'</code></a></li>
-  <li><a href="#make-px4_sitl-gz_x500-fails-with-missing-submodules" id="toc-make-px4_sitl-gz_x500-fails-with-missing-submodules" class="nav-link" data-scroll-target="#make-px4_sitl-gz_x500-fails-with-missing-submodules"><code>make px4_sitl gz_x500</code> fails with missing submodules</a></li>
-  <li><a href="#gazebo-window-does-not-open" id="toc-gazebo-window-does-not-open" class="nav-link" data-scroll-target="#gazebo-window-does-not-open">Gazebo window does not open</a></li>
-  <li><a href="#px4-exits-immediately-after-launch" id="toc-px4-exits-immediately-after-launch" class="nav-link" data-scroll-target="#px4-exits-immediately-after-launch">PX4 exits immediately after launch</a></li>
-  <li><a href="#ekf2-error-at-startup" id="toc-ekf2-error-at-startup" class="nav-link" data-scroll-target="#ekf2-error-at-startup"><code>EKF2 ERROR</code> at startup</a></li>
-  </ul></li>
+  <li><a href="#minimal-launch-file" id="toc-minimal-launch-file" class="nav-link" data-scroll-target="#minimal-launch-file">Minimal launch file</a></li>
+  <li><a href="#building-and-running" id="toc-building-and-running" class="nav-link" data-scroll-target="#building-and-running">Building and running</a></li>
+  <li><a href="#adding-a-new-node" id="toc-adding-a-new-node" class="nav-link" data-scroll-target="#adding-a-new-node">Adding a new node</a></li>
   </ul>
 </nav>
     </div>
@@ -547,9 +540,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/sitl-setup.html">PX4 SITL Setup</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/ros2-cpp-package.html">C++ Node Package</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">PX4 SITL Setup</h1>
+<h1 class="title">C++ Node Package</h1>
 </div>
 
 
@@ -566,15 +559,120 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This page covers how to build PX4 firmware, launch the Gazebo SITL simulator, and wire it into the pixi workspace for use with the ROS 2 integration.</p>
+<p>A ROS 2 C++ package contains the compiled nodes that perform control, estimation, state machines, and any other compute-intensive logic. This page covers the minimal boilerplate to get a node building under colcon inside a pixi workspace.</p>
 <hr>
-<section id="prerequisites" class="level2">
-<h2 class="anchored" data-anchor-id="prerequisites">Prerequisites</h2>
-<p>PX4 SITL requires a native Ubuntu build environment. The PX4 source tree is <strong>not</strong> managed inside the ROS 2 workspace — it lives separately and is built with its own toolchain.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install PX4 build dependencies (run once)</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/PX4/PX4-Autopilot.git <span class="at">--recursive</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> ./Tools/setup/ubuntu.sh</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="directory-layout" class="level2">
+<h2 class="anchored" data-anchor-id="directory-layout">Directory layout</h2>
+<pre><code>src/
++-- my_pkg/
+    +-- include/
+    |   +-- my_pkg/
+    |       +-- controller.hpp
+    |       +-- estimator.hpp
+    +-- src/
+    |   +-- controller.cpp
+    |   +-- estimator.cpp
+    |   +-- main.cpp
+    +-- launch/
+    |   +-- node.launch.py          # minimal single-node launch
+    +-- CMakeLists.txt
+    +-- package.xml</code></pre>
+<p>Headers live under <code>include/&lt;package_name&gt;/</code> so they resolve as <code>#include "my_pkg/controller.hpp"</code> from any downstream package.</p>
+<hr>
+</section>
+<section id="package.xml" class="level2">
+<h2 class="anchored" data-anchor-id="package.xml">package.xml</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">&lt;?xml</span> <span class="ot">version=</span><span class="st">"1.0"</span><span class="fu">?&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">&lt;?xml-model</span> href="http://download.ros.org/schema/package_format3.xsd"</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>            schematypens="http://www.w3.org/2001/XMLSchema"<span class="fu">?&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">package</span> <span class="ot">format=</span><span class="st">"3"</span>&gt;</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">name</span>&gt;my_pkg&lt;/<span class="kw">name</span>&gt;</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">version</span>&gt;0.1.0&lt;/<span class="kw">version</span>&gt;</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">description</span>&gt;Control and estimation nodes&lt;/<span class="kw">description</span>&gt;</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">maintainer</span> <span class="ot">email=</span><span class="st">"you@example.com"</span>&gt;Your Name&lt;/<span class="kw">maintainer</span>&gt;</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">license</span>&gt;MIT&lt;/<span class="kw">license</span>&gt;</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">buildtool_depend</span>&gt;ament_cmake&lt;/<span class="kw">buildtool_depend</span>&gt;</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="co">&lt;!-- runtime + build: use &lt;depend&gt; for packages needed at both stages --&gt;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">depend</span>&gt;rclcpp&lt;/<span class="kw">depend</span>&gt;</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">depend</span>&gt;rclcpp_components&lt;/<span class="kw">depend</span>&gt;</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">depend</span>&gt;std_msgs&lt;/<span class="kw">depend</span>&gt;</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">depend</span>&gt;geometry_msgs&lt;/<span class="kw">depend</span>&gt;</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">depend</span>&gt;nav_msgs&lt;/<span class="kw">depend</span>&gt;</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">depend</span>&gt;px4_msgs&lt;/<span class="kw">depend</span>&gt;</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  &lt;<span class="kw">export</span>&gt;</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    &lt;<span class="kw">build_type</span>&gt;ament_cmake&lt;/<span class="kw">build_type</span>&gt;</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  &lt;/<span class="kw">export</span>&gt;</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">package</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Use <code>&lt;depend&gt;</code> (not <code>&lt;build_depend&gt;</code> + <code>&lt;exec_depend&gt;</code>) for libraries needed at both build and runtime — which covers most ROS packages.</p>
+<hr>
+</section>
+<section id="cmakelists.txt" class="level2">
+<h2 class="anchored" data-anchor-id="cmakelists.txt">CMakeLists.txt</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode cmake code-with-copy"><code class="sourceCode cmake"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">cmake_minimum_required</span>(<span class="ot">VERSION</span> <span class="dt">3.8</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">project</span>(my_pkg)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="va">CMAKE_COMPILER_IS_GNUCXX</span> <span class="ot">OR</span> <span class="dv">CMAKE_CXX_COMPILER_ID</span> <span class="ot">MATCHES</span> <span class="st">"Clang"</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">add_compile_options</span>(-Wall -Wextra -Wpedantic)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="cf">endif</span>()</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># --- dependencies ---</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(ament_cmake <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(rclcpp <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(rclcpp_components <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(std_msgs <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(geometry_msgs <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(nav_msgs <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(px4_msgs <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="kw">find_package</span>(Eigen3 <span class="ot">REQUIRED</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co"># --- shared library (enables composable-node registration) ---</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="kw">add_library</span>(<span class="dv">${PROJECT_NAME}</span> <span class="bn">SHARED</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  src/controller.cpp</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  src/estimator.cpp</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="kw">target_include_directories</span>(<span class="dv">${PROJECT_NAME}</span> <span class="bn">PUBLIC</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="ot">$&lt;</span><span class="kw">BUILD_INTERFACE</span><span class="ot">:</span><span class="dv">${CMAKE_CURRENT_SOURCE_DIR}</span><span class="ot">/include&gt;</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  <span class="ot">$&lt;</span><span class="kw">INSTALL_INTERFACE</span><span class="ot">:include&gt;</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="dv">${EIGEN3_INCLUDE_DIR}</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="kw">target_compile_features</span>(<span class="dv">${PROJECT_NAME}</span> <span class="bn">PUBLIC</span> <span class="ot">cxx_std_17</span>)</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="fu">ament_target_dependencies</span>(<span class="dv">${PROJECT_NAME}</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  rclcpp</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  rclcpp_components</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  std_msgs</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  geometry_msgs</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  nav_msgs</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>  px4_msgs</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="co"># --- register composable nodes ---</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="fu">rclcpp_components_register_node</span>(<span class="dv">${PROJECT_NAME}</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  PLUGIN <span class="st">"my_pkg::Controller"</span></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  EXECUTABLE controller_node</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="fu">rclcpp_components_register_node</span>(<span class="dv">${PROJECT_NAME}</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>  PLUGIN <span class="st">"my_pkg::Estimator"</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  EXECUTABLE estimator_node</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a><span class="co"># --- install ---</span></span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="kw">install</span>(<span class="ot">TARGETS</span> <span class="dv">${PROJECT_NAME}</span></span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  <span class="ot">ARCHIVE</span> <span class="ot">DESTINATION</span> lib</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>  <span class="ot">LIBRARY</span> <span class="ot">DESTINATION</span> lib</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>  <span class="ot">RUNTIME</span> <span class="ot">DESTINATION</span> bin</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="kw">install</span>(<span class="ot">DIRECTORY</span> include/ <span class="ot">DESTINATION</span> include)</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a><span class="kw">install</span>(<span class="ot">DIRECTORY</span> launch   <span class="ot">DESTINATION</span> share/<span class="dv">${PROJECT_NAME}</span>)</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="fu">ament_package</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -585,330 +683,152 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>ubuntu.sh</code> installs system packages including <code>gcc-arm-none-eabi</code>, <code>ninja</code>, and Python dependencies. It also installs <code>gz-harmonic</code> (Gazebo) for SITL. Re-run it if a new PX4 checkout changes the required dependencies.</p>
+<p>Building as a shared library and using <code>rclcpp_components_register_node</code> lets the bringup package load nodes in a <code>ComponentContainer</code> without spawning separate processes. The <code>EXECUTABLE</code> argument also produces a standalone binary for direct <code>ros2 run</code> use.</p>
 </div>
 </div>
 <hr>
 </section>
-<section id="building-and-launching" class="level2">
-<h2 class="anchored" data-anchor-id="building-and-launching">Building and launching</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This compiles the SITL binary and launches both PX4 and the Gazebo GUI. The first build takes ~5 minutes; subsequent builds are incremental.</p>
-<p>On launch, PX4 prints its version string (<code>PX4 v1.16.x</code>) and drops into the NuttShell:</p>
-<pre><code>nsh&gt;</code></pre>
-<p>Confirm the build binary exists:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> build/px4_sitl_default/bin/px4</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<hr>
+<section id="node-boilerplate-c" class="level2">
+<h2 class="anchored" data-anchor-id="node-boilerplate-c">Node boilerplate (C++)</h2>
+<section id="header-includemy_pkgcontroller.hpp" class="level3">
+<h3 class="anchored" data-anchor-id="header-includemy_pkgcontroller.hpp">Header — <code>include/my_pkg/controller.hpp</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#pragma once</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;rclcpp/rclcpp.hpp&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;geometry_msgs/msg/pose_stamped.hpp&gt;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;px4_msgs/msg/vehicle_odometry.hpp&gt;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;px4_msgs/msg/trajectory_setpoint.hpp&gt;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> my_pkg <span class="op">{</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Controller <span class="op">:</span> <span class="kw">public</span> rclcpp<span class="op">::</span>Node <span class="op">{</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">explicit</span> Controller<span class="op">(</span><span class="at">const</span> rclcpp<span class="op">::</span>NodeOptions<span class="op">&amp;</span> options <span class="op">=</span> rclcpp<span class="op">::</span>NodeOptions<span class="op">());</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> odom_callback<span class="op">(</span><span class="at">const</span> px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleOdometry<span class="op">::</span>SharedPtr msg<span class="op">);</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> setpoint_callback<span class="op">(</span><span class="at">const</span> geometry_msgs<span class="op">::</span>msg<span class="op">::</span>PoseStamped<span class="op">::</span>SharedPtr msg<span class="op">);</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>Subscription<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleOdometry<span class="op">&gt;::</span>SharedPtr <span class="va">odom_sub_</span><span class="op">;</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>Subscription<span class="op">&lt;</span>geometry_msgs<span class="op">::</span>msg<span class="op">::</span>PoseStamped<span class="op">&gt;::</span>SharedPtr <span class="va">setpoint_sub_</span><span class="op">;</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>Publisher<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>TrajectorySetpoint<span class="op">&gt;::</span>SharedPtr <span class="va">cmd_pub_</span><span class="op">;</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>TimerBase<span class="op">::</span>SharedPtr <span class="va">timer_</span><span class="op">;</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>  <span class="co">// namespace my_pkg</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="supported-vehicle-models" class="level2">
-<h2 class="anchored" data-anchor-id="supported-vehicle-models">Supported vehicle models</h2>
-<p>All <code>make</code> targets have the prefix <code>gz_</code>. The <code>PX4_SYS_AUTOSTART</code> ID is the airframe number used when launching the binary directly (without <code>make</code>).</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Vehicle</th>
-<th><code>make</code> target</th>
-<th><code>PX4_SYS_AUTOSTART</code></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>x500 quadrotor</td>
-<td><code>gz_x500</code></td>
-<td>4001</td>
-</tr>
-<tr class="even">
-<td>x500 + depth camera (front)</td>
-<td><code>gz_x500_depth</code></td>
-<td>4002</td>
-</tr>
-<tr class="odd">
-<td>x500 + visual odometry</td>
-<td><code>gz_x500_vision</code></td>
-<td>4005</td>
-</tr>
-<tr class="even">
-<td>x500 + 1D lidar (down)</td>
-<td><code>gz_x500_lidar_down</code></td>
-<td>4016</td>
-</tr>
-<tr class="odd">
-<td>x500 + 2D lidar</td>
-<td><code>gz_x500_lidar_2d</code></td>
-<td>4013</td>
-</tr>
-<tr class="even">
-<td>x500 + 1D lidar (front)</td>
-<td><code>gz_x500_lidar_front</code></td>
-<td>4017</td>
-</tr>
-<tr class="odd">
-<td>x500 + gimbal (front)</td>
-<td><code>gz_x500_gimbal</code></td>
-<td>4019</td>
-</tr>
-<tr class="even">
-<td>Standard VTOL</td>
-<td><code>gz_standard_vtol</code></td>
-<td>4004</td>
-</tr>
-<tr class="odd">
-<td>RC Cessna (plane)</td>
-<td><code>gz_rc_cessna</code></td>
-<td>4003</td>
-</tr>
-<tr class="even">
-<td>Differential rover</td>
-<td><code>gz_rover_differential</code></td>
-<td>50000</td>
-</tr>
-<tr class="odd">
-<td>Ackermann rover</td>
-<td><code>gz_rover_ackermann</code></td>
-<td>51000</td>
-</tr>
-</tbody>
-</table>
-<hr>
+<section id="implementation-srccontroller.cpp" class="level3">
+<h3 class="anchored" data-anchor-id="implementation-srccontroller.cpp">Implementation — <code>src/controller.cpp</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">"my_pkg/controller.hpp"</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;rclcpp/qos.hpp&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> my_pkg <span class="op">{</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>Controller<span class="op">::</span>Controller<span class="op">(</span><span class="at">const</span> rclcpp<span class="op">::</span>NodeOptions<span class="op">&amp;</span> options<span class="op">)</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="op">:</span> Node<span class="op">(</span><span class="st">"controller"</span><span class="op">,</span> options<span class="op">)</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* PX4 uORB topics require BEST_EFFORT QoS -- see QoS Profiles page. */</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">auto</span> px4_qos <span class="op">=</span> rclcpp<span class="op">::</span>QoS<span class="op">(</span><span class="dv">10</span><span class="op">).</span>best_effort<span class="op">();</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="va">odom_sub_</span> <span class="op">=</span> create_subscription<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleOdometry<span class="op">&gt;(</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"/fmu/out/vehicle_odometry"</span><span class="op">,</span> px4_qos<span class="op">,</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        <span class="op">[</span><span class="kw">this</span><span class="op">](</span><span class="at">const</span> px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleOdometry<span class="op">::</span>SharedPtr msg<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>            odom_callback<span class="op">(</span>msg<span class="op">);</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">});</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="va">setpoint_sub_</span> <span class="op">=</span> create_subscription<span class="op">&lt;</span>geometry_msgs<span class="op">::</span>msg<span class="op">::</span>PoseStamped<span class="op">&gt;(</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"~/setpoint"</span><span class="op">,</span> rclcpp<span class="op">::</span>QoS<span class="op">(</span><span class="dv">1</span><span class="op">),</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="op">[</span><span class="kw">this</span><span class="op">](</span><span class="at">const</span> geometry_msgs<span class="op">::</span>msg<span class="op">::</span>PoseStamped<span class="op">::</span>SharedPtr msg<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>            setpoint_callback<span class="op">(</span>msg<span class="op">);</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>        <span class="op">});</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="va">cmd_pub_</span> <span class="op">=</span> create_publisher<span class="op">&lt;</span>px4_msgs<span class="op">::</span>msg<span class="op">::</span>TrajectorySetpoint<span class="op">&gt;(</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>        <span class="st">"/fmu/in/trajectory_setpoint"</span><span class="op">,</span> px4_qos<span class="op">);</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* declare parameters with defaults */</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    declare_parameter<span class="op">(</span><span class="st">"control_rate_hz"</span><span class="op">,</span> <span class="fl">50.0</span><span class="op">);</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> rate <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"control_rate_hz"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="va">timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>        <span class="bu">std::</span>chrono::duration<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;(</span><span class="fl">1.0</span> <span class="op">/</span> rate<span class="op">),</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>        <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span> <span class="co">/* run control loop */</span> <span class="op">});</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> Controller<span class="op">::</span>odom_callback<span class="op">(</span><span class="at">const</span> px4_msgs<span class="op">::</span>msg<span class="op">::</span>VehicleOdometry<span class="op">::</span>SharedPtr msg<span class="op">)</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    RCLCPP_INFO_THROTTLE<span class="op">(</span>get_logger<span class="op">(),</span> <span class="op">*</span>get_clock<span class="op">(),</span> <span class="dv">1000</span><span class="op">,</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>        <span class="st">"pos: [</span><span class="sc">%.2f</span><span class="st">, </span><span class="sc">%.2f</span><span class="st">, </span><span class="sc">%.2f</span><span class="st">]"</span><span class="op">,</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>        msg<span class="op">-&gt;</span>position<span class="op">[</span><span class="dv">0</span><span class="op">],</span> msg<span class="op">-&gt;</span>position<span class="op">[</span><span class="dv">1</span><span class="op">],</span> msg<span class="op">-&gt;</span>position<span class="op">[</span><span class="dv">2</span><span class="op">]);</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> Controller<span class="op">::</span>setpoint_callback<span class="op">(</span><span class="at">const</span> geometry_msgs<span class="op">::</span>msg<span class="op">::</span>PoseStamped<span class="op">::</span>SharedPtr <span class="co">/*msg*/</span><span class="op">)</span></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* store latest goal */</span></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>  <span class="co">// namespace my_pkg</span></span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="co">/* composable-node entry point (used by ComponentContainer) */</span></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">"rclcpp_components/register_node_macro.hpp"</span></span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>RCLCPP_COMPONENTS_REGISTER_NODE<span class="op">(</span>my_pkg<span class="op">::</span>Controller<span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="supported-worlds" class="level2">
-<h2 class="anchored" data-anchor-id="supported-worlds">Supported worlds</h2>
-<p>Append the world name to the model target, or set <code>PX4_GZ_WORLD</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500_windy</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># equivalent:</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_WORLD</span><span class="op">=</span>windy <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 65%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>World</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>default</code></td>
-<td>Empty flat plane (used when no world is specified)</td>
-</tr>
-<tr class="even">
-<td><code>windy</code></td>
-<td>Empty world with wind enabled</td>
-</tr>
-<tr class="odd">
-<td><code>baylands</code></td>
-<td>Terrain surrounded by water</td>
-</tr>
-<tr class="even">
-<td><code>aruco</code></td>
-<td>Empty world with ArUco marker for precision landing testing</td>
-</tr>
-<tr class="odd">
-<td><code>walls</code></td>
-<td>Walled arena for collision-prevention testing</td>
-</tr>
-<tr class="even">
-<td><code>lawn</code></td>
-<td>Lawn surface for rover testing</td>
-</tr>
-<tr class="odd">
-<td><code>moving_platform</code></td>
-<td>Moving takeoff/landing platform</td>
-</tr>
-</tbody>
-</table>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Do <strong>not</strong> specify <code>gz_x500_default</code> explicitly — PX4 will fail to launch. Use <code>gz_x500</code> (no suffix) for the default world.</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="key-environment-variables" class="level2">
-<h2 class="anchored" data-anchor-id="key-environment-variables">Key environment variables</h2>
-<p>Set these before calling <code>make</code> or running the PX4 binary directly.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 32%">
-<col style="width: 32%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Variable</th>
-<th>Purpose</th>
-<th>Example</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>PX4_SIM_MODEL</code></td>
-<td>Spawn a new vehicle model by name</td>
-<td><code>gz_x500</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_GZ_MODEL_NAME</code></td>
-<td>Bind to an <strong>existing</strong> Gazebo model by name</td>
-<td><code>x500</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_SYS_AUTOSTART</code></td>
-<td>Airframe ID (required when running binary directly)</td>
-<td><code>4001</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_GZ_WORLD</code></td>
-<td>Override the Gazebo world file</td>
-<td><code>windy</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_GZ_MODEL_POSE</code></td>
-<td>Spawn pose <code>x,y,z,roll,pitch,yaw</code> (metres, radians)</td>
-<td><code>0,2,0,0,0,0</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_HOME_LAT</code></td>
-<td>Home latitude (degrees)</td>
-<td><code>51.1788</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_HOME_LON</code></td>
-<td>Home longitude (degrees)</td>
-<td><code>-1.8263</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_HOME_ALT</code></td>
-<td>Home altitude (metres AMSL)</td>
-<td><code>101</code></td>
-</tr>
-<tr class="odd">
-<td><code>HEADLESS</code></td>
-<td>Disable Gazebo GUI</td>
-<td><code>1</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_SIM_SPEED_FACTOR</code></td>
-<td>Run faster/slower than real-time</td>
-<td><code>2</code></td>
-</tr>
-<tr class="odd">
-<td><code>PX4_GZ_STANDALONE</code></td>
-<td>Start PX4 only; connect to a separately-running Gazebo</td>
-<td><code>1</code></td>
-</tr>
-<tr class="even">
-<td><code>PX4_GZ_SIM_RENDER_ENGINE</code></td>
-<td>Override render engine (use <code>ogre</code> on VMs)</td>
-<td><code>ogre</code></td>
-</tr>
-</tbody>
-</table>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><code>PX4_SIM_MODEL</code> and <code>PX4_GZ_MODEL_NAME</code> are mutually exclusive. Use <code>PX4_SIM_MODEL</code> to spawn a new vehicle; use <code>PX4_GZ_MODEL_NAME</code> to attach a new PX4 instance to a model that Gazebo has already spawned.</p>
-</div>
-</div>
-<section id="examples" class="level3">
-<h3 class="anchored" data-anchor-id="examples">Examples</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Headless, custom spawn pose</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="va">HEADLESS</span><span class="op">=</span>1 <span class="va">PX4_GZ_MODEL_POSE</span><span class="op">=</span><span class="st">"0,0,0.5,0,0,1.57"</span> <span class="fu">make</span> px4_sitl gz_x500</span>
+<section id="standalone-entry-point-srcmain.cpp" class="level3">
+<h3 class="anchored" data-anchor-id="standalone-entry-point-srcmain.cpp">Standalone entry point — <code>src/main.cpp</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;rclcpp/rclcpp.hpp&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">"my_pkg/controller.hpp"</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run at 2x real-time speed</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_SIM_SPEED_FACTOR</span><span class="op">=</span>2 <span class="fu">make</span> px4_sitl gz_x500</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Custom home location (GPS origin)</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PX4_HOME_LAT</span><span class="op">=</span>51.1788</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PX4_HOME_LON</span><span class="op">=</span>-1.8263</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PX4_HOME_ALT</span><span class="op">=</span>101</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co"># VM with poor OpenGL support</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_SIM_RENDER_ENGINE</span><span class="op">=</span>ogre <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span><span class="op">*</span> argv<span class="op">[])</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>init<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>spin<span class="op">(</span><span class="bu">std::</span>make_shared<span class="op">&lt;</span>my_pkg<span class="op">::</span>Controller<span class="op">&gt;());</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    rclcpp<span class="op">::</span>shutdown<span class="op">();</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 </section>
-<section id="standalone-mode" class="level2">
-<h2 class="anchored" data-anchor-id="standalone-mode">Standalone mode</h2>
-<p>In standalone mode PX4 and Gazebo run in separate terminals. This is useful for attaching to an already-running Gazebo instance, or for running them on different machines.</p>
-<p><strong>Terminal 1 — start Gazebo:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Download the simulation-gazebo launcher script (once)</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">wget</span> https://raw.githubusercontent.com/PX4/PX4-gazebo-models/main/simulation-gazebo</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> simulation-gazebo</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>simulation-gazebo</code> downloads models and worlds to <code>~/.simulation-gazebo</code> on first run and re-uses them on subsequent runs.</p>
-<p><strong>Terminal 2 — start PX4:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> PX4-Autopilot</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_STANDALONE</span><span class="op">=</span>1 <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>PX4 will print <code>WARN [gz bridge] Service call timed out</code> until Gazebo starts — this is normal. Once Gazebo is up, PX4 connects automatically.</p>
+<section id="minimal-launch-file" class="level2">
+<h2 class="anchored" data-anchor-id="minimal-launch-file">Minimal launch file</h2>
+<p>This launch file lives in the node package itself and is only used for quick manual testing. For full system bringup see the <a href="../../docs/setup/ros2-bringup-package.html">Bringup Package</a> page.</p>
+<p><strong><code>launch/node.launch.py</code></strong>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch <span class="im">import</span> LaunchDescription</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch_ros.actions <span class="im">import</span> Node</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate_launch_description():</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> LaunchDescription([</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        Node(</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>            package<span class="op">=</span><span class="st">"my_pkg"</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>            executable<span class="op">=</span><span class="st">"controller_node"</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"controller"</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>            output<span class="op">=</span><span class="st">"screen"</span>,</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    ])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
-<section id="integrating-with-the-pixi-workspace" class="level2">
-<h2 class="anchored" data-anchor-id="integrating-with-the-pixi-workspace">Integrating with the pixi workspace</h2>
-<p>Store the path to the PX4 source tree as a pixi variable and expose it via the activation environment.</p>
-<p><strong><code>pixi.toml</code></strong>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[activation]</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">env</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">PX4_AUTOPILOT</span><span class="op"> =</span> <span class="st">"/home/user/PX4-Autopilot"</span><span class="op"> }</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="dt">px4</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"cd $PX4_AUTOPILOT &amp;&amp; make px4_sitl gz_x500"</span><span class="op"> }</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-headless</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"cd $PX4_AUTOPILOT &amp;&amp; HEADLESS=1 make px4_sitl gz_x500"</span><span class="op"> }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="building-and-running" class="level2">
+<h2 class="anchored" data-anchor-id="building-and-running">Building and running</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># build all packages under src/</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run build</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># standalone binary</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run <span class="at">--</span> ros2 run my_pkg controller_node</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># or via launch file</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run <span class="at">--</span> ros2 launch my_pkg node.launch.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>After editing source files re-run <code>pixi run build</code>. Python and resource files installed with <code>--symlink-install</code> update without a rebuild; C++ sources always require a rebuild.</p>
 <hr>
 </section>
-<section id="confirming-sitl-is-running" class="level2">
-<h2 class="anchored" data-anchor-id="confirming-sitl-is-running">Confirming SITL is running</h2>
-<p>Check EKF and commander state from the NuttShell:</p>
-<pre><code>nsh&gt; ekf2 status
-nsh&gt; commander status</code></pre>
-<p>In a separate terminal, confirm DDS topics appear after starting the micro-XRCE-DDS agent (see <a href="../../docs/setup/uxrce-dds-agent.html">DDS Agent Setup</a>):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> fmu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<hr>
-</section>
-<section id="troubleshooting" class="level2">
-<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<section id="ninja-error-unknown-target-gz_x500" class="level3">
-<h3 class="anchored" data-anchor-id="ninja-error-unknown-target-gz_x500"><code>ninja: error: unknown target 'gz_x500'</code></h3>
-<p>The build tree is stale. Run <code>make distclean</code> then retry:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> distclean</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="make-px4_sitl-gz_x500-fails-with-missing-submodules" class="level3">
-<h3 class="anchored" data-anchor-id="make-px4_sitl-gz_x500-fails-with-missing-submodules"><code>make px4_sitl gz_x500</code> fails with missing submodules</h3>
-<p>The PX4 repo was cloned without <code>--recursive</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="gazebo-window-does-not-open" class="level3">
-<h3 class="anchored" data-anchor-id="gazebo-window-does-not-open">Gazebo window does not open</h3>
-<p>The display is not forwarded or the GPU driver lacks OpenGL 3.3 support. Either set <code>HEADLESS=1</code>, or try the OGRE 1 renderer:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="va">PX4_GZ_SIM_RENDER_ENGINE</span><span class="op">=</span>ogre <span class="fu">make</span> px4_sitl gz_x500</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="px4-exits-immediately-after-launch" class="level3">
-<h3 class="anchored" data-anchor-id="px4-exits-immediately-after-launch">PX4 exits immediately after launch</h3>
-<p>Lockstep is waiting for a Gazebo clock. Ensure Gazebo is running — the <code>gz_x500</code> target launches both. In standalone mode, start Gazebo before PX4.</p>
-</section>
-<section id="ekf2-error-at-startup" class="level3">
-<h3 class="anchored" data-anchor-id="ekf2-error-at-startup"><code>EKF2 ERROR</code> at startup</h3>
-<p>Normal for the first ~5 s while sensors initialise. If it persists, check that <code>gz-harmonic</code> is installed and the Gazebo sensors plugin loaded without errors.</p>
+<section id="adding-a-new-node" class="level2">
+<h2 class="anchored" data-anchor-id="adding-a-new-node">Adding a new node</h2>
+<ol type="1">
+<li>Add the header under <code>include/my_pkg/</code>.</li>
+<li>Add the source file under <code>src/</code>.</li>
+<li>Register it in <code>CMakeLists.txt</code> with <code>rclcpp_components_register_node</code>.</li>
+<li>Run <code>pixi run build</code>.</li>
+</ol>
 
 
-</section>
 </section>
 
 </main> <!-- /main -->
