@@ -42,8 +42,8 @@ website:
 format:
   html:
     theme:
-      light: stream.scss
-      dark:  stream-dark.scss
+      light: themes/stream.scss
+      dark:  themes/stream-dark.scss
     toc: true
     toc-depth: 3
     code-copy: true
