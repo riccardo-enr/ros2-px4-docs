@@ -163,6 +163,65 @@ produces silent serialization errors: topics publish but subscribers receive
 garbage.
 :::
 
+### Versioned topic names
+
+From PX4 v1.14 onward, some topics are published under a versioned name to
+signal a breaking message-definition change. The most common case is
+`VehicleStatus`, which moved from:
+
+```
+/fmu/out/vehicle_status      # pre-v1.14
+/fmu/out/vehicle_status_v1   # v1.14+
+```
+
+If your subscriber listens on the wrong topic name it receives **no data at
+all** — the subscription simply never fires. Auto-arming logic that waits for
+`arming_state == ARMING_STATE_ARMED` blocks forever, and the vehicle never
+arms.
+
+The fix is to subscribe to the versioned topic:
+
+```cpp
+// px4_interface.cpp / px4_manager_node.cpp
+status_sub_ = node_->create_subscription<px4_msgs::msg::VehicleStatus>(
+    "/fmu/out/vehicle_status_v1", qos, callback);
+```
+
+Check which topics are actually being published by the running firmware:
+
+```bash
+ros2 topic list | grep vehicle_status
+```
+
+Use whichever name appears — it tells you exactly what the firmware is
+advertising.
+
+### Diagnosing version mismatches
+
+If the topic name is correct but arming still fails, the submodule and firmware
+are on different releases (fields added/removed between releases cause silent
+deserialization errors). Check alignment:
+
+```bash
+# commit that your workspace px4_msgs is pinned to
+git -C src/px4_msgs rev-parse HEAD
+
+# PX4 version string printed at SITL startup, e.g. "PX4 v1.15.2"
+# must correspond to the same release branch
+```
+
+To fix, update the submodule to the branch matching your firmware:
+
+```bash
+cd src/px4_msgs
+git fetch
+git checkout release/1.16   # match PX4 firmware version
+cd ../..
+colcon build --symlink-install
+git add src/px4_msgs
+git commit -m "chore: pin px4_msgs to release/1.16"
+```
+
 ---
 
 ## Build tasks
