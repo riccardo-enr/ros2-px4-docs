@@ -7,9 +7,7 @@ $[\tau_x,\, \tau_y,\, \tau_z,\, T]^\top$ to individual motor throttles
 $\delta_i \in [0, 1]$. For an X-frame quadrotor it is a $4 \times 4$ linear
 map followed by a square-root and an affine throttle scaling.
 
-<!-- The implementation lives in
-[`motor_allocator.hpp`](https://github.com/riccardo-enr/px4_cmaes_tuner)
-inside `uav_control`. -->
+The implementation lives in `motor_allocator.hpp` inside `uav_control`.
 
 ---
 
@@ -195,8 +193,7 @@ in PX4's SITL parameters.
 
 ## Python reference (mixing matrix test)
 
-The [`scripts/test_mixing.py`](https://github.com/riccardo-enr/px4_cmaes_tuner)
-script replicates the C++ logic exactly and runs eight checks:
+The `scripts/test_mixing.py` script replicates the C++ logic exactly and runs eight checks:
 hover equilibrium, roll/pitch/yaw torques, saturation clamp, roundtrip
 wrench reconstruction, and a diagnostic for observed motor patterns.
 
