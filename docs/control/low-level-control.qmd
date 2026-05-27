@@ -149,50 +149,10 @@ Set `lockstep: false` in the model's `model.sdf` and in PX4's SITL config.
 
 ## Control allocation (wrench -> throttles)
 
-To produce per-motor throttles from a desired wrench `[tau_x, tau_y, tau_z, T]`:
-
-$$
-\boldsymbol{\omega} = \mathbf{M}^+ \mathbf{w}, \quad
-\text{PWM}_i = c_2 \omega_i^2 + c_1 \omega_i + c_0, \quad
-\delta_i = \frac{\text{PWM}_i - \text{PWM}_\text{min}}{\text{PWM}_\text{max} - \text{PWM}_\text{min}}
-$$
-
-where $\mathbf{M}$ is the control allocation matrix (arm geometry + motor
-constants) and $\mathbf{M}^+$ is its pseudoinverse.
-
-For a symmetric X-quadrotor with arm length $l$ and thrust/moment constants
-$k_T$, $k_M$:
-
-$$
-\mathbf{M} = \begin{pmatrix}
--k_T l \sin 45^\circ & k_T l \sin 45^\circ & k_T l \sin 45^\circ & -k_T l \sin 45^\circ \\
--k_T l \sin 45^\circ & k_T l \sin 45^\circ & -k_T l \sin 45^\circ & k_T l \sin 45^\circ \\
--k_M k_T & -k_M k_T & k_M k_T & k_M k_T \\
-k_T & k_T & k_T & k_T
-\end{pmatrix}
-$$
-
-SITL skips the PWM conversion and maps throttles directly via `SIM_GZ_EC_MIN`
-/ `SIM_GZ_EC_MAX` (rotor speed limits in rad/s).
-
-### x500 parameters (reference)
-
-```yaml
-uav_parameters:
-  mass: 2.064              # kg
-  arm_length: 0.25         # m
-  num_of_arms: 4
-  inertia: {x: 0.08612, y: 0.08962, z: 0.16088}   # kg.m^2
-  thrust_constant: 8.54858e-06   # N.s^2/rad^2
-  moment_constant: 0.016         # m
-  max_rotor_speed: 1000          # rad/s
-  gravity: 9.81
-  omega_to_pwm_coefficient: {x_2: 0.001142, x_1: 0.2273, x_0: 914.2}
-  PWM_MIN: 1075
-  PWM_MAX: 1950
-  SIM_GZ_EC_MAX: 1000    # rad/s
-  SIM_GZ_EC_MIN: 150     # rad/s
-```
+When using mode 3 (direct actuator), the controller must convert the desired
+wrench $[\tau_x, \tau_y, \tau_z, T]$ to per-motor throttles. See
+[Control Allocation](control-allocation.qmd) for the full derivation, mixing
+matrix, C++ implementation, and x500 parameters.
 
 ---
 

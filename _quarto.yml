@@ -18,6 +18,8 @@ website:
         text: Frame Conventions
       - href: docs/control/low-level-control.qmd
         text: Low-Level Control
+      - href: docs/control/control-allocation.qmd
+        text: Control Allocation
   sidebar:
     style: docked
     contents:
@@ -35,6 +37,7 @@ website:
         contents:
           - docs/control/frame-conventions.qmd
           - docs/control/low-level-control.qmd
+          - docs/control/control-allocation.qmd
 
 format:
   html:

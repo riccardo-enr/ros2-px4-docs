@@ -15,6 +15,7 @@ Python type checking. No system-level ROS install required.
 | [C++ Tooling](docs/tooling/clangd.qmd) | .clangd config, clang-tidy checks, CUDA file handling, compile_commands.json |
 | [Frame Conventions](docs/control/frame-conventions.qmd) | NED/FRD vs ENU/FLU, vector/quaternion conversions, altitude sign, yaw |
 | [Low-Level Control](docs/control/low-level-control.qmd) | Attitude, thrust+torque, direct actuator modes; frame conventions; control allocation |
+| [Control Allocation](docs/control/control-allocation.qmd) | Wrench to motor throttles: mixing matrix, pseudoinverse, x500 motor layout |
 
 ## Stack overview
 
