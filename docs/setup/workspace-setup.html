@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-3b67c4cfd3d735f8b15c63a8e56500e9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-6fd515f92ba33719ae621d034b335f62.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -137,6 +137,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li class="nav-item">
     <a class="nav-link" href="../../docs/tooling/basedpyright.html"> 
 <span class="menu-text">Type Checking</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../docs/tooling/clangd.html"> 
+<span class="menu-text">C++ Tooling</span></a>
   </li>  
 </ul>
           </div> <!-- /navcollapse -->
@@ -208,6 +212,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../../docs/tooling/basedpyright.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Type Checking with basedpyright</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/tooling/clangd.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">C++ Tooling with clangd</span></a>
   </div>
 </li>
       </ul>
@@ -345,21 +355,18 @@ Warning
 <span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="dt">python</span>     <span class="op">=</span> <span class="st">"&gt;=3.11"</span></span>
 <span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="dt">numpy</span>      <span class="op">=</span> <span class="st">"*"</span></span>
 <span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="dt">scipy</span>      <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="dt">matplotlib</span> <span class="op">=</span> <span class="st">"*"</span></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="co"># --- CUDA (required for GPU-accelerated nodes) ---</span></span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="dt">cuda-toolkit</span> <span class="op">=</span> <span class="st">"&gt;=12.0,&lt;13"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="callout callout-style-default callout-tip callout-titled">
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="dt">matplotlib</span> <span class="op">=</span> <span class="st">"*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Tip
+Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>cuda-toolkit</code> from <code>conda-forge</code> installs <code>nvcc</code> and runtime headers inside the pixi environment. The <strong>host driver</strong> must already be installed (<code>nvidia-smi</code> should report &gt;= 525 for CUDA 12).</p>
+<p><strong>GPU-accelerated nodes (optional)</strong>: add <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> under <code>[dependencies]</code> if your workspace includes CUDA nodes. The host driver must already be installed (<code>nvidia-smi</code> should report &gt;= 525 for CUDA 12).</p>
 </div>
 </div>
 </section>
@@ -504,8 +511,9 @@ Warning
 </section>
 <section id="cuda-compiler-nvcc-not-found" class="level3">
 <h3 class="anchored" data-anchor-id="cuda-compiler-nvcc-not-found">CUDA compiler (<code>nvcc</code>) not found</h3>
+<p>Only needed if your workspace has GPU-accelerated nodes.</p>
 <ol type="1">
-<li>Confirm <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> is in <code>[dependencies]</code>.</li>
+<li>Add <code>cuda-toolkit = "&gt;=12.0,&lt;13"</code> to <code>[dependencies]</code> in <code>pixi.toml</code>.</li>
 <li>Run <code>pixi install</code> to fetch it.</li>
 <li>Inside <code>pixi shell</code>, <code>which nvcc</code> should resolve to <code>.pixi/envs/default/bin/nvcc</code>.</li>
 </ol>

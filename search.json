@@ -16,7 +16,7 @@
     "href": "index.html#contents",
     "title": "ROS 2 + PX4 Dev Guide",
     "section": "Contents",
-    "text": "Contents\n\n\n\nGuide\nDescription\n\n\n\n\nWorkspace Setup\npixi.toml, channels, dependencies, activation, submodules, build tasks\n\n\nType Checking\nbasedpyright configuration, pixi env resolution, ROS-specific notes, VSCode",
+    "text": "Contents\n\n\n\nGuide\nDescription\n\n\n\n\nWorkspace Setup\npixi.toml, channels, dependencies, activation, submodules, build tasks\n\n\nType Checking\nbasedpyright configuration, pixi env resolution, ROS-specific notes, VSCode\n\n\nC++ Tooling\n.clangd config, clang-tidy checks, CUDA file handling, compile_commands.json",
     "crumbs": [
       "Home",
       "Getting Started",
@@ -28,7 +28,7 @@
     "href": "index.html#stack-overview",
     "title": "ROS 2 + PX4 Dev Guide",
     "section": "Stack overview",
-    "text": "Stack overview\n\n\n\n\n\ngraph LR\n    pixi[\"pixi\\n(env manager)\"] --&gt; ros[\"ROS 2 Jazzy\\n(robostack-jazzy)\"]\n    pixi --&gt; cuda[\"CUDA 12+\\n(conda-forge)\"]\n    pixi --&gt; python[\"Python 3.11+\\n(conda-forge)\"]\n    ros --&gt; colcon[\"colcon build\"]\n    colcon --&gt; ws[\"install/\\n(ROS overlay)\"]\n    ws --&gt; px4[\"px4_msgs\\n(git submodule)\"]",
+    "text": "Stack overview\n\n\n\n\n\ngraph LR\n    pixi[\"pixi\\n(env manager)\"] --&gt; ros[\"ROS 2 Jazzy\\n(robostack-jazzy)\"]\n    pixi --&gt; python[\"Python 3.11+\\n(conda-forge)\"]\n    ros --&gt; colcon[\"colcon build\"]\n    colcon --&gt; ws[\"install/\\n(ROS overlay)\"]\n    ws --&gt; px4[\"px4_msgs\\n(git submodule)\"]",
     "crumbs": [
       "Home",
       "Getting Started",
@@ -40,107 +40,11 @@
     "href": "index.html#prerequisites",
     "title": "ROS 2 + PX4 Dev Guide",
     "section": "Prerequisites",
-    "text": "Prerequisites\n\n\n\nRequirement\nNotes\n\n\n\n\npixi\ncurl -fsSL https://pixi.sh/install.sh \\| bash\n\n\nCUDA 12+\nHost driver &gt;= 525; nvcc is installed by pixi\n\n\ngit\nFor submodule management",
+    "text": "Prerequisites\n\n\n\nRequirement\nNotes\n\n\n\n\npixi\ncurl -fsSL https://pixi.sh/install.sh \\| bash\n\n\ngit\nFor submodule management",
     "crumbs": [
       "Home",
       "Getting Started",
       "ROS 2 + PX4 Dev Guide"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html",
-    "href": "docs/setup/workspace-setup.html",
-    "title": "Workspace Setup",
-    "section": "",
-    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#project-structure",
-    "href": "docs/setup/workspace-setup.html#project-structure",
-    "title": "Workspace Setup",
-    "section": "Project structure",
-    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
-    "href": "docs/setup/workspace-setup.html#pixi.toml",
-    "title": "Workspace Setup",
-    "section": "pixi.toml",
-    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n# --- CUDA (required for GPU-accelerated nodes) ---\ncuda-toolkit = \"&gt;=12.0,&lt;13\"\n\n\n\n\n\n\nTip\n\n\n\ncuda-toolkit from conda-forge installs nvcc and runtime headers inside the pixi environment. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
-    "href": "docs/setup/workspace-setup.html#workspace-activation",
-    "title": "Workspace Setup",
-    "section": "Workspace activation",
-    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "title": "Workspace Setup",
-    "section": "PX4 message definitions (submodule)",
-    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#build-tasks",
-    "href": "docs/setup/workspace-setup.html#build-tasks",
-    "title": "Workspace Setup",
-    "section": "Build tasks",
-    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
-    "href": "docs/setup/workspace-setup.html#daily-workflow",
-    "title": "Workspace Setup",
-    "section": "Daily workflow",
-    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
-    "href": "docs/setup/workspace-setup.html#troubleshooting",
-    "title": "Workspace Setup",
-    "section": "Troubleshooting",
-    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\n\nConfirm cuda-toolkit = \"&gt;=12.0,&lt;13\" is in [dependencies].\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
     ]
   },
   {
@@ -249,6 +153,186 @@
       "Home",
       "Tooling",
       "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html",
+    "href": "docs/setup/workspace-setup.html",
+    "title": "Workspace Setup",
+    "section": "",
+    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#project-structure",
+    "href": "docs/setup/workspace-setup.html#project-structure",
+    "title": "Workspace Setup",
+    "section": "Project structure",
+    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
+    "href": "docs/setup/workspace-setup.html#pixi.toml",
+    "title": "Workspace Setup",
+    "section": "pixi.toml",
+    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
+    "href": "docs/setup/workspace-setup.html#workspace-activation",
+    "title": "Workspace Setup",
+    "section": "Workspace activation",
+    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "title": "Workspace Setup",
+    "section": "PX4 message definitions (submodule)",
+    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#build-tasks",
+    "href": "docs/setup/workspace-setup.html#build-tasks",
+    "title": "Workspace Setup",
+    "section": "Build tasks",
+    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
+    "href": "docs/setup/workspace-setup.html#daily-workflow",
+    "title": "Workspace Setup",
+    "section": "Daily workflow",
+    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
+    "href": "docs/setup/workspace-setup.html#troubleshooting",
+    "title": "Workspace Setup",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html",
+    "href": "docs/tooling/clangd.html",
+    "title": "C++ Tooling with clangd",
+    "section": "",
+    "text": "This guide covers the .clangd configuration used across uav_control and related ROS 2 C++ packages. The setup gives accurate clangd completions and clang-tidy diagnostics inside a colcon workspace without false positives from GPU or ROS-specific compiler flags.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#how-clangd-finds-headers",
+    "href": "docs/tooling/clangd.html#how-clangd-finds-headers",
+    "title": "C++ Tooling with clangd",
+    "section": "How clangd finds headers",
+    "text": "How clangd finds headers\nclangd reads compile_commands.json to know which flags were used to build each translation unit. colcon generates this file at the workspace root when you pass --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThe .clangd file then tells clangd where to look:\nCompileFlags:\n    CompilationDatabase: \".\"\n\".\" resolves to the directory containing .clangd, which should be the workspace root (the directory that contains src/, build/, install/).",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#base-configuration",
+    "href": "docs/tooling/clangd.html#base-configuration",
+    "title": "C++ Tooling with clangd",
+    "section": "Base configuration",
+    "text": "Base configuration\nCompileFlags:\n    CompilationDatabase: \".\"\n    Add: [\"-std=c++17\", \"-Wno-unknown-argument\"]\n    Remove:\n        [\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n        ]\nThe Remove list strips NVCC-specific flags that clang does not understand. Without this, clangd crashes or emits spurious errors on any package that links against CUDA.\n-Wno-unknown-argument suppresses the resulting unknown-flag warnings for any flags not caught by the Remove list.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#clang-tidy-checks",
+    "href": "docs/tooling/clangd.html#clang-tidy-checks",
+    "title": "C++ Tooling with clangd",
+    "section": "clang-tidy checks",
+    "text": "clang-tidy checks\nThe project runs the full clang-tidy suite (Add: [\"*\"]) with a focused suppress list. The suppressed checks fall into two categories:\nStyle preferences — rules that conflict with the project’s conventions:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ngoogle-build-*, google-readability-*\nGoogle style not used\n\n\nmodernize-use-trailing-return-type\nTrailing return types add noise for simple functions\n\n\nmodernize-use-nodiscard\nOverly noisy for internal helpers\n\n\nreadability-identifier-length\nShort names (e.g. dt, u) are idiomatic in control code\n\n\nreadability-magic-numbers, cppcoreguidelines-avoid-magic-numbers\nPhysical constants and gains are fine inline\n\n\nreadability-function-cognitive-complexity\nMPPI kernels are inherently long\n\n\n\nFalse positives in ROS 2 / robotics code:\n\n\n\n\n\n\n\nCheck\nReason suppressed\n\n\n\n\ncppcoreguidelines-avoid-non-const-global-variables\nROS node handles and parameter servers are globals by convention\n\n\ncppcoreguidelines-pro-type-vararg\nSome ROS logging macros use varargs\n\n\ncppcoreguidelines-pro-bounds-array-to-pointer-decay\nCommon in Eigen / low-level math\n\n\ncppcoreguidelines-special-member-functions, hicpp-special-member-functions\nRule-of-five is not required for RAII wrappers with shared_ptr\n\n\nmisc-non-private-member-variables-in-classes, cppcoreguidelines-non-private-member-variables-in-classes\nParameter structs use public fields intentionally\n\n\ncppcoreguidelines-prefer-member-initializer\nConflicts with complex constructor delegation patterns\n\n\nmisc-include-cleaner\nGenerates excessive noise from transitively included ROS headers\n\n\n\nVendor-specific suites (llvmlibc-*, fuchsia-*, altera-*) are suppressed wholesale as they target entirely different platforms.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#cuda-file-handling",
+    "href": "docs/tooling/clangd.html#cuda-file-handling",
+    "title": "C++ Tooling with clangd",
+    "section": "CUDA file handling",
+    "text": "CUDA file handling\n.cu files need special treatment because compile_commands.json records the NVCC invocation, not a clang-compatible command. A conditional block remaps them to clang with CUDA-host-only parsing:\n---\nIf:\n    PathMatch: \".*\\\\.cu$\"\nCompileFlags:\n    Compiler: clang++\n    Add:\n        [\n            \"-xcuda\",\n            \"--cuda-host-only\",\n            \"--cuda-path=/usr/local/cuda\",\n            \"--cuda-gpu-arch=sm_75\",\n            \"-Wno-unknown-cuda-version\",\n            \"-ferror-limit=0\",\n        ]\n    Remove:\n        [\n            \"/usr/local/cuda-*/bin/nvcc\",\n            \"--generate-code=*\",\n            \"--options-file\",\n            \"--options-file=*\",\n            \"-rdc=*\",\n            \"-forward-unknown-to-host-compiler\",\n            \"-Xcompiler=*\",\n            \"--expt-relaxed-constexpr\",\n            \"-x\", \"cu\", \"cuda\",\n        ]\nDiagnostics:\n    Suppress:\n        - \"cuda_ovl_target\"\n        - \"redefinition\"\n        - \"constexpr_redecl_mismatch\"\n        - \"variadic_device_fn\"\n        - \"attributes_not_allowed\"\n        - \"undeclared_var_use\"\n--cuda-host-only tells clang to only parse host code, which avoids the need for a full CUDA device compiler toolchain. The Suppress list silences redefinition errors that arise from CUDA’s dual-compilation model.\nAdjust --cuda-gpu-arch to match your GPU (e.g. sm_86 for Ampere, sm_89 for Ada Lovelace).",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#placement",
+    "href": "docs/tooling/clangd.html#placement",
+    "title": "C++ Tooling with clangd",
+    "section": "Placement",
+    "text": "Placement\nPut .clangd at the workspace root (the directory that contains src/), not inside individual packages. clangd searches upward from the open file to find the nearest .clangd, so a single workspace-root file covers all packages.\nmy_ws/\n  .clangd            &lt;-- here\n  compile_commands.json\n  src/\n    uav_control/\n    px4_msgs/",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/clangd.html#troubleshooting",
+    "href": "docs/tooling/clangd.html#troubleshooting",
+    "title": "C++ Tooling with clangd",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\nclangd cannot find compile_commands.json\nRun a full build with compile commands export enabled:\ncolcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\nThen confirm the file exists at the workspace root:\nls compile_commands.json\n\n\nFalse-positive #include errors after adding a new package\ncolcon build must be re-run so the new package’s headers appear in compile_commands.json. clangd will re-index automatically once the file is updated.\n\n\nclangd crashes on .cu files\nConfirm clang++ is on PATH inside the pixi environment:\npixi run which clang++\nIf missing, add clangxx (or clang) to [dependencies] in pixi.toml.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "C++ Tooling with clangd"
     ]
   }
 ]

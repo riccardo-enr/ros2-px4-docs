@@ -42,7 +42,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-3b67c4cfd3d735f8b15c63a8e56500e9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-6fd515f92ba33719ae621d034b335f62.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -105,6 +105,10 @@ ul.task-list li input[type="checkbox"] {
   <li class="nav-item">
     <a class="nav-link" href="./docs/tooling/basedpyright.html"> 
 <span class="menu-text">Type Checking</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./docs/tooling/clangd.html"> 
+<span class="menu-text">C++ Tooling</span></a>
   </li>  
 </ul>
           </div> <!-- /navcollapse -->
@@ -178,6 +182,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Type Checking with basedpyright</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./docs/tooling/clangd.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">C++ Tooling with clangd</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -237,6 +247,10 @@ ul.task-list li input[type="checkbox"] {
 <td><a href="./docs/tooling/basedpyright.html">Type Checking</a></td>
 <td>basedpyright configuration, pixi env resolution, ROS-specific notes, VSCode</td>
 </tr>
+<tr class="odd">
+<td><a href="./docs/tooling/clangd.html">C++ Tooling</a></td>
+<td>.clangd config, clang-tidy checks, CUDA file handling, compile_commands.json</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -249,7 +263,6 @@ ul.task-list li input[type="checkbox"] {
 <div>
 <pre class="mermaid mermaid-js">graph LR
     pixi["pixi\n(env manager)"] --&gt; ros["ROS 2 Jazzy\n(robostack-jazzy)"]
-    pixi --&gt; cuda["CUDA 12+\n(conda-forge)"]
     pixi --&gt; python["Python 3.11+\n(conda-forge)"]
     ros --&gt; colcon["colcon build"]
     colcon --&gt; ws["install/\n(ROS overlay)"]
@@ -276,10 +289,6 @@ ul.task-list li input[type="checkbox"] {
 <td><code>curl -fsSL https://pixi.sh/install.sh \| bash</code></td>
 </tr>
 <tr class="even">
-<td><strong>CUDA 12+</strong></td>
-<td>Host driver &gt;= 525; <code>nvcc</code> is installed by pixi</td>
-</tr>
-<tr class="odd">
 <td><strong>git</strong></td>
 <td>For submodule management</td>
 </tr>
