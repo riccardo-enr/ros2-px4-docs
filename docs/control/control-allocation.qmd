@@ -13,18 +13,7 @@ The implementation lives in `motor_allocator.hpp` inside `uav_control`.
 
 ## Motor layout (x500 SITL, top view, NED)
 
-```
-        x (North)
-        ^
-   FL(2)   FR(0)
-       \\ /
-        X
-       / \\
-   RL(1)   RR(3)
-
-Spin directions (viewed from above):
-  FR(0): CCW    RL(1): CCW    FL(2): CW    RR(3): CW
-```
+![x500 SITL X-frame motor layout with motor indices and spin directions.](assets/x500-motor-layout.svg){#fig-x500-motor-layout fig-alt="Top-view X-frame quadrotor layout in NED: x points North, FR motor 0 and RL motor 1 spin counterclockwise, FL motor 2 and RR motor 3 spin clockwise." width="70%"}
 
 Motor indices 0–3 map directly to `ActuatorMotors.control[0..3]`.
 Slots 4–11 must be `NaN` for a 4-motor vehicle.
