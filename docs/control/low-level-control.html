@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-6fd515f92ba33719ae621d034b335f62.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-3b67c4cfd3d735f8b15c63a8e56500e9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -178,6 +178,10 @@ window.Quarto = {
   <li class="nav-item">
     <a class="nav-link" href="../../docs/control/low-level-control.html"> 
 <span class="menu-text">Low-Level Control</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../docs/control/control-allocation.html"> 
+<span class="menu-text">Control Allocation</span></a>
   </li>  
 </ul>
           </div> <!-- /navcollapse -->
@@ -280,6 +284,12 @@ window.Quarto = {
  <span class="menu-text">Low-Level Offboard Control</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/control/control-allocation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Control Allocation: Wrench to Motor Throttles</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -297,10 +307,7 @@ window.Quarto = {
   <li><a href="#mode-1-attitude-setpoint" id="toc-mode-1-attitude-setpoint" class="nav-link" data-scroll-target="#mode-1-attitude-setpoint">Mode 1: Attitude setpoint</a></li>
   <li><a href="#mode-2-thrust-torque-setpoint" id="toc-mode-2-thrust-torque-setpoint" class="nav-link" data-scroll-target="#mode-2-thrust-torque-setpoint">Mode 2: Thrust + torque setpoint</a></li>
   <li><a href="#mode-3-direct-actuator-commands" id="toc-mode-3-direct-actuator-commands" class="nav-link" data-scroll-target="#mode-3-direct-actuator-commands">Mode 3: Direct actuator commands</a></li>
-  <li><a href="#control-allocation-wrench---throttles" id="toc-control-allocation-wrench---throttles" class="nav-link" data-scroll-target="#control-allocation-wrench---throttles">Control allocation (wrench -&gt; throttles)</a>
-  <ul class="collapse">
-  <li><a href="#x500-parameters-reference" id="toc-x500-parameters-reference" class="nav-link" data-scroll-target="#x500-parameters-reference">x500 parameters (reference)</a></li>
-  </ul></li>
+  <li><a href="#control-allocation-wrench---throttles" id="toc-control-allocation-wrench---throttles" class="nav-link" data-scroll-target="#control-allocation-wrench---throttles">Control allocation (wrench -&gt; throttles)</a></li>
   <li><a href="#topic-map" id="toc-topic-map" class="nav-link" data-scroll-target="#topic-map">Topic map</a></li>
   <li><a href="#switching-modes-at-runtime" id="toc-switching-modes-at-runtime" class="nav-link" data-scroll-target="#switching-modes-at-runtime">Switching modes at runtime</a></li>
   </ul>
@@ -476,41 +483,8 @@ Warning
 </section>
 <section id="control-allocation-wrench---throttles" class="level2">
 <h2 class="anchored" data-anchor-id="control-allocation-wrench---throttles">Control allocation (wrench -&gt; throttles)</h2>
-<p>To produce per-motor throttles from a desired wrench <code>[tau_x, tau_y, tau_z, T]</code>:</p>
-<p><span class="math display">\[
-\boldsymbol{\omega} = \mathbf{M}^+ \mathbf{w}, \quad
-\text{PWM}_i = c_2 \omega_i^2 + c_1 \omega_i + c_0, \quad
-\delta_i = \frac{\text{PWM}_i - \text{PWM}_\text{min}}{\text{PWM}_\text{max} - \text{PWM}_\text{min}}
-\]</span></p>
-<p>where <span class="math inline">\(\mathbf{M}\)</span> is the control allocation matrix (arm geometry + motor constants) and <span class="math inline">\(\mathbf{M}^+\)</span> is its pseudoinverse.</p>
-<p>For a symmetric X-quadrotor with arm length <span class="math inline">\(l\)</span> and thrust/moment constants <span class="math inline">\(k_T\)</span>, <span class="math inline">\(k_M\)</span>:</p>
-<p><span class="math display">\[
-\mathbf{M} = \begin{pmatrix}
--k_T l \sin 45^\circ &amp; k_T l \sin 45^\circ &amp; k_T l \sin 45^\circ &amp; -k_T l \sin 45^\circ \\
--k_T l \sin 45^\circ &amp; k_T l \sin 45^\circ &amp; -k_T l \sin 45^\circ &amp; k_T l \sin 45^\circ \\
--k_M k_T &amp; -k_M k_T &amp; k_M k_T &amp; k_M k_T \\
-k_T &amp; k_T &amp; k_T &amp; k_T
-\end{pmatrix}
-\]</span></p>
-<p>SITL skips the PWM conversion and maps throttles directly via <code>SIM_GZ_EC_MIN</code> / <code>SIM_GZ_EC_MAX</code> (rotor speed limits in rad/s).</p>
-<section id="x500-parameters-reference" class="level3">
-<h3 class="anchored" data-anchor-id="x500-parameters-reference">x500 parameters (reference)</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">uav_parameters</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">mass</span><span class="kw">:</span><span class="at"> </span><span class="fl">2.064</span><span class="co">              # kg</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">arm_length</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.25</span><span class="co">         # m</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">num_of_arms</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">inertia</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="fu">x</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.08612</span><span class="kw">,</span><span class="at"> </span><span class="fu">y</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.08962</span><span class="kw">,</span><span class="at"> </span><span class="fu">z</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.16088</span><span class="kw">}</span><span class="co">   # kg.m^2</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">thrust_constant</span><span class="kw">:</span><span class="at"> </span><span class="fl">8.54858e-06</span><span class="co">   # N.s^2/rad^2</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">moment_constant</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.016</span><span class="co">         # m</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">max_rotor_speed</span><span class="kw">:</span><span class="at"> </span><span class="dv">1000</span><span class="co">          # rad/s</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">gravity</span><span class="kw">:</span><span class="at"> </span><span class="fl">9.81</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">omega_to_pwm_coefficient</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="fu">x_2</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.001142</span><span class="kw">,</span><span class="at"> </span><span class="fu">x_1</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.2273</span><span class="kw">,</span><span class="at"> </span><span class="fu">x_0</span><span class="kw">:</span><span class="at"> </span><span class="fl">914.2</span><span class="kw">}</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">PWM_MIN</span><span class="kw">:</span><span class="at"> </span><span class="dv">1075</span></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">PWM_MAX</span><span class="kw">:</span><span class="at"> </span><span class="dv">1950</span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">SIM_GZ_EC_MAX</span><span class="kw">:</span><span class="at"> </span><span class="dv">1000</span><span class="co">    # rad/s</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">SIM_GZ_EC_MIN</span><span class="kw">:</span><span class="at"> </span><span class="dv">150</span><span class="co">     # rad/s</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>When using mode 3 (direct actuator), the controller must convert the desired wrench <span class="math inline">\([\tau_x, \tau_y, \tau_z, T]\)</span> to per-motor throttles. See <a href="../../docs/control/control-allocation.html">Control Allocation</a> for the full derivation, mixing matrix, C++ implementation, and x500 parameters.</p>
 <hr>
-</section>
 </section>
 <section id="topic-map" class="level2">
 <h2 class="anchored" data-anchor-id="topic-map">Topic map</h2>
@@ -576,9 +550,9 @@ k_T &amp; k_T &amp; k_T &amp; k_T
 <section id="switching-modes-at-runtime" class="level2">
 <h2 class="anchored" data-anchor-id="switching-modes-at-runtime">Switching modes at runtime</h2>
 <p>The control mode can be changed without restarting the node:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 2   <span class="co"># -&gt; thrust + torque</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 3   <span class="co"># -&gt; direct actuator</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 1   <span class="co"># -&gt; attitude (default)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 2   <span class="co"># -&gt; thrust + torque</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 3   <span class="co"># -&gt; direct actuator</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 1   <span class="co"># -&gt; attitude (default)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>OffboardControlMode</code> heartbeat automatically switches its active field on the next publish cycle.</p>
 
 
