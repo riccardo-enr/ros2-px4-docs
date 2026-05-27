@@ -79,14 +79,12 @@ numpy      = "*"
 scipy      = "*"
 matplotlib = "*"
 
-# --- CUDA (required for GPU-accelerated nodes) ---
-cuda-toolkit = ">=12.0,<13"
 ```
 
-::: {.callout-tip}
-`cuda-toolkit` from `conda-forge` installs `nvcc` and runtime headers inside
-the pixi environment. The **host driver** must already be installed
-(`nvidia-smi` should report >= 525 for CUDA 12).
+::: {.callout-note}
+**GPU-accelerated nodes (optional)**: add `cuda-toolkit = ">=12.0,<13"` under
+`[dependencies]` if your workspace includes CUDA nodes. The host driver must
+already be installed (`nvidia-smi` should report >= 525 for CUDA 12).
 :::
 
 ### PyPI-only packages
@@ -260,7 +258,9 @@ The activation script did not run. Verify:
 
 ### CUDA compiler (`nvcc`) not found
 
-1. Confirm `cuda-toolkit = ">=12.0,<13"` is in `[dependencies]`.
+Only needed if your workspace has GPU-accelerated nodes.
+
+1. Add `cuda-toolkit = ">=12.0,<13"` to `[dependencies]` in `pixi.toml`.
 2. Run `pixi install` to fetch it.
 3. Inside `pixi shell`, `which nvcc` should resolve to `.pixi/envs/default/bin/nvcc`.
 

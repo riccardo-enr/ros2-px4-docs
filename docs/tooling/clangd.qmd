@@ -1,0 +1,182 @@
+---
+title: "C++ Tooling with clangd"
+---
+
+This guide covers the `.clangd` configuration used across `uav_control` and
+related ROS 2 C++ packages. The setup gives accurate clangd completions and
+clang-tidy diagnostics inside a colcon workspace without false positives from
+GPU or ROS-specific compiler flags.
+
+## How clangd finds headers
+
+clangd reads `compile_commands.json` to know which flags were used to build
+each translation unit. colcon generates this file at the workspace root when
+you pass `--cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`:
+
+```bash
+colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+The `.clangd` file then tells clangd where to look:
+
+```yaml
+CompileFlags:
+    CompilationDatabase: "."
+```
+
+`"."` resolves to the directory containing `.clangd`, which should be the
+workspace root (the directory that contains `src/`, `build/`, `install/`).
+
+## Base configuration
+
+```yaml
+CompileFlags:
+    CompilationDatabase: "."
+    Add: ["-std=c++17", "-Wno-unknown-argument"]
+    Remove:
+        [
+            "--generate-code=*",
+            "--options-file",
+            "--options-file=*",
+            "-rdc=*",
+            "-forward-unknown-to-host-compiler",
+            "-Xcompiler=*",
+            "--expt-relaxed-constexpr",
+        ]
+```
+
+The `Remove` list strips NVCC-specific flags that clang does not understand.
+Without this, clangd crashes or emits spurious errors on any package that
+links against CUDA.
+
+`-Wno-unknown-argument` suppresses the resulting unknown-flag warnings for any
+flags not caught by the `Remove` list.
+
+## clang-tidy checks
+
+The project runs the full clang-tidy suite (`Add: ["*"]`) with a focused
+suppress list. The suppressed checks fall into two categories:
+
+**Style preferences** — rules that conflict with the project's conventions:
+
+| Check | Reason suppressed |
+|---|---|
+| `google-build-*`, `google-readability-*` | Google style not used |
+| `modernize-use-trailing-return-type` | Trailing return types add noise for simple functions |
+| `modernize-use-nodiscard` | Overly noisy for internal helpers |
+| `readability-identifier-length` | Short names (e.g. `dt`, `u`) are idiomatic in control code |
+| `readability-magic-numbers`, `cppcoreguidelines-avoid-magic-numbers` | Physical constants and gains are fine inline |
+| `readability-function-cognitive-complexity` | MPPI kernels are inherently long |
+
+**False positives in ROS 2 / robotics code**:
+
+| Check | Reason suppressed |
+|---|---|
+| `cppcoreguidelines-avoid-non-const-global-variables` | ROS node handles and parameter servers are globals by convention |
+| `cppcoreguidelines-pro-type-vararg` | Some ROS logging macros use varargs |
+| `cppcoreguidelines-pro-bounds-array-to-pointer-decay` | Common in Eigen / low-level math |
+| `cppcoreguidelines-special-member-functions`, `hicpp-special-member-functions` | Rule-of-five is not required for RAII wrappers with shared_ptr |
+| `misc-non-private-member-variables-in-classes`, `cppcoreguidelines-non-private-member-variables-in-classes` | Parameter structs use public fields intentionally |
+| `cppcoreguidelines-prefer-member-initializer` | Conflicts with complex constructor delegation patterns |
+| `misc-include-cleaner` | Generates excessive noise from transitively included ROS headers |
+
+Vendor-specific suites (`llvmlibc-*`, `fuchsia-*`, `altera-*`) are suppressed
+wholesale as they target entirely different platforms.
+
+## CUDA file handling
+
+`.cu` files need special treatment because `compile_commands.json` records the
+NVCC invocation, not a clang-compatible command. A conditional block remaps
+them to clang with CUDA-host-only parsing:
+
+```yaml
+---
+If:
+    PathMatch: ".*\\.cu$"
+CompileFlags:
+    Compiler: clang++
+    Add:
+        [
+            "-xcuda",
+            "--cuda-host-only",
+            "--cuda-path=/usr/local/cuda",
+            "--cuda-gpu-arch=sm_75",
+            "-Wno-unknown-cuda-version",
+            "-ferror-limit=0",
+        ]
+    Remove:
+        [
+            "/usr/local/cuda-*/bin/nvcc",
+            "--generate-code=*",
+            "--options-file",
+            "--options-file=*",
+            "-rdc=*",
+            "-forward-unknown-to-host-compiler",
+            "-Xcompiler=*",
+            "--expt-relaxed-constexpr",
+            "-x", "cu", "cuda",
+        ]
+Diagnostics:
+    Suppress:
+        - "cuda_ovl_target"
+        - "redefinition"
+        - "constexpr_redecl_mismatch"
+        - "variadic_device_fn"
+        - "attributes_not_allowed"
+        - "undeclared_var_use"
+```
+
+`--cuda-host-only` tells clang to only parse host code, which avoids the need
+for a full CUDA device compiler toolchain. The `Suppress` list silences
+redefinition errors that arise from CUDA's dual-compilation model.
+
+Adjust `--cuda-gpu-arch` to match your GPU (e.g. `sm_86` for Ampere,
+`sm_89` for Ada Lovelace).
+
+## Placement
+
+Put `.clangd` at the **workspace root** (the directory that contains `src/`),
+not inside individual packages. clangd searches upward from the open file to
+find the nearest `.clangd`, so a single workspace-root file covers all
+packages.
+
+```
+my_ws/
+  .clangd            <-- here
+  compile_commands.json
+  src/
+    uav_control/
+    px4_msgs/
+```
+
+## Troubleshooting
+
+### clangd cannot find `compile_commands.json`
+
+Run a full build with compile commands export enabled:
+
+```bash
+colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+Then confirm the file exists at the workspace root:
+
+```bash
+ls compile_commands.json
+```
+
+### False-positive `#include` errors after adding a new package
+
+`colcon build` must be re-run so the new package's headers appear in
+`compile_commands.json`. clangd will re-index automatically once the file
+is updated.
+
+### clangd crashes on `.cu` files
+
+Confirm `clang++` is on `PATH` inside the pixi environment:
+
+```bash
+pixi run which clang++
+```
+
+If missing, add `clangxx` (or `clang`) to `[dependencies]` in `pixi.toml`.

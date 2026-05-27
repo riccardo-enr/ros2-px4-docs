@@ -12,6 +12,8 @@ website:
         text: Workspace Setup
       - href: docs/tooling/basedpyright.qmd
         text: Type Checking
+      - href: docs/tooling/clangd.qmd
+        text: C++ Tooling
   sidebar:
     style: docked
     contents:
@@ -24,6 +26,7 @@ website:
       - section: "Tooling"
         contents:
           - docs/tooling/basedpyright.qmd
+          - docs/tooling/clangd.qmd
 
 format:
   html:

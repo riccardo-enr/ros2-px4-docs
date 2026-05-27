@@ -12,13 +12,13 @@ Python type checking. No system-level ROS install required.
 |-------|-------------|
 | [Workspace Setup](docs/setup/workspace-setup.qmd) | pixi.toml, channels, dependencies, activation, submodules, build tasks |
 | [Type Checking](docs/tooling/basedpyright.qmd) | basedpyright configuration, pixi env resolution, ROS-specific notes, VSCode |
+| [C++ Tooling](docs/tooling/clangd.qmd) | .clangd config, clang-tidy checks, CUDA file handling, compile_commands.json |
 
 ## Stack overview
 
 ```{mermaid}
 graph LR
     pixi["pixi\n(env manager)"] --> ros["ROS 2 Jazzy\n(robostack-jazzy)"]
-    pixi --> cuda["CUDA 12+\n(conda-forge)"]
     pixi --> python["Python 3.11+\n(conda-forge)"]
     ros --> colcon["colcon build"]
     colcon --> ws["install/\n(ROS overlay)"]
@@ -30,5 +30,4 @@ graph LR
 | Requirement | Notes |
 |-------------|-------|
 | **pixi** | `curl -fsSL https://pixi.sh/install.sh \| bash` |
-| **CUDA 12+** | Host driver >= 525; `nvcc` is installed by pixi |
 | **git** | For submodule management |
