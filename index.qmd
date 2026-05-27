@@ -13,6 +13,7 @@ Python type checking. No system-level ROS install required.
 | [Workspace Setup](docs/setup/workspace-setup.qmd) | pixi.toml, channels, dependencies, activation, submodules, build tasks |
 | [Type Checking](docs/tooling/basedpyright.qmd) | basedpyright configuration, pixi env resolution, ROS-specific notes, VSCode |
 | [C++ Tooling](docs/tooling/clangd.qmd) | .clangd config, clang-tidy checks, CUDA file handling, compile_commands.json |
+| [Frame Conventions](docs/control/frame-conventions.qmd) | NED/FRD vs ENU/FLU, vector/quaternion conversions, altitude sign, yaw |
 | [Low-Level Control](docs/control/low-level-control.qmd) | Attitude, thrust+torque, direct actuator modes; frame conventions; control allocation |
 
 ## Stack overview

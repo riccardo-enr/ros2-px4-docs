@@ -1,0 +1,220 @@
+---
+title: "Frame Conventions"
+---
+
+PX4 and ROS 2 use different coordinate frames. Every quantity exchanged over
+uXRCE-DDS must be converted at the boundary. This page defines the frames,
+the conversion rules, and the C++ implementations used in `uav_control`.
+
+---
+
+## Frame definitions
+
+| Frame | Name | X | Y | Z | Used by |
+|-------|------|---|---|---|---------|
+| World inertial | **NED** | North | East | Down | PX4 internally, `VehicleLocalPosition`, `VehicleOdometry` |
+| Body | **FRD** | Forward | Right | Down | PX4 body-frame quantities (`VehicleAngularVelocity`, torque/thrust setpoints) |
+| World inertial | **ENU** | East | North | Up | ROS 2 convention, RViz, nav_msgs |
+| Body | **FLU** | Forward | Left | Up | ROS 2 `geometry_msgs`, most controllers |
+
+::: {.callout-note}
+PX4 `VehicleOdometry` reports position in NED and velocity in FRD. Angular
+velocity (`VehicleAngularVelocity`) is in FRD. Attitude quaternion
+(`VehicleAttitude`) expresses the rotation from FRD to NED.
+:::
+
+---
+
+## Vector conversions
+
+### NED <-> ENU
+
+The axes permute as: $x_\text{ENU} = y_\text{NED}$, $y_\text{ENU} = x_\text{NED}$, $z_\text{ENU} = -z_\text{NED}$.
+
+The same relation holds in reverse (the transform is its own inverse):
+
+$$
+\begin{pmatrix} x \\ y \\ z \end{pmatrix}_\text{NED}
+= \begin{pmatrix} y \\ x \\ -z \end{pmatrix}_\text{ENU}
+$$
+
+```cpp
+inline Eigen::Vector3d ned_to_enu(const Eigen::Vector3d& v) {
+    return {v.y(), v.x(), -v.z()};
+}
+// enu_to_ned is identical (the mapping is its own inverse)
+```
+
+### FRD <-> FLU
+
+Only the lateral and vertical axes flip: $y_\text{FLU} = -y_\text{FRD}$, $z_\text{FLU} = -z_\text{FRD}$.
+
+$$
+\begin{pmatrix} x \\ y \\ z \end{pmatrix}_\text{FLU}
+= \begin{pmatrix} x \\ -y \\ -z \end{pmatrix}_\text{FRD}
+$$
+
+```cpp
+inline Eigen::Vector3d frd_to_flu(const Eigen::Vector3d& v) {
+    return {v.x(), -v.y(), -v.z()};
+}
+// flu_to_frd is identical
+```
+
+---
+
+## Quaternion conversion (ENU/FLU <-> NED/FRD)
+
+Converting a quaternion requires two rotations applied in sequence:
+
+1. **NED_ENU_Q** — rotates the world frame: $R_z(\pi/2) \cdot R_x(\pi)$
+2. **AIRCRAFT_BASELINK_Q** — rotates the body frame: $R_x(\pi)$
+
+```cpp
+inline Eigen::Quaterniond enu_flu_to_ned_frd(const Eigen::Quaterniond& q) {
+    // World-frame rotation: 90 deg yaw + 180 deg roll (ENU <-> NED)
+    const Eigen::Quaterniond NED_ENU_Q =
+        Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()) *
+        Eigen::AngleAxisd(M_PI,   Eigen::Vector3d::UnitX());
+
+    // Body-frame rotation: 180 deg roll (FLU <-> FRD)
+    const Eigen::Quaterniond AIRCRAFT_BASELINK_Q =
+        Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());
+
+    return (NED_ENU_Q * q) * AIRCRAFT_BASELINK_Q;
+}
+// ned_frd_to_enu_flu: same function (the combined rotation is its own inverse)
+```
+
+::: {.callout-warning}
+`VehicleAttitude.q` is stored as Hamilton `[w, x, y, z]` — not `[x, y, z, w]`.
+Match the Eigen constructor argument order accordingly:
+`Eigen::Quaterniond q(msg->q[0], msg->q[1], msg->q[2], msg->q[3])`.
+:::
+
+---
+
+## Parsing `VehicleOdometry`
+
+`VehicleOdometry` delivers all quantities in PX4 frames. Convert everything to
+ENU/FLU before passing to a ROS-convention controller:
+
+```cpp
+void parse_odometry(
+    const px4_msgs::msg::VehicleOdometry& msg,
+    Eigen::Vector3d& pos_enu,
+    Eigen::Quaterniond& att_enu_flu,
+    Eigen::Vector3d& vel_enu,
+    Eigen::Vector3d& omega_flu)
+{
+    // position: NED -> ENU
+    pos_enu = ned_to_enu({msg.position[0], msg.position[1], msg.position[2]});
+
+    // attitude: NED/FRD -> ENU/FLU
+    Eigen::Quaterniond q_ned_frd(msg.q[0], msg.q[1], msg.q[2], msg.q[3]);
+    att_enu_flu = ned_frd_to_enu_flu(q_ned_frd);
+
+    // velocity: NED -> ENU
+    vel_enu = ned_to_enu({msg.velocity[0], msg.velocity[1], msg.velocity[2]});
+
+    // angular velocity: FRD -> FLU
+    omega_flu = frd_to_flu({msg.angular_velocity[0],
+                            msg.angular_velocity[1],
+                            msg.angular_velocity[2]});
+}
+```
+
+Note: `VehicleAngularVelocity` (from `/fmu/out/vehicle_angular_velocity`) also
+delivers in FRD — apply `frd_to_flu` the same way.
+
+---
+
+## Publishing setpoints (controller -> PX4)
+
+Setpoints go in the opposite direction: convert from controller ENU/FLU to
+PX4 NED/FRD before publishing.
+
+### Thrust (scalar)
+
+Thrust is a scalar magnitude in the controller. PX4 expects it as a
+**negative** `z` component in the body-NED frame (down is positive):
+
+```cpp
+thrust_msg.xyz[2] = -collective_thrust;   // always negative
+```
+
+### Torque vector
+
+```cpp
+Eigen::Vector3d tau_frd = flu_to_frd(tau_flu);
+torque_msg.xyz[0] = tau_frd.x();
+torque_msg.xyz[1] = tau_frd.y();
+torque_msg.xyz[2] = tau_frd.z();
+```
+
+### Attitude quaternion
+
+```cpp
+Eigen::Quaterniond q_ned_frd = enu_flu_to_ned_frd(q_desired);
+att_msg.q_d[0] = q_ned_frd.w();
+att_msg.q_d[1] = q_ned_frd.x();
+att_msg.q_d[2] = q_ned_frd.y();
+att_msg.q_d[3] = q_ned_frd.z();
+```
+
+### Trajectory setpoint (position/velocity, NED)
+
+`TrajectorySetpoint` positions and velocities are in NED:
+
+```cpp
+traj_msg.position = {pos_ned.x(), pos_ned.y(), pos_ned.z()};
+traj_msg.velocity = {vel_ned.x(), vel_ned.y(), vel_ned.z()};
+traj_msg.yaw = yaw_ned;   // measured CW from North
+```
+
+Convert from ENU before filling: `pos_ned = enu_to_ned(pos_enu)`.
+
+---
+
+## Altitude sign
+
+In NED, altitude increases **downward** (z is positive down). A drone hovering
+2 m above the ground has $z \approx -2$. This affects trajectory setpoints,
+height checks, and obstacle bounds:
+
+```cpp
+// NED: negative z = above ground
+constexpr float TAKEOFF_ALT_NED = -5.0f;   // 5 m above ground
+
+// ENU (RViz / nav_msgs): positive z = above ground
+constexpr float TAKEOFF_ALT_ENU =  5.0f;
+```
+
+---
+
+## Yaw convention
+
+PX4 yaw is measured **clockwise from North** (NED convention). ROS yaw is
+measured **counter-clockwise from East** (ENU convention). To extract yaw from
+a quaternion in the appropriate frame:
+
+```cpp
+// From NED quaternion [w, x, y, z]
+float yaw_ned = std::atan2(
+    2.0f * (qw * qz + qx * qy),
+    1.0f - 2.0f * (qy * qy + qz * qz));
+```
+
+---
+
+## Quick reference
+
+| Quantity | PX4 frame | Controller frame | Conversion |
+|----------|-----------|-----------------|------------|
+| Position | NED | ENU | swap x/y, negate z |
+| Velocity (world) | NED | ENU | swap x/y, negate z |
+| Angular velocity | FRD | FLU | negate y and z |
+| Attitude quaternion | NED/FRD | ENU/FLU | `enu_flu_to_ned_frd` |
+| Thrust (body z) | NED (negative) | positive scalar | negate |
+| Torque | FRD | FLU | negate y and z |
+| Yaw | CW from North | CCW from East | negate |

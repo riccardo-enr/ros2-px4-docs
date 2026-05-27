@@ -59,34 +59,13 @@ controller_timer = create_wall_timer(10ms,  [=]() { updateControllerOutput(); })
 ## Frame conventions
 
 PX4 uses **NED / FRD** (North-East-Down, Front-Right-Down). ROS and most
-controllers use **ENU / FLU** (East-North-Up, Front-Left-Up). Conversions are
-required before publishing any setpoint.
+controllers use **ENU / FLU** (East-North-Up, Front-Left-Up). All setpoints
+must be converted before publishing, and all odometry must be converted after
+reading.
 
-### Quaternion (ENU -> NED)
-
-```cpp
-Eigen::Quaterniond rotateQuaternionFromToENU_NED(const Eigen::Quaterniond& q) {
-    // 180 deg rotation around x+y axes
-    static const Eigen::Quaterniond q_NED_ENU(0.0, 0.7071, 0.7071, 0.0);
-    return q_NED_ENU * q;
-}
-```
-
-### Torque vector (FLU -> FRD)
-
-```cpp
-Eigen::Vector3d rotateVectorFromToFRD_FLU(const Eigen::Vector3d& v) {
-    return Eigen::Vector3d(v.x(), -v.y(), -v.z());
-}
-```
-
-### Thrust sign
-
-Thrust in PX4's body-NED frame points **downward** (negative z):
-
-```cpp
-thrust_sp_msg.xyz[2] = -collective_thrust;   // minus sign required
-```
+See [Frame Conventions](frame-conventions.qmd) for the full conversion
+reference including vector permutations, quaternion transforms, altitude sign,
+and yaw convention.
 
 ---
 
