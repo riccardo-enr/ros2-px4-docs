@@ -1,0 +1,301 @@
+---
+title: "C++ Node Package"
+---
+
+A ROS 2 C++ package contains the compiled nodes that perform control,
+estimation, state machines, and any other compute-intensive logic. This page
+covers the minimal boilerplate to get a node building under colcon inside a
+pixi workspace.
+
+---
+
+## Directory layout
+
+```
+src/
++-- my_pkg/
+    +-- include/
+    |   +-- my_pkg/
+    |       +-- controller.hpp
+    |       +-- estimator.hpp
+    +-- src/
+    |   +-- controller.cpp
+    |   +-- estimator.cpp
+    |   +-- main.cpp
+    +-- launch/
+    |   +-- node.launch.py          # minimal single-node launch
+    +-- CMakeLists.txt
+    +-- package.xml
+```
+
+Headers live under `include/<package_name>/` so they resolve as
+`#include "my_pkg/controller.hpp"` from any downstream package.
+
+---
+
+## package.xml
+
+```xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+            schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_pkg</name>
+  <version>0.1.0</version>
+  <description>Control and estimation nodes</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- runtime + build: use <depend> for packages needed at both stages -->
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>px4_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+```
+
+Use `<depend>` (not `<build_depend>` + `<exec_depend>`) for libraries needed
+at both build and runtime — which covers most ROS packages.
+
+---
+
+## CMakeLists.txt
+
+```cmake
+cmake_minimum_required(VERSION 3.8)
+project(my_pkg)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# --- dependencies ---
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+# --- shared library (enables composable-node registration) ---
+add_library(${PROJECT_NAME} SHARED
+  src/controller.cpp
+  src/estimator.cpp
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${EIGEN3_INCLUDE_DIR}
+)
+
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+
+ament_target_dependencies(${PROJECT_NAME}
+  rclcpp
+  rclcpp_components
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  px4_msgs
+)
+
+# --- register composable nodes ---
+rclcpp_components_register_node(${PROJECT_NAME}
+  PLUGIN "my_pkg::Controller"
+  EXECUTABLE controller_node
+)
+
+rclcpp_components_register_node(${PROJECT_NAME}
+  PLUGIN "my_pkg::Estimator"
+  EXECUTABLE estimator_node
+)
+
+# --- install ---
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY launch   DESTINATION share/${PROJECT_NAME})
+
+ament_package()
+```
+
+::: {.callout-note}
+Building as a shared library and using `rclcpp_components_register_node`
+lets the bringup package load nodes in a `ComponentContainer` without
+spawning separate processes. The `EXECUTABLE` argument also produces a
+standalone binary for direct `ros2 run` use.
+:::
+
+---
+
+## Node boilerplate (C++)
+
+### Header — `include/my_pkg/controller.hpp`
+
+```cpp
+#pragma once
+
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <px4_msgs/msg/trajectory_setpoint.hpp>
+
+namespace my_pkg {
+
+class Controller : public rclcpp::Node {
+public:
+    explicit Controller(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+
+private:
+    void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
+    void setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+
+    rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odom_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr setpoint_sub_;
+    rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr cmd_pub_;
+    rclcpp::TimerBase::SharedPtr timer_;
+};
+
+}  // namespace my_pkg
+```
+
+### Implementation — `src/controller.cpp`
+
+```cpp
+#include "my_pkg/controller.hpp"
+#include <rclcpp/qos.hpp>
+
+namespace my_pkg {
+
+Controller::Controller(const rclcpp::NodeOptions& options)
+: Node("controller", options)
+{
+    /* PX4 uORB topics require BEST_EFFORT QoS -- see QoS Profiles page. */
+    auto px4_qos = rclcpp::QoS(10).best_effort();
+
+    odom_sub_ = create_subscription<px4_msgs::msg::VehicleOdometry>(
+        "/fmu/out/vehicle_odometry", px4_qos,
+        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {
+            odom_callback(msg);
+        });
+
+    setpoint_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+        "~/setpoint", rclcpp::QoS(1),
+        [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+            setpoint_callback(msg);
+        });
+
+    cmd_pub_ = create_publisher<px4_msgs::msg::TrajectorySetpoint>(
+        "/fmu/in/trajectory_setpoint", px4_qos);
+
+    /* declare parameters with defaults */
+    declare_parameter("control_rate_hz", 50.0);
+    double rate = get_parameter("control_rate_hz").as_double();
+
+    timer_ = create_wall_timer(
+        std::chrono::duration<double>(1.0 / rate),
+        [this]() { /* run control loop */ });
+}
+
+void Controller::odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
+{
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+        "pos: [%.2f, %.2f, %.2f]",
+        msg->position[0], msg->position[1], msg->position[2]);
+}
+
+void Controller::setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr /*msg*/)
+{
+    /* store latest goal */
+}
+
+}  // namespace my_pkg
+
+/* composable-node entry point (used by ComponentContainer) */
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(my_pkg::Controller)
+```
+
+### Standalone entry point — `src/main.cpp`
+
+```cpp
+#include <rclcpp/rclcpp.hpp>
+#include "my_pkg/controller.hpp"
+
+int main(int argc, char* argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<my_pkg::Controller>());
+    rclcpp::shutdown();
+    return 0;
+}
+```
+
+---
+
+## Minimal launch file
+
+This launch file lives in the node package itself and is only used for
+quick manual testing. For full system bringup see the
+[Bringup Package](ros2-bringup-package.qmd) page.
+
+**`launch/node.launch.py`**:
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package="my_pkg",
+            executable="controller_node",
+            name="controller",
+            output="screen",
+        ),
+    ])
+```
+
+---
+
+## Building and running
+
+```bash
+# build all packages under src/
+pixi run build
+
+# standalone binary
+pixi run -- ros2 run my_pkg controller_node
+
+# or via launch file
+pixi run -- ros2 launch my_pkg node.launch.py
+```
+
+After editing source files re-run `pixi run build`. Python and resource
+files installed with `--symlink-install` update without a rebuild; C++ sources
+always require a rebuild.
+
+---
+
+## Adding a new node
+
+1. Add the header under `include/my_pkg/`.
+2. Add the source file under `src/`.
+3. Register it in `CMakeLists.txt` with `rclcpp_components_register_node`.
+4. Run `pixi run build`.

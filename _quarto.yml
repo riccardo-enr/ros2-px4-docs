@@ -16,8 +16,10 @@ website:
             text: PX4 SITL
           - href: docs/setup/uxrce-dds-agent.qmd
             text: DDS Agent
-          - href: docs/setup/ros2-package.qmd
-            text: Package Structure
+          - href: docs/setup/ros2-cpp-package.qmd
+            text: C++ Node Package
+          - href: docs/setup/ros2-bringup-package.qmd
+            text: Bringup Package
       - text: Tooling
         menu:
           - href: docs/tooling/basedpyright.qmd
@@ -47,7 +49,8 @@ website:
           - docs/setup/workspace-setup.qmd
           - docs/setup/sitl-setup.qmd
           - docs/setup/uxrce-dds-agent.qmd
-          - docs/setup/ros2-package.qmd
+          - docs/setup/ros2-cpp-package.qmd
+          - docs/setup/ros2-bringup-package.qmd
       - section: "Tooling"
         contents:
           - docs/tooling/basedpyright.qmd

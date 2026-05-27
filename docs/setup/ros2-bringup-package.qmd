@@ -1,0 +1,334 @@
+---
+title: "Bringup Package"
+---
+
+A **bringup package** follows the nav2 convention: it contains only launch
+files, YAML parameter files, and static assets (RViz configs, maps). It has
+no compiled code of its own — it just wires together the node packages and
+configures them for a specific deployment.
+
+Keeping bringup separate from node code means you can reconfigure a full
+system without recompiling anything.
+
+---
+
+## Directory layout
+
+```
+src/
++-- my_bringup/
+    +-- launch/
+    |   +-- bringup.launch.py      # top-level entry point
+    |   +-- nodes.launch.py        # node composition sub-launch
+    |   +-- sim.launch.py          # simulation-specific overrides
+    +-- params/
+    |   +-- controller.yaml
+    |   +-- estimator.yaml
+    +-- rviz/
+    |   +-- default.rviz
+    +-- CMakeLists.txt
+    +-- package.xml
+```
+
+---
+
+## package.xml
+
+The bringup package does not build any library, so all node packages it
+launches are `<exec_depend>` only.
+
+```xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+            schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_bringup</name>
+  <version>0.1.0</version>
+  <description>System bringup launch files and parameters</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- nodes this bringup launches -->
+  <exec_depend>my_pkg</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+
+  <!-- launch infrastructure -->
+  <exec_depend>ros2launch</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+```
+
+---
+
+## CMakeLists.txt
+
+The CMakeLists.txt only installs the non-compiled assets.
+
+```cmake
+cmake_minimum_required(VERSION 3.8)
+project(my_bringup)
+
+find_package(ament_cmake REQUIRED)
+
+install(DIRECTORY launch params rviz
+  DESTINATION share/${PROJECT_NAME}
+)
+
+ament_package()
+```
+
+---
+
+## Top-level launch — `launch/bringup.launch.py`
+
+The top-level file declares user-facing arguments and delegates to
+sub-launches. Mirrors the nav2 `bringup_launch.py` pattern.
+
+```python
+import os
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    GroupAction,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
+
+
+def generate_launch_description():
+    bringup_dir = get_package_share_directory("my_bringup")
+
+    # --- declare arguments ---
+    use_sim_time_arg = DeclareLaunchArgument(
+        "use_sim_time",
+        default_value="true",
+        description="Use simulation (Gazebo) clock",
+    )
+    namespace_arg = DeclareLaunchArgument(
+        "namespace",
+        default_value="",
+        description="Top-level namespace",
+    )
+    params_file_arg = DeclareLaunchArgument(
+        "params_file",
+        default_value=os.path.join(bringup_dir, "params", "controller.yaml"),
+        description="Path to the controller parameter file",
+    )
+    use_rviz_arg = DeclareLaunchArgument(
+        "use_rviz",
+        default_value="true",
+        description="Launch RViz",
+    )
+
+    # --- sub-launches ---
+    nodes_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(bringup_dir, "launch", "nodes.launch.py")
+        ),
+        launch_arguments={
+            "use_sim_time": LaunchConfiguration("use_sim_time"),
+            "namespace":    LaunchConfiguration("namespace"),
+            "params_file":  LaunchConfiguration("params_file"),
+        }.items(),
+    )
+
+    rviz_node = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(bringup_dir, "launch", "rviz.launch.py")
+        ),
+        condition=IfCondition(LaunchConfiguration("use_rviz")),
+    )
+
+    return LaunchDescription([
+        use_sim_time_arg,
+        namespace_arg,
+        params_file_arg,
+        use_rviz_arg,
+        nodes_launch,
+        rviz_node,
+    ])
+```
+
+---
+
+## Composable nodes — `launch/nodes.launch.py`
+
+Loading nodes into a shared `ComponentContainer` avoids inter-process message
+serialization and is the nav2 standard for production deployments.
+
+```python
+import os
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.descriptions import ComposableNode
+
+
+def generate_launch_description():
+    params_file = LaunchConfiguration("params_file")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    namespace    = LaunchConfiguration("namespace")
+
+    container = ComposableNodeContainer(
+        name="my_container",
+        namespace=namespace,
+        package="rclcpp_components",
+        executable="component_container",
+        composable_node_descriptions=[
+            ComposableNode(
+                package="my_pkg",
+                plugin="my_pkg::Controller",
+                name="controller",
+                parameters=[params_file, {"use_sim_time": use_sim_time}],
+                remappings=[
+                    ("/fmu/out/vehicle_odometry", "/fmu/out/vehicle_odometry"),
+                ],
+            ),
+            ComposableNode(
+                package="my_pkg",
+                plugin="my_pkg::Estimator",
+                name="estimator",
+                parameters=[params_file, {"use_sim_time": use_sim_time}],
+            ),
+        ],
+        output="screen",
+    )
+
+    return LaunchDescription([
+        DeclareLaunchArgument("params_file"),
+        DeclareLaunchArgument("use_sim_time", default_value="true"),
+        DeclareLaunchArgument("namespace",    default_value=""),
+        container,
+    ])
+```
+
+::: {.callout-note}
+`ComposableNode` requires that the node package registers its plugin with
+`rclcpp_components_register_node` in CMakeLists.txt — see the
+[C++ Node Package](ros2-cpp-package.qmd) page.
+:::
+
+---
+
+## YAML parameter file — `params/controller.yaml`
+
+Parameter files follow the standard ROS 2 format: `<node_name>` ->
+`ros__parameters` -> key-value pairs. Relative node names (no leading `/`)
+apply regardless of namespace.
+
+```yaml
+controller:
+  ros__parameters:
+    control_rate_hz: 50.0
+    max_velocity_mps: 5.0
+    max_acceleration_mpss: 3.0
+
+estimator:
+  ros__parameters:
+    use_sim_time: true
+    process_noise_std: 0.01
+    measurement_noise_std: 0.05
+```
+
+::: {.callout-tip}
+Separate `controller.yaml` and `estimator.yaml` files work fine; just pass
+both in the `parameters` list of `ComposableNode`:
+`parameters=[controller_params, estimator_params, {"use_sim_time": use_sim_time}]`
+:::
+
+---
+
+## Passing launch arguments from the CLI
+
+```bash
+# default (sim, with RViz)
+ros2 launch my_bringup bringup.launch.py
+
+# hardware run without RViz, custom params
+ros2 launch my_bringup bringup.launch.py \
+  use_sim_time:=false \
+  use_rviz:=false \
+  params_file:=/path/to/hw_params.yaml
+```
+
+Via pixi (add a task in `pixi.toml`):
+
+```toml
+[tasks]
+bringup     = "ros2 launch my_bringup bringup.launch.py"
+bringup-hw  = "ros2 launch my_bringup bringup.launch.py use_sim_time:=false use_rviz:=false"
+```
+
+```bash
+pixi run bringup
+pixi run bringup-hw
+```
+
+---
+
+## Building
+
+The bringup package has nothing to compile; colcon still needs to process it
+to install the share files:
+
+```bash
+pixi run build
+```
+
+Because the assets are installed (not symlinked by default under
+`--merge-install`), you must rebuild after editing YAML files or launch
+scripts. Use `--symlink-install` to skip this:
+
+```bash
+colcon build --symlink-install --packages-select my_bringup
+```
+
+---
+
+## Simulation override — `launch/sim.launch.py`
+
+A separate simulation sub-launch can start Gazebo and the DDS agent before
+including the main bringup:
+
+```python
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from ament_index_python.packages import get_package_share_directory
+import os
+
+
+def generate_launch_description():
+    bringup_dir = get_package_share_directory("my_bringup")
+
+    # start Gazebo + PX4 SITL (adapt to your sim launch)
+    sitl_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory("px4_sitl_launch"),
+                "launch", "gazebo.launch.py",
+            )
+        )
+    )
+
+    system_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(bringup_dir, "launch", "bringup.launch.py")
+        ),
+        launch_arguments={"use_sim_time": "true"}.items(),
+    )
+
+    return LaunchDescription([sitl_launch, system_launch])
+```
