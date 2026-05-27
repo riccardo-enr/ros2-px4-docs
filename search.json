@@ -1,0 +1,254 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "ROS 2 + PX4 Dev Guide",
+    "section": "",
+    "text": "A self-contained reference for setting up a ROS 2 (Jazzy) workspace targeting PX4 SITL, using pixi as the environment manager and basedpyright for Python type checking. No system-level ROS install required.",
+    "crumbs": [
+      "Home",
+      "Getting Started",
+      "ROS 2 + PX4 Dev Guide"
+    ]
+  },
+  {
+    "objectID": "index.html#contents",
+    "href": "index.html#contents",
+    "title": "ROS 2 + PX4 Dev Guide",
+    "section": "Contents",
+    "text": "Contents\n\n\n\nGuide\nDescription\n\n\n\n\nWorkspace Setup\npixi.toml, channels, dependencies, activation, submodules, build tasks\n\n\nType Checking\nbasedpyright configuration, pixi env resolution, ROS-specific notes, VSCode",
+    "crumbs": [
+      "Home",
+      "Getting Started",
+      "ROS 2 + PX4 Dev Guide"
+    ]
+  },
+  {
+    "objectID": "index.html#stack-overview",
+    "href": "index.html#stack-overview",
+    "title": "ROS 2 + PX4 Dev Guide",
+    "section": "Stack overview",
+    "text": "Stack overview\n\n\n\n\n\ngraph LR\n    pixi[\"pixi\\n(env manager)\"] --&gt; ros[\"ROS 2 Jazzy\\n(robostack-jazzy)\"]\n    pixi --&gt; cuda[\"CUDA 12+\\n(conda-forge)\"]\n    pixi --&gt; python[\"Python 3.11+\\n(conda-forge)\"]\n    ros --&gt; colcon[\"colcon build\"]\n    colcon --&gt; ws[\"install/\\n(ROS overlay)\"]\n    ws --&gt; px4[\"px4_msgs\\n(git submodule)\"]",
+    "crumbs": [
+      "Home",
+      "Getting Started",
+      "ROS 2 + PX4 Dev Guide"
+    ]
+  },
+  {
+    "objectID": "index.html#prerequisites",
+    "href": "index.html#prerequisites",
+    "title": "ROS 2 + PX4 Dev Guide",
+    "section": "Prerequisites",
+    "text": "Prerequisites\n\n\n\nRequirement\nNotes\n\n\n\n\npixi\ncurl -fsSL https://pixi.sh/install.sh \\| bash\n\n\nCUDA 12+\nHost driver &gt;= 525; nvcc is installed by pixi\n\n\ngit\nFor submodule management",
+    "crumbs": [
+      "Home",
+      "Getting Started",
+      "ROS 2 + PX4 Dev Guide"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html",
+    "href": "docs/setup/workspace-setup.html",
+    "title": "Workspace Setup",
+    "section": "",
+    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#project-structure",
+    "href": "docs/setup/workspace-setup.html#project-structure",
+    "title": "Workspace Setup",
+    "section": "Project structure",
+    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
+    "href": "docs/setup/workspace-setup.html#pixi.toml",
+    "title": "Workspace Setup",
+    "section": "pixi.toml",
+    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n# --- CUDA (required for GPU-accelerated nodes) ---\ncuda-toolkit = \"&gt;=12.0,&lt;13\"\n\n\n\n\n\n\nTip\n\n\n\ncuda-toolkit from conda-forge installs nvcc and runtime headers inside the pixi environment. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
+    "href": "docs/setup/workspace-setup.html#workspace-activation",
+    "title": "Workspace Setup",
+    "section": "Workspace activation",
+    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "title": "Workspace Setup",
+    "section": "PX4 message definitions (submodule)",
+    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#build-tasks",
+    "href": "docs/setup/workspace-setup.html#build-tasks",
+    "title": "Workspace Setup",
+    "section": "Build tasks",
+    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
+    "href": "docs/setup/workspace-setup.html#daily-workflow",
+    "title": "Workspace Setup",
+    "section": "Daily workflow",
+    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
+    "href": "docs/setup/workspace-setup.html#troubleshooting",
+    "title": "Workspace Setup",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\n\nConfirm cuda-toolkit = \"&gt;=12.0,&lt;13\" is in [dependencies].\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html",
+    "href": "docs/tooling/basedpyright.html",
+    "title": "Type Checking with basedpyright",
+    "section": "",
+    "text": "This guide covers how to configure basedpyright for a ROS 2 workspace managed with pixi. basedpyright is a stricter fork of pyright with better defaults and improved error messages.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#why-basedpyright",
+    "href": "docs/tooling/basedpyright.html#why-basedpyright",
+    "title": "Type Checking with basedpyright",
+    "section": "Why basedpyright",
+    "text": "Why basedpyright\nStandard pyright works fine for general Python, but ROS 2 introduces friction:\n\nrclpy, px4_msgs, and most ROS packages ship no type stubs.\nGenerated message classes have loose constructors that trigger false-positive argument-type errors.\nThe install tree lives in install/ (a colcon artifact), not in the standard site-packages location.\n\nbasedpyright provides more granular per-rule configuration so you can silence ROS-specific false positives while still catching real errors in your own code.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#installation",
+    "href": "docs/tooling/basedpyright.html#installation",
+    "title": "Type Checking with basedpyright",
+    "section": "Installation",
+    "text": "Installation\n\nInside the pixi environment (recommended)\nAdd basedpyright to a dev feature so it is not bundled into production builds:\n# pixi.toml\n[feature.dev.pypi-dependencies]\nbasedpyright = \"*\"\n\n[environments]\ndev = { features = [\"dev\"], solve-group = \"default\" }\nInstall and run:\npixi install -e dev\npixi run -e dev basedpyright src/\n\n\nGlobal install (for the LSP / editor)\n# via pip\npip install basedpyright\n\n# via npm (also installs the language server)\nnpm install -g basedpyright\nThe VSCode extension is basedpyright (detachhead.basedpyright). Do not mix an npm install with the VSCode extension – let the extension manage its own binary.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#pyrightconfig.json",
+    "href": "docs/tooling/basedpyright.html#pyrightconfig.json",
+    "title": "Type Checking with basedpyright",
+    "section": "pyrightconfig.json",
+    "text": "pyrightconfig.json\nPlace pyrightconfig.json at the workspace root (same directory as pixi.toml).\n{\n  \"typeCheckingMode\": \"basic\",\n  \"pythonVersion\": \"3.11\",\n  \"pythonPlatform\": \"Linux\",\n\n  \"include\": [\"src\"],\n  \"exclude\": [\n    \"**/node_modules\",\n    \"**/__pycache__\",\n    \"**/.*\",\n    \"build\",\n    \"install\",\n    \"log\"\n  ],\n\n  \"reportMissingImports\": true,\n  \"reportMissingTypeStubs\": false,\n\n  \"reportUnusedImport\": true,\n  \"reportUnusedVariable\": true,\n\n  \"reportGeneralTypeIssues\": true,\n  \"reportOptionalMemberAccess\": true,\n  \"reportOptionalSubscript\": true,\n  \"reportOptionalOperand\": true,\n  \"reportOptionalIterable\": true,\n  \"reportOptionalContextManager\": true,\n  \"reportOptionalCallOperand\": true,\n\n  \"reportArgumentType\": false\n}\n\nSettings explained\n\n\n\n\n\n\n\n\nSetting\nValue\nReason\n\n\n\n\ntypeCheckingMode\n\"basic\"\nAvoids false positives from untyped ROS packages. Upgrade to \"standard\" once stubs improve.\n\n\npythonVersion\n\"3.11\"\nMust match the Python version in pixi.toml.\n\n\ninclude\n[\"src\"]\nOnly analyse your packages; ignore colcon build artefacts.\n\n\nexclude\nbuild, install, log\nColcon output contains generated C-extension stubs that confuse the checker.\n\n\nreportMissingTypeStubs\nfalse\nrclpy, px4_msgs, and most ROS packages have no .pyi stubs.\n\n\nreportArgumentType\nfalse\nGenerated message classes have loose __init__ signatures that produce spurious errors.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
+    "href": "docs/tooling/basedpyright.html#pointing-basedpyright-at-the-pixi-environment",
+    "title": "Type Checking with basedpyright",
+    "section": "Pointing basedpyright at the pixi environment",
+    "text": "Pointing basedpyright at the pixi environment\nbasedpyright must resolve imports from the pixi environment, not system Python.\n\nOption A – venvPath (recommended)\n{\n  \"venvPath\": \".\",\n  \"venv\": \".pixi/envs/default\"\n}\nThis tells basedpyright to look for the virtual environment at .pixi/envs/default relative to the project root.\n\n\nOption B – pythonPath\n{\n  \"pythonPath\": \".pixi/envs/default/bin/python\"\n}\nUse this if venvPath does not correctly resolve stubs.\n\n\n\n\n\n\nTip\n\n\n\nVerify interpreter resolution:\nbasedpyright --outputjson src/ 2&gt;&1 | python -m json.tool | grep pythonPath",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#ros-2-specific-notes",
+    "href": "docs/tooling/basedpyright.html#ros-2-specific-notes",
+    "title": "Type Checking with basedpyright",
+    "section": "ROS 2-specific notes",
+    "text": "ROS 2-specific notes\n\nrclpy stubs\nrclpy has partial stubs on PyPI. They are often outdated but reduce reportMissingTypeStubs noise:\n[feature.dev.pypi-dependencies]\nrclpy-stubs = \"*\"\nAlternatively, generate stubs from the installed package:\n# inside pixi shell\nstubgen -p rclpy -o typestubs/\nThen register the stub path in pyrightconfig.json:\n{\n  \"stubPath\": \"typestubs\"\n}\n\n\npx4_msgs\npx4_msgs is a C extension built by colcon. After building, point basedpyright to its install location:\n{\n  \"extraPaths\": [\n    \"install/px4_msgs/lib/python3.11/site-packages\"\n  ]\n}\nIf you used venvPath above and the pixi activation already sourced install/setup.bash, this may not be necessary.\n\n\nLaunch files\nROS 2 launch files (.launch.py) use dynamic LaunchArgument substitutions that cannot be statically analysed. Suppress errors per-file:\n# pyright: reportGeneralTypeIssues=false",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#vscode-integration",
+    "href": "docs/tooling/basedpyright.html#vscode-integration",
+    "title": "Type Checking with basedpyright",
+    "section": "VSCode integration",
+    "text": "VSCode integration\nAdd to .vscode/settings.json:\n{\n  \"python.defaultInterpreterPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.pythonPath\":\n      \"${workspaceFolder}/.pixi/envs/default/bin/python\",\n\n  \"basedpyright.disableOrganizeImports\": false\n}\npython.defaultInterpreterPath ensures the VSCode Python extension, IntelliSense, and basedpyright all share the same pixi interpreter.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#running-from-the-cli",
+    "href": "docs/tooling/basedpyright.html#running-from-the-cli",
+    "title": "Type Checking with basedpyright",
+    "section": "Running from the CLI",
+    "text": "Running from the CLI\n# Check all packages under src/\npixi run -e dev basedpyright src/\n\n# Check a single package\npixi run -e dev basedpyright src/my_package/\n\n# JSON output for CI\npixi run -e dev basedpyright --outputjson src/ &gt; typecheck.json",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  },
+  {
+    "objectID": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
+    "href": "docs/tooling/basedpyright.html#incrementally-tightening-type-checking",
+    "title": "Type Checking with basedpyright",
+    "section": "Incrementally tightening type checking",
+    "text": "Incrementally tightening type checking\nStart at \"basic\" to suppress ROS-stub noise. Tighten per-package as you add type annotations or as upstream stubs improve.\nbasic  -&gt;  standard  -&gt;  strict  -&gt;  all\nTo apply stricter checking to a specific file, add a comment at the top:\n# pyright: standard\nTo apply it to an entire subtree, add a nested pyrightconfig.json in that subdirectory with only the overridden key:\n{\n  \"typeCheckingMode\": \"standard\"\n}\nThe root pyrightconfig.json still governs everything else.",
+    "crumbs": [
+      "Home",
+      "Tooling",
+      "Type Checking with basedpyright"
+    ]
+  }
+]
