@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>C++ Tooling with clangd – ROS 2 + PX4 Dev Guide</title>
+<title>Node Parameters – ROS 2 + PX4 Dev Guide</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -393,7 +393,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/tooling/basedpyright.html">Tooling</a></li><li class="breadcrumb-item"><a href="../../docs/tooling/clangd.html">C++ Tooling with clangd</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/control/qos-profiles.html">Control</a></li><li class="breadcrumb-item"><a href="../../docs/control/ros-parameters.html">Node Parameters</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -486,7 +486,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/tooling/clangd.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../docs/tooling/clangd.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">C++ Tooling with clangd</span></a>
   </div>
 </li>
@@ -521,7 +521,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/control/ros-parameters.html" class="sidebar-item-text sidebar-link">
+  <a href="../../docs/control/ros-parameters.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Node Parameters</span></a>
   </div>
 </li>
@@ -561,17 +561,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#how-clangd-finds-headers" id="toc-how-clangd-finds-headers" class="nav-link active" data-scroll-target="#how-clangd-finds-headers">How clangd finds headers</a></li>
-  <li><a href="#base-configuration" id="toc-base-configuration" class="nav-link" data-scroll-target="#base-configuration">Base configuration</a></li>
-  <li><a href="#clang-tidy-checks" id="toc-clang-tidy-checks" class="nav-link" data-scroll-target="#clang-tidy-checks">clang-tidy checks</a></li>
-  <li><a href="#cuda-file-handling" id="toc-cuda-file-handling" class="nav-link" data-scroll-target="#cuda-file-handling">CUDA file handling</a></li>
-  <li><a href="#placement" id="toc-placement" class="nav-link" data-scroll-target="#placement">Placement</a></li>
-  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
+  <li><a href="#declare-load-pattern" id="toc-declare-load-pattern" class="nav-link active" data-scroll-target="#declare-load-pattern">Declare → load pattern</a></li>
+  <li><a href="#yaml-parameter-file-structure" id="toc-yaml-parameter-file-structure" class="nav-link" data-scroll-target="#yaml-parameter-file-structure">YAML parameter file structure</a>
   <ul class="collapse">
-  <li><a href="#clangd-cannot-find-compile_commands.json" id="toc-clangd-cannot-find-compile_commands.json" class="nav-link" data-scroll-target="#clangd-cannot-find-compile_commands.json">clangd cannot find <code>compile_commands.json</code></a></li>
-  <li><a href="#false-positive-include-errors-after-adding-a-new-package" id="toc-false-positive-include-errors-after-adding-a-new-package" class="nav-link" data-scroll-target="#false-positive-include-errors-after-adding-a-new-package">False-positive <code>#include</code> errors after adding a new package</a></li>
-  <li><a href="#clangd-crashes-on-.cu-files" id="toc-clangd-crashes-on-.cu-files" class="nav-link" data-scroll-target="#clangd-crashes-on-.cu-files">clangd crashes on <code>.cu</code> files</a></li>
+  <li><a href="#wildcard-node-name" id="toc-wildcard-node-name" class="nav-link" data-scroll-target="#wildcard-node-name">Wildcard node name</a></li>
   </ul></li>
+  <li><a href="#dynamic-parameter-callback" id="toc-dynamic-parameter-callback" class="nav-link" data-scroll-target="#dynamic-parameter-callback">Dynamic parameter callback</a></li>
+  <li><a href="#loading-parameters-from-a-launch-file" id="toc-loading-parameters-from-a-launch-file" class="nav-link" data-scroll-target="#loading-parameters-from-a-launch-file">Loading parameters from a launch file</a>
+  <ul class="collapse">
+  <li><a href="#layer-yaml-runtime-overrides" id="toc-layer-yaml-runtime-overrides" class="nav-link" data-scroll-target="#layer-yaml-runtime-overrides">Layer YAML + runtime overrides</a></li>
+  <li><a href="#parametervalue-type-casting" id="toc-parametervalue-type-casting" class="nav-link" data-scroll-target="#parametervalue-type-casting">ParameterValue type casting</a></li>
+  </ul></li>
+  <li><a href="#dumping-and-inspecting-parameters-at-runtime" id="toc-dumping-and-inspecting-parameters-at-runtime" class="nav-link" data-scroll-target="#dumping-and-inspecting-parameters-at-runtime">Dumping and inspecting parameters at runtime</a></li>
   </ul>
 </nav>
     </div>
@@ -579,9 +580,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/tooling/basedpyright.html">Tooling</a></li><li class="breadcrumb-item"><a href="../../docs/tooling/clangd.html">C++ Tooling with clangd</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/control/qos-profiles.html">Control</a></li><li class="breadcrumb-item"><a href="../../docs/control/ros-parameters.html">Node Parameters</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">C++ Tooling with clangd</h1>
+<h1 class="title">Node Parameters</h1>
 </div>
 
 
@@ -598,192 +599,193 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This guide covers the <code>.clangd</code> configuration used across <code>uav_control</code> and related ROS 2 C++ packages. The setup gives accurate clangd completions and clang-tidy diagnostics inside a colcon workspace without false positives from GPU or ROS-specific compiler flags.</p>
-<section id="how-clangd-finds-headers" class="level2">
-<h2 class="anchored" data-anchor-id="how-clangd-finds-headers">How clangd finds headers</h2>
-<p>clangd reads <code>compile_commands.json</code> to know which flags were used to build each translation unit. colcon generates this file at the workspace root when you pass <code>--cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--cmake-args</span> <span class="at">-DCMAKE_EXPORT_COMPILE_COMMANDS</span><span class="op">=</span>ON</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>.clangd</code> file then tells clangd where to look:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">CompileFlags</span><span class="kw">:</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">CompilationDatabase</span><span class="kw">:</span><span class="at"> </span><span class="st">"."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>"."</code> resolves to the directory containing <code>.clangd</code>, which should be the workspace root (the directory that contains <code>src/</code>, <code>build/</code>, <code>install/</code>).</p>
+<p>This page documents the parameter patterns used across hosm_ros2_px4, uav_control, and px4_offboard_lowlevel: how to declare and load them in C++, how to structure the YAML files, how to support runtime updates, and how to pass them from launch files without type errors.</p>
+<hr>
+<section id="declare-load-pattern" class="level2">
+<h2 class="anchored" data-anchor-id="declare-load-pattern">Declare → load pattern</h2>
+<p>Split parameter handling into two private methods: <code>declareParameters()</code> and <code>loadParameters()</code>. Call both from the constructor, before any timer or publisher is created.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ControllerNode <span class="op">:</span> <span class="kw">public</span> rclcpp<span class="op">::</span>Node <span class="op">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    ControllerNode<span class="op">()</span> <span class="op">:</span> Node<span class="op">(</span><span class="st">"controller"</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>        declareParameters<span class="op">();</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        loadParameters<span class="op">();</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>        <span class="co">// timers, subscribers, publishers ...</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> declareParameters<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        <span class="co">/* Physical model */</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"mass"</span><span class="op">,</span>    <span class="fl">2.0</span><span class="op">);</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"gravity"</span><span class="op">,</span> <span class="fl">9.81</span><span class="op">);</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        <span class="co">/* Nested gains use dotted names */</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"smc.lambda_z"</span><span class="op">,</span> <span class="fl">5.0</span><span class="op">);</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"smc.epsilon"</span><span class="op">,</span>  <span class="fl">0.1</span><span class="op">);</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>        <span class="co">/* Control */</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"control_rate_hz"</span><span class="op">,</span> <span class="fl">250.0</span><span class="op">);</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"auto_arm"</span><span class="op">,</span>        <span class="kw">true</span><span class="op">);</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"debug_thrust_only"</span><span class="op">,</span> <span class="kw">false</span><span class="op">);</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        <span class="co">/* Normalization */</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"max_thrust"</span><span class="op">,</span>       <span class="fl">32.7</span><span class="op">);</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>        declare_parameter<span class="op">(</span><span class="st">"max_torque_roll"</span><span class="op">,</span>   <span class="fl">3.22</span><span class="op">);</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> loadParameters<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>        <span class="va">params_</span><span class="op">.</span>mass    <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"mass"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>        <span class="va">params_</span><span class="op">.</span>gravity <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"gravity"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>        <span class="va">smc_</span><span class="op">.</span>lambda_z <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"smc.lambda_z"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>        <span class="va">smc_</span><span class="op">.</span>epsilon  <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"smc.epsilon"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>        <span class="va">control_rate_hz_</span>  <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"control_rate_hz"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>        <span class="va">auto_arm_</span>         <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"auto_arm"</span><span class="op">).</span>as_bool<span class="op">();</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>        <span class="va">debug_thrust_only_</span> <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"debug_thrust_only"</span><span class="op">).</span>as_bool<span class="op">();</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>        <span class="va">max_thrust_</span>      <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"max_thrust"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>        <span class="va">max_torque_roll_</span> <span class="op">=</span> get_parameter<span class="op">(</span><span class="st">"max_torque_roll"</span><span class="op">).</span>as_double<span class="op">();</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Separating declare and load makes it easy to add <code>add_on_set_parameters_callback</code> (see below) without scattering <code>declare_parameter</code> calls throughout the class.</p>
+</div>
+</div>
+<hr>
 </section>
-<section id="base-configuration" class="level2">
-<h2 class="anchored" data-anchor-id="base-configuration">Base configuration</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">CompileFlags</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">CompilationDatabase</span><span class="kw">:</span><span class="at"> </span><span class="st">"."</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">Add</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="st">"-std=c++17"</span><span class="kw">,</span><span class="at"> </span><span class="st">"-Wno-unknown-argument"</span><span class="kw">]</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">Remove</span><span class="kw">:</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">[</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--generate-code=*"</span><span class="kw">,</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--options-file"</span><span class="kw">,</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--options-file=*"</span><span class="kw">,</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-rdc=*"</span><span class="kw">,</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-forward-unknown-to-host-compiler"</span><span class="kw">,</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-Xcompiler=*"</span><span class="kw">,</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--expt-relaxed-constexpr"</span><span class="kw">,</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>Remove</code> list strips NVCC-specific flags that clang does not understand. Without this, clangd crashes or emits spurious errors on any package that links against CUDA.</p>
-<p><code>-Wno-unknown-argument</code> suppresses the resulting unknown-flag warnings for any flags not caught by the <code>Remove</code> list.</p>
+<section id="yaml-parameter-file-structure" class="level2">
+<h2 class="anchored" data-anchor-id="yaml-parameter-file-structure">YAML parameter file structure</h2>
+<p>ROS 2 parameter files follow <code>&lt;node_name&gt;: ros__parameters: &lt;key&gt;: &lt;value&gt;</code>. Dotted C++ names (<code>smc.lambda_z</code>) expand into nested YAML maps.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">controller</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">ros__parameters</span><span class="kw">:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">    # physical model</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mass</span><span class="kw">:</span><span class="at">    </span><span class="fl">2.064</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">gravity</span><span class="kw">:</span><span class="at"> </span><span class="fl">9.81</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">    # SMC gains — expressed as nested map matching the dotted C++ names</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">smc</span><span class="kw">:</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">lambda_z</span><span class="kw">:</span><span class="at">  </span><span class="fl">5.0</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">epsilon</span><span class="kw">:</span><span class="at">   </span><span class="fl">0.1</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">    # control</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">control_rate_hz</span><span class="kw">:</span><span class="at"> </span><span class="fl">250.0</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">auto_arm</span><span class="kw">:</span><span class="at">        </span><span class="ch">true</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">debug_thrust_only</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co">    # PX4 normalization (compute from motor characterization)</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">max_thrust</span><span class="kw">:</span><span class="at">      </span><span class="fl">32.7</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">max_torque_roll</span><span class="kw">:</span><span class="at">  </span><span class="fl">3.22</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="wildcard-node-name" class="level3">
+<h3 class="anchored" data-anchor-id="wildcard-node-name">Wildcard node name</h3>
+<p>Use <code>/**</code> to apply a block to every node in the process. Useful for shared topic remapping conventions (e.g.&nbsp;FMU topic names) that should not need repeating per-node:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">/**</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">ros__parameters</span><span class="kw">:</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sitl_mode</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">topics</span><span class="kw">:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">odometry</span><span class="kw">:</span><span class="at">  </span><span class="st">"/fmu/out/vehicle_odometry"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">status</span><span class="kw">:</span><span class="at">    </span><span class="st">"/fmu/out/vehicle_status_v1"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
 </section>
-<section id="clang-tidy-checks" class="level2">
-<h2 class="anchored" data-anchor-id="clang-tidy-checks">clang-tidy checks</h2>
-<p>The project runs the full clang-tidy suite (<code>Add: ["*"]</code>) with a focused suppress list. The suppressed checks fall into two categories:</p>
-<p><strong>Style preferences</strong> — rules that conflict with the project’s conventions:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Check</th>
-<th>Reason suppressed</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>google-build-*</code>, <code>google-readability-*</code></td>
-<td>Google style not used</td>
-</tr>
-<tr class="even">
-<td><code>modernize-use-trailing-return-type</code></td>
-<td>Trailing return types add noise for simple functions</td>
-</tr>
-<tr class="odd">
-<td><code>modernize-use-nodiscard</code></td>
-<td>Overly noisy for internal helpers</td>
-</tr>
-<tr class="even">
-<td><code>readability-identifier-length</code></td>
-<td>Short names (e.g.&nbsp;<code>dt</code>, <code>u</code>) are idiomatic in control code</td>
-</tr>
-<tr class="odd">
-<td><code>readability-magic-numbers</code>, <code>cppcoreguidelines-avoid-magic-numbers</code></td>
-<td>Physical constants and gains are fine inline</td>
-</tr>
-<tr class="even">
-<td><code>readability-function-cognitive-complexity</code></td>
-<td>MPPI kernels are inherently long</td>
-</tr>
-</tbody>
-</table>
-<p><strong>False positives in ROS 2 / robotics code</strong>:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Check</th>
-<th>Reason suppressed</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>cppcoreguidelines-avoid-non-const-global-variables</code></td>
-<td>ROS node handles and parameter servers are globals by convention</td>
-</tr>
-<tr class="even">
-<td><code>cppcoreguidelines-pro-type-vararg</code></td>
-<td>Some ROS logging macros use varargs</td>
-</tr>
-<tr class="odd">
-<td><code>cppcoreguidelines-pro-bounds-array-to-pointer-decay</code></td>
-<td>Common in Eigen / low-level math</td>
-</tr>
-<tr class="even">
-<td><code>cppcoreguidelines-special-member-functions</code>, <code>hicpp-special-member-functions</code></td>
-<td>Rule-of-five is not required for RAII wrappers with shared_ptr</td>
-</tr>
-<tr class="odd">
-<td><code>misc-non-private-member-variables-in-classes</code>, <code>cppcoreguidelines-non-private-member-variables-in-classes</code></td>
-<td>Parameter structs use public fields intentionally</td>
-</tr>
-<tr class="even">
-<td><code>cppcoreguidelines-prefer-member-initializer</code></td>
-<td>Conflicts with complex constructor delegation patterns</td>
-</tr>
-<tr class="odd">
-<td><code>misc-include-cleaner</code></td>
-<td>Generates excessive noise from transitively included ROS headers</td>
-</tr>
-</tbody>
-</table>
-<p>Vendor-specific suites (<code>llvmlibc-*</code>, <code>fuchsia-*</code>, <code>altera-*</code>) are suppressed wholesale as they target entirely different platforms.</p>
 </section>
-<section id="cuda-file-handling" class="level2">
-<h2 class="anchored" data-anchor-id="cuda-file-handling">CUDA file handling</h2>
-<p><code>.cu</code> files need special treatment because <code>compile_commands.json</code> records the NVCC invocation, not a clang-compatible command. A conditional block remaps them to clang with CUDA-host-only parsing:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">If</span><span class="kw">:</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">PathMatch</span><span class="kw">:</span><span class="at"> </span><span class="st">".*</span><span class="sc">\\</span><span class="st">.cu$"</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">CompileFlags</span><span class="kw">:</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">Compiler</span><span class="kw">:</span><span class="at"> clang++</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">Add</span><span class="kw">:</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">[</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-xcuda"</span><span class="kw">,</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--cuda-host-only"</span><span class="kw">,</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--cuda-path=/usr/local/cuda"</span><span class="kw">,</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--cuda-gpu-arch=sm_75"</span><span class="kw">,</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-Wno-unknown-cuda-version"</span><span class="kw">,</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-ferror-limit=0"</span><span class="kw">,</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">]</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">Remove</span><span class="kw">:</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">[</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"/usr/local/cuda-*/bin/nvcc"</span><span class="kw">,</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--generate-code=*"</span><span class="kw">,</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--options-file"</span><span class="kw">,</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--options-file=*"</span><span class="kw">,</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-rdc=*"</span><span class="kw">,</span></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-forward-unknown-to-host-compiler"</span><span class="kw">,</span></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-Xcompiler=*"</span><span class="kw">,</span></span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"--expt-relaxed-constexpr"</span><span class="kw">,</span></span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="at">            </span><span class="st">"-x"</span><span class="kw">,</span><span class="at"> </span><span class="st">"cu"</span><span class="kw">,</span><span class="at"> </span><span class="st">"cuda"</span><span class="kw">,</span></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">]</span></span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="fu">Diagnostics</span><span class="kw">:</span></span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">Suppress</span><span class="kw">:</span></span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="st">"cuda_ovl_target"</span></span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="st">"redefinition"</span></span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="st">"constexpr_redecl_mismatch"</span></span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="st">"variadic_device_fn"</span></span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="st">"attributes_not_allowed"</span></span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="st">"undeclared_var_use"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>--cuda-host-only</code> tells clang to only parse host code, which avoids the need for a full CUDA device compiler toolchain. The <code>Suppress</code> list silences redefinition errors that arise from CUDA’s dual-compilation model.</p>
-<p>Adjust <code>--cuda-gpu-arch</code> to match your GPU (e.g.&nbsp;<code>sm_86</code> for Ampere, <code>sm_89</code> for Ada Lovelace).</p>
+<section id="dynamic-parameter-callback" class="level2">
+<h2 class="anchored" data-anchor-id="dynamic-parameter-callback">Dynamic parameter callback</h2>
+<p>Allow runtime parameter updates (e.g.&nbsp;gain tuning via <code>ros2 param set</code>) by registering a callback in the constructor:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ControllerNode<span class="op">()</span> <span class="op">:</span> Node<span class="op">(</span><span class="st">"controller"</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    declareParameters<span class="op">();</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    loadParameters<span class="op">();</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="va">param_cb_handle_</span> <span class="op">=</span> add_on_set_parameters_callback<span class="op">(</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="op">[</span><span class="kw">this</span><span class="op">](</span><span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span>rclcpp<span class="op">::</span>Parameter<span class="op">&gt;&amp;</span> params<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> onParameterChange<span class="op">(</span>params<span class="op">);</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">});</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>rcl_interfaces<span class="op">::</span>msg<span class="op">::</span>SetParametersResult</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>onParameterChange<span class="op">(</span><span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span>rclcpp<span class="op">::</span>Parameter<span class="op">&gt;&amp;</span> params<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    rcl_interfaces<span class="op">::</span>msg<span class="op">::</span>SetParametersResult result<span class="op">;</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    result<span class="op">.</span>successful <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="at">const</span> <span class="kw">auto</span><span class="op">&amp;</span> p <span class="op">:</span> params<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>p<span class="op">.</span>get_name<span class="op">()</span> <span class="op">==</span> <span class="st">"smc.lambda_z"</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>            <span class="va">smc_</span><span class="op">.</span>lambda_z <span class="op">=</span> p<span class="op">.</span>as_double<span class="op">();</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>            RCLCPP_INFO<span class="op">(</span>get_logger<span class="op">(),</span> <span class="st">"smc.lambda_z -&gt; </span><span class="sc">%.3f</span><span class="st">"</span><span class="op">,</span> <span class="va">smc_</span><span class="op">.</span>lambda_z<span class="op">);</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>p<span class="op">.</span>get_name<span class="op">()</span> <span class="op">==</span> <span class="st">"auto_arm"</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>            <span class="va">auto_arm_</span> <span class="op">=</span> p<span class="op">.</span>as_bool<span class="op">();</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>p<span class="op">.</span>get_name<span class="op">()</span> <span class="op">==</span> <span class="st">"debug_thrust_only"</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>            <span class="va">debug_thrust_only_</span> <span class="op">=</span> p<span class="op">.</span>as_bool<span class="op">();</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result<span class="op">;</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>rclcpp<span class="op">::</span>node_interfaces<span class="op">::</span>OnSetParametersCallbackHandle<span class="op">::</span>SharedPtr <span class="va">param_cb_handle_</span><span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Then at runtime:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /controller smc.lambda_z 8.0</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /controller debug_thrust_only true</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
 </section>
-<section id="placement" class="level2">
-<h2 class="anchored" data-anchor-id="placement">Placement</h2>
-<p>Put <code>.clangd</code> at the <strong>workspace root</strong> (the directory that contains <code>src/</code>), not inside individual packages. clangd searches upward from the open file to find the nearest <code>.clangd</code>, so a single workspace-root file covers all packages.</p>
-<pre><code>my_ws/
-  .clangd            &lt;-- here
-  compile_commands.json
-  src/
-    uav_control/
-    px4_msgs/</code></pre>
+<section id="loading-parameters-from-a-launch-file" class="level2">
+<h2 class="anchored" data-anchor-id="loading-parameters-from-a-launch-file">Loading parameters from a launch file</h2>
+<section id="layer-yaml-runtime-overrides" class="level3">
+<h3 class="anchored" data-anchor-id="layer-yaml-runtime-overrides">Layer YAML + runtime overrides</h3>
+<p>Pass the YAML file as the first entry in <code>parameters=[]</code> and add a dict of runtime values afterwards. Later entries override earlier ones:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>Node(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    package<span class="op">=</span><span class="st">"my_pkg"</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    executable<span class="op">=</span><span class="st">"controller_node"</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">"controller"</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    output<span class="op">=</span><span class="st">"screen"</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    parameters<span class="op">=</span>[</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        LaunchConfiguration(<span class="st">"params_file"</span>),          <span class="co"># YAML file</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">"use_sim_time"</span>:   LaunchConfiguration(<span class="st">"use_sim_time"</span>),</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">"auto_arm"</span>:       LaunchConfiguration(<span class="st">"auto_arm"</span>),</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="troubleshooting" class="level2">
-<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<section id="clangd-cannot-find-compile_commands.json" class="level3">
-<h3 class="anchored" data-anchor-id="clangd-cannot-find-compile_commands.json">clangd cannot find <code>compile_commands.json</code></h3>
-<p>Run a full build with compile commands export enabled:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">colcon</span> build <span class="at">--cmake-args</span> <span class="at">-DCMAKE_EXPORT_COMPILE_COMMANDS</span><span class="op">=</span>ON</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Then confirm the file exists at the workspace root:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> compile_commands.json</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="parametervalue-type-casting" class="level3">
+<h3 class="anchored" data-anchor-id="parametervalue-type-casting">ParameterValue type casting</h3>
+<p>Launch configuration values are always strings. Without explicit casting, float and int parameters arrive at the node as strings and cause a <code>ParameterTypeMismatch</code> error at runtime:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch_ros.parameter_descriptions <span class="im">import</span> ParameterValue</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> launch.substitutions <span class="im">import</span> LaunchConfiguration</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>Node(</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    package<span class="op">=</span><span class="st">"my_pkg"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    executable<span class="op">=</span><span class="st">"reference_publisher"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    parameters<span class="op">=</span>[{</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"height"</span>:  ParameterValue(LaunchConfiguration(<span class="st">"z"</span>),     value_type<span class="op">=</span><span class="bu">float</span>),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"speed"</span>:   ParameterValue(LaunchConfiguration(<span class="st">"speed"</span>), value_type<span class="op">=</span><span class="bu">float</span>),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"samples"</span>: ParameterValue(LaunchConfiguration(<span class="st">"n"</span>),     value_type<span class="op">=</span><span class="bu">int</span>),</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    }],</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Use <code>ParameterValue</code> whenever a node expects a non-string parameter that comes directly from a <code>LaunchConfiguration</code> rather than a Python literal.</p>
+<hr>
 </section>
-<section id="false-positive-include-errors-after-adding-a-new-package" class="level3">
-<h3 class="anchored" data-anchor-id="false-positive-include-errors-after-adding-a-new-package">False-positive <code>#include</code> errors after adding a new package</h3>
-<p><code>colcon build</code> must be re-run so the new package’s headers appear in <code>compile_commands.json</code>. clangd will re-index automatically once the file is updated.</p>
 </section>
-<section id="clangd-crashes-on-.cu-files" class="level3">
-<h3 class="anchored" data-anchor-id="clangd-crashes-on-.cu-files">clangd crashes on <code>.cu</code> files</h3>
-<p>Confirm <code>clang++</code> is on <code>PATH</code> inside the pixi environment:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> run which clang++</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>If missing, add <code>clangxx</code> (or <code>clang</code>) to <code>[dependencies]</code> in <code>pixi.toml</code>.</p>
+<section id="dumping-and-inspecting-parameters-at-runtime" class="level2">
+<h2 class="anchored" data-anchor-id="dumping-and-inspecting-parameters-at-runtime">Dumping and inspecting parameters at runtime</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># List all parameters for a node</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param list /controller</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Get one value</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param get /controller smc.lambda_z</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Dump all to YAML (useful for capturing a tuned config)</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param dump /controller <span class="op">&gt;</span> tuned_params.yaml</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Load a file into a running node</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param load /controller /path/to/tuned_params.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
-</section>
 </section>
 
 </main> <!-- /main -->

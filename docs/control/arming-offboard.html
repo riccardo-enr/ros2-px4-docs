@@ -322,7 +322,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Bringup Package</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../../docs/setup/sitl-combined-launch.qmd">
+    <a class="dropdown-item" href="../../docs/setup/sitl-combined-launch.html">
  <span class="dropdown-text">One-Command SITL Launch</span></a>
   </li>  
     </ul>
@@ -356,11 +356,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">QoS Profiles</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../../docs/control/control-loop.qmd">
+    <a class="dropdown-item" href="../../docs/control/control-loop.html">
  <span class="dropdown-text">Control Loop Architecture</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../../docs/control/ros-parameters.qmd">
+    <a class="dropdown-item" href="../../docs/control/ros-parameters.html">
  <span class="dropdown-text">Node Parameters</span></a>
   </li>  
         <li>
@@ -462,8 +462,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </div>
 </li>
           <li class="sidebar-item">
- <span class="menu-text">docs/setup/sitl-combined-launch.qmd</span>
-  </li>
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/setup/sitl-combined-launch.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">One-Command SITL Launch</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -511,11 +514,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </div>
 </li>
           <li class="sidebar-item">
- <span class="menu-text">docs/control/control-loop.qmd</span>
-  </li>
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/control/control-loop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Control Loop Architecture</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
- <span class="menu-text">docs/control/ros-parameters.qmd</span>
-  </li>
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/control/ros-parameters.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Node Parameters</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../docs/control/frame-conventions.html" class="sidebar-item-text sidebar-link">
@@ -559,6 +568,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#disarming" id="toc-disarming" class="nav-link" data-scroll-target="#disarming">Disarming</a></li>
   <li><a href="#monitoring-vehicle-state" id="toc-monitoring-vehicle-state" class="nav-link" data-scroll-target="#monitoring-vehicle-state">Monitoring vehicle state</a></li>
   <li><a href="#full-arming-state-machine" id="toc-full-arming-state-machine" class="nav-link" data-scroll-target="#full-arming-state-machine">Full arming state machine</a></li>
+  <li><a href="#production-fsm-pattern" id="toc-production-fsm-pattern" class="nav-link" data-scroll-target="#production-fsm-pattern">Production FSM pattern</a></li>
   <li><a href="#takeoff-after-arming" id="toc-takeoff-after-arming" class="nav-link" data-scroll-target="#takeoff-after-arming">Takeoff after arming</a></li>
   <li><a href="#safety-continuous-stream-requirement" id="toc-safety-continuous-stream-requirement" class="nav-link" data-scroll-target="#safety-continuous-stream-requirement">Safety: continuous stream requirement</a></li>
   <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
@@ -740,20 +750,153 @@ Note
 <p>The tick counter gives PX4 time to receive a few heartbeats before the mode switch is requested.</p>
 <hr>
 </section>
+<section id="production-fsm-pattern" class="level2">
+<h2 class="anchored" data-anchor-id="production-fsm-pattern">Production FSM pattern</h2>
+<p>The tick-counter approach above has two weaknesses: it fires the commands once and never retries, and it has no way to detect a mode flip or disarm after arming. A production controller should use a proper state machine.</p>
+<p><strong>State sequence:</strong></p>
+<pre><code>WAITING_FOR_ODOM
+  -&gt; on first odometry:            PUBLISHING_OFFBOARD  (record t0)
+PUBLISHING_OFFBOARD
+  -&gt; after preamble (e.g. 2 s):   emit SetOffboardMode, REQUESTING_OFFBOARD
+REQUESTING_OFFBOARD
+  -&gt; nav_state == OFFBOARD:        emit ArmDisarm, REQUESTING_ARM
+  -&gt; every retry_s:                re-emit SetOffboardMode
+REQUESTING_ARM
+  -&gt; arming_state == ARMED:        ARMED
+  -&gt; every retry_s:                re-emit ArmDisarm
+ARMED
+  -&gt; terminal</code></pre>
+<p><strong>Why wait for odometry before publishing?</strong> PX4 will not enter offboard mode if it has not yet received a valid state estimate. Gating on first odometry receipt ensures EKF2 is up before the preamble starts.</p>
+<p><strong>Implementation</strong> — keep the FSM ROS-free so it can be unit-tested without spinning a node. The node feeds it raw status fields; the FSM returns an action tag:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* offboard_arm_fsm.hpp — no rclcpp or px4_msgs includes */</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">enum</span> <span class="kw">class</span> ArmState <span class="op">{</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  WAITING_FOR_ODOM<span class="op">,</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  PUBLISHING_OFFBOARD<span class="op">,</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  REQUESTING_OFFBOARD<span class="op">,</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  REQUESTING_ARM<span class="op">,</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  ARMED<span class="op">,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="kw">enum</span> <span class="kw">class</span> FsmAction <span class="op">{</span> None<span class="op">,</span> SetOffboardMode<span class="op">,</span> ArmDisarm <span class="op">};</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> OffboardArmFsm <span class="op">{</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a> <span class="kw">public</span><span class="op">:</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">static</span> <span class="kw">constexpr</span> <span class="dt">uint8_t</span> kNavStateOffboard  <span class="op">=</span> <span class="dv">14</span><span class="op">;</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">static</span> <span class="kw">constexpr</span> <span class="dt">uint8_t</span> kArmingStateArmed  <span class="op">=</span> <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">explicit</span> OffboardArmFsm<span class="op">(</span><span class="dt">double</span> preamble_s <span class="op">=</span> <span class="fl">2.0</span><span class="op">,</span> <span class="dt">double</span> retry_s <span class="op">=</span> <span class="fl">1.0</span><span class="op">)</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>      <span class="op">:</span> <span class="va">preamble_s_</span><span class="op">(</span>preamble_s<span class="op">),</span> <span class="va">retry_s_</span><span class="op">(</span>retry_s<span class="op">)</span> <span class="op">{}</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  FsmAction step<span class="op">(</span><span class="dt">bool</span> odom_received<span class="op">,</span> <span class="dt">uint8_t</span> nav_state<span class="op">,</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>                 <span class="dt">uint8_t</span> arming_state<span class="op">,</span> <span class="dt">double</span> now_s<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">switch</span> <span class="op">(</span><span class="va">state_</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>      <span class="cf">case</span> ArmState<span class="op">::</span>WAITING_FOR_ODOM<span class="op">:</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>odom_received<span class="op">)</span> <span class="op">{</span> <span class="va">state_</span> <span class="op">=</span> ArmState<span class="op">::</span>PUBLISHING_OFFBOARD<span class="op">;</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>                             <span class="va">t0_</span> <span class="op">=</span> now_s<span class="op">;</span> <span class="op">}</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>      <span class="cf">case</span> ArmState<span class="op">::</span>PUBLISHING_OFFBOARD<span class="op">:</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>now_s <span class="op">-</span> <span class="va">t0_</span> <span class="op">&gt;=</span> <span class="va">preamble_s_</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>          <span class="va">state_</span> <span class="op">=</span> ArmState<span class="op">::</span>REQUESTING_OFFBOARD<span class="op">;</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>          <span class="va">last_req_</span> <span class="op">=</span> now_s<span class="op">;</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>          <span class="cf">return</span> FsmAction<span class="op">::</span>SetOffboardMode<span class="op">;</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>      <span class="cf">case</span> ArmState<span class="op">::</span>REQUESTING_OFFBOARD<span class="op">:</span></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>nav_state <span class="op">==</span> kNavStateOffboard<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>          <span class="va">state_</span> <span class="op">=</span> ArmState<span class="op">::</span>REQUESTING_ARM<span class="op">;</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>          <span class="va">last_req_</span> <span class="op">=</span> now_s<span class="op">;</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>          <span class="cf">return</span> FsmAction<span class="op">::</span>ArmDisarm<span class="op">;</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>now_s <span class="op">-</span> <span class="va">last_req_</span> <span class="op">&gt;=</span> <span class="va">retry_s_</span><span class="op">)</span> <span class="op">{</span> <span class="va">last_req_</span> <span class="op">=</span> now_s<span class="op">;</span></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>                                              <span class="cf">return</span> FsmAction<span class="op">::</span>SetOffboardMode<span class="op">;</span> <span class="op">}</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>      <span class="cf">case</span> ArmState<span class="op">::</span>REQUESTING_ARM<span class="op">:</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>arming_state <span class="op">==</span> kArmingStateArmed<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>          <span class="va">state_</span> <span class="op">=</span> ArmState<span class="op">::</span>ARMED<span class="op">;</span> <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>now_s <span class="op">-</span> <span class="va">last_req_</span> <span class="op">&gt;=</span> <span class="va">retry_s_</span><span class="op">)</span> <span class="op">{</span> <span class="va">last_req_</span> <span class="op">=</span> now_s<span class="op">;</span></span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>                                              <span class="cf">return</span> FsmAction<span class="op">::</span>ArmDisarm<span class="op">;</span> <span class="op">}</span></span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>      <span class="cf">case</span> ArmState<span class="op">::</span>ARMED<span class="op">:</span></span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> FsmAction<span class="op">::</span>None<span class="op">;</span></span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>  <span class="co">/* Use this as the gate for publishing actuator setpoints.</span></span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a><span class="co">   * Checks FSM state AND live status — a disarm or mode flip</span></span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a><span class="co">   * immediately closes the gate even if FSM is in ARMED. */</span></span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a>  <span class="dt">bool</span> armedAndOffboard<span class="op">(</span><span class="dt">uint8_t</span> nav_state<span class="op">,</span> <span class="dt">uint8_t</span> arming_state<span class="op">)</span> <span class="at">const</span> <span class="op">{</span></span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="va">state_</span> <span class="op">==</span> ArmState<span class="op">::</span>ARMED <span class="op">&amp;&amp;</span></span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>           nav_state    <span class="op">==</span> kNavStateOffboard <span class="op">&amp;&amp;</span></span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a>           arming_state <span class="op">==</span> kArmingStateArmed<span class="op">;</span></span>
+<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a> <span class="kw">private</span><span class="op">:</span></span>
+<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>  <span class="dt">double</span> <span class="va">preamble_s_</span><span class="op">,</span> <span class="va">retry_s_</span><span class="op">;</span></span>
+<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a>  ArmState <span class="va">state_</span> <span class="op">=</span> ArmState<span class="op">::</span>WAITING_FOR_ODOM<span class="op">;</span></span>
+<span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a>  <span class="dt">double</span> <span class="va">t0_</span> <span class="op">=</span> <span class="fl">0.0</span><span class="op">,</span> <span class="va">last_req_</span> <span class="op">=</span> <span class="fl">0.0</span><span class="op">;</span></span>
+<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Node integration:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// In the control timer callback:</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">double</span> now_s <span class="op">=</span> <span class="kw">this</span><span class="op">-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">*</span> <span class="fl">1e-9</span><span class="op">;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="kw">auto</span> action <span class="op">=</span> <span class="va">fsm_</span><span class="op">.</span>step<span class="op">(</span><span class="va">odom_received_</span><span class="op">,</span> <span class="va">nav_state_</span><span class="op">,</span> <span class="va">arming_state_</span><span class="op">,</span> now_s<span class="op">);</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="cf">switch</span> <span class="op">(</span>action<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">case</span> FsmAction<span class="op">::</span>SetOffboardMode<span class="op">:</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    send_vehicle_command<span class="op">(</span><span class="va">cmd_pub_</span><span class="op">,</span> <span class="kw">this</span><span class="op">,</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>        VehicleCommand<span class="op">::</span>VEHICLE_CMD_DO_SET_MODE<span class="op">,</span> <span class="fl">1.0</span><span class="bu">f</span><span class="op">,</span> <span class="fl">6.0</span><span class="bu">f</span><span class="op">);</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">case</span> FsmAction<span class="op">::</span>ArmDisarm<span class="op">:</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    send_vehicle_command<span class="op">(</span><span class="va">cmd_pub_</span><span class="op">,</span> <span class="kw">this</span><span class="op">,</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        VehicleCommand<span class="op">::</span>VEHICLE_CMD_COMPONENT_ARM_DISARM<span class="op">,</span> <span class="fl">1.0</span><span class="bu">f</span><span class="op">,</span> <span class="fl">21196.0</span><span class="bu">f</span><span class="op">);</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">case</span> FsmAction<span class="op">::</span>None<span class="op">:</span> <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">// Gate actuator output on the dual check:</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="op">(</span><span class="va">fsm_</span><span class="op">.</span>armedAndOffboard<span class="op">(</span><span class="va">nav_state_</span><span class="op">,</span> <span class="va">arming_state_</span><span class="op">))</span> <span class="op">{</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    publish_actuator_setpoints<span class="op">();</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>param2 = 21196.0f</code> in the arm command is the force-arm magic number required when arming from a companion computer (bypasses some safety checks that require a physical RC switch). Use <code>0.0f</code> if you want the standard safety checks.</p>
+</div>
+</div>
+<p><strong>Warm-start observers on arm transition</strong> — run state estimators or observers open-loop while waiting for arm so they have converged state by the time the vehicle lifts off. Reset integrators from the current measurement on the first armed tick to avoid windup:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="op">(</span><span class="va">fsm_</span><span class="op">.</span>armedAndOffboard<span class="op">(</span><span class="va">nav_state_</span><span class="op">,</span> <span class="va">arming_state_</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="va">was_armed_</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    reset_observers_from_current_state<span class="op">();</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="va">was_armed_</span> <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Why keep the FSM ROS-free?</strong> The class only takes primitive types (<code>uint8_t</code>, <code>double</code>, <code>bool</code>). You can instantiate it in a plain GTest fixture with no <code>rclcpp::init</code> and drive it with synthetic status values — full branch coverage without a running ROS graph.</p>
+<hr>
+</section>
 <section id="takeoff-after-arming" class="level2">
 <h2 class="anchored" data-anchor-id="takeoff-after-arming">Takeoff after arming</h2>
 <p>After arming, the vehicle is on the ground with motors spinning at idle. Command a TrajectorySetpoint with a target altitude to begin the takeoff:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>px4_msgs<span class="op">::</span>msg<span class="op">::</span>TrajectorySetpoint traj<span class="op">{};</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>timestamp <span class="op">=</span> get_clock<span class="op">()-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">/</span> <span class="dv">1000</span><span class="op">;</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">/* NED frame: negative z = above ground */</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>position  <span class="op">=</span> <span class="op">{</span><span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span> <span class="op">-</span><span class="fl">2.0</span><span class="bu">f</span><span class="op">};</span>  <span class="co">// 2 m above ground</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>yaw       <span class="op">=</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">;</span>                  <span class="co">// North-facing</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="va">traj_pub_</span><span class="op">-&gt;</span>publish<span class="op">(</span>traj<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>px4_msgs<span class="op">::</span>msg<span class="op">::</span>TrajectorySetpoint traj<span class="op">{};</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>timestamp <span class="op">=</span> get_clock<span class="op">()-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">/</span> <span class="dv">1000</span><span class="op">;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">/* NED frame: negative z = above ground */</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>position  <span class="op">=</span> <span class="op">{</span><span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">,</span> <span class="op">-</span><span class="fl">2.0</span><span class="bu">f</span><span class="op">};</span>  <span class="co">// 2 m above ground</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>traj<span class="op">.</span>yaw       <span class="op">=</span> <span class="fl">0.0</span><span class="bu">f</span><span class="op">;</span>                  <span class="co">// North-facing</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="va">traj_pub_</span><span class="op">-&gt;</span>publish<span class="op">(</span>traj<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Use <code>OffboardControlMode</code> with <code>position = true</code> while climbing:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>position <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>velocity <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>attitude <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>position <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>velocity <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>mode_msg<span class="op">.</span>attitude <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Switch <code>OffboardControlMode</code> fields to match whichever control mode you activate once at altitude. See <a href="../../docs/control/low-level-control.html">Low-Level Offboard Control</a>.</p>
 <hr>
 </section>
@@ -761,15 +904,15 @@ Note
 <h2 class="anchored" data-anchor-id="safety-continuous-stream-requirement">Safety: continuous stream requirement</h2>
 <p>PX4 exits offboard mode if the <code>OffboardControlMode</code> stream stops for more than ~500 ms. It also disarms if the vehicle is commanded with zero throttle while on the ground in offboard mode for more than ~1 s.</p>
 <p>Keep two independent timers:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Heartbeat: 10 Hz is safe margin above the 2 Hz minimum</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="va">offboard_timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span><span class="dv">100</span><span class="bu">ms</span><span class="op">,</span> <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    publish_offboard_control_mode<span class="op">();</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="op">});</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Control output: 100 Hz</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="va">control_timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span><span class="dv">10</span><span class="bu">ms</span><span class="op">,</span> <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    publish_setpoint<span class="op">();</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="op">});</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Heartbeat: 10 Hz is safe margin above the 2 Hz minimum</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="va">offboard_timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span><span class="dv">100</span><span class="bu">ms</span><span class="op">,</span> <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    publish_offboard_control_mode<span class="op">();</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="op">});</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Control output: 100 Hz</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="va">control_timer_</span> <span class="op">=</span> create_wall_timer<span class="op">(</span><span class="dv">10</span><span class="bu">ms</span><span class="op">,</span> <span class="op">[</span><span class="kw">this</span><span class="op">]()</span> <span class="op">{</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    publish_setpoint<span class="op">();</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="op">});</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The timers are independent so a slow control computation does not starve the heartbeat.</p>
 <hr>
 </section>

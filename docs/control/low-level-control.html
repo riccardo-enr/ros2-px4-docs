@@ -351,7 +351,7 @@ window.Quarto = {
  <span class="dropdown-text">Bringup Package</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../../docs/setup/sitl-combined-launch.qmd">
+    <a class="dropdown-item" href="../../docs/setup/sitl-combined-launch.html">
  <span class="dropdown-text">One-Command SITL Launch</span></a>
   </li>  
     </ul>
@@ -385,11 +385,11 @@ window.Quarto = {
  <span class="dropdown-text">QoS Profiles</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../../docs/control/control-loop.qmd">
+    <a class="dropdown-item" href="../../docs/control/control-loop.html">
  <span class="dropdown-text">Control Loop Architecture</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../../docs/control/ros-parameters.qmd">
+    <a class="dropdown-item" href="../../docs/control/ros-parameters.html">
  <span class="dropdown-text">Node Parameters</span></a>
   </li>  
         <li>
@@ -491,8 +491,11 @@ window.Quarto = {
   </div>
 </li>
           <li class="sidebar-item">
- <span class="menu-text">docs/setup/sitl-combined-launch.qmd</span>
-  </li>
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/setup/sitl-combined-launch.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">One-Command SITL Launch</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -540,11 +543,17 @@ window.Quarto = {
   </div>
 </li>
           <li class="sidebar-item">
- <span class="menu-text">docs/control/control-loop.qmd</span>
-  </li>
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/control/control-loop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Control Loop Architecture</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
- <span class="menu-text">docs/control/ros-parameters.qmd</span>
-  </li>
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/control/ros-parameters.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Node Parameters</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../docs/control/frame-conventions.html" class="sidebar-item-text sidebar-link">
@@ -584,7 +593,10 @@ window.Quarto = {
   <li><a href="#offboardcontrolmode-heartbeat" id="toc-offboardcontrolmode-heartbeat" class="nav-link active" data-scroll-target="#offboardcontrolmode-heartbeat">OffboardControlMode heartbeat</a></li>
   <li><a href="#frame-conventions" id="toc-frame-conventions" class="nav-link" data-scroll-target="#frame-conventions">Frame conventions</a></li>
   <li><a href="#mode-1-attitude-setpoint" id="toc-mode-1-attitude-setpoint" class="nav-link" data-scroll-target="#mode-1-attitude-setpoint">Mode 1: Attitude setpoint</a></li>
-  <li><a href="#mode-2-thrust-torque-setpoint" id="toc-mode-2-thrust-torque-setpoint" class="nav-link" data-scroll-target="#mode-2-thrust-torque-setpoint">Mode 2: Thrust + torque setpoint</a></li>
+  <li><a href="#mode-2-thrust-torque-setpoint" id="toc-mode-2-thrust-torque-setpoint" class="nav-link" data-scroll-target="#mode-2-thrust-torque-setpoint">Mode 2: Thrust + torque setpoint</a>
+  <ul class="collapse">
+  <li><a href="#normalizing-thrust-and-torque" id="toc-normalizing-thrust-and-torque" class="nav-link" data-scroll-target="#normalizing-thrust-and-torque">Normalizing thrust and torque</a></li>
+  </ul></li>
   <li><a href="#mode-3-direct-actuator-commands" id="toc-mode-3-direct-actuator-commands" class="nav-link" data-scroll-target="#mode-3-direct-actuator-commands">Mode 3: Direct actuator commands</a></li>
   <li><a href="#control-allocation-wrench---throttles" id="toc-control-allocation-wrench---throttles" class="nav-link" data-scroll-target="#control-allocation-wrench---throttles">Control allocation (wrench -&gt; throttles)</a></li>
   <li><a href="#topic-map" id="toc-topic-map" class="nav-link" data-scroll-target="#topic-map">Topic map</a></li>
@@ -731,21 +743,55 @@ window.Quarto = {
 <span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>thrust_pub<span class="op">-&gt;</span>publish<span class="op">(</span>thrust_msg<span class="op">);</span></span>
 <span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>torque_pub<span class="op">-&gt;</span>publish<span class="op">(</span>torque_msg<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="normalizing-thrust-and-torque" class="level3">
+<h3 class="anchored" data-anchor-id="normalizing-thrust-and-torque">Normalizing thrust and torque</h3>
+<p><code>VehicleThrustSetpoint</code> and <code>VehicleTorqueSetpoint</code> expect values in <strong>[-1, 1]</strong> — they are fractions of the vehicle’s physical limits, not SI units. Divide by your platform’s maximum thrust and torque before publishing:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Physical limits (declare as ROS parameters, not magic numbers)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">double</span> thrust_max_N     <span class="op">=</span> declare_parameter<span class="op">(</span><span class="st">"thrust_max_N"</span><span class="op">,</span>  <span class="fl">32.7</span><span class="op">);</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">double</span> torque_max_phi   <span class="op">=</span> declare_parameter<span class="op">(</span><span class="st">"torque_max_phi"</span><span class="op">,</span>  <span class="fl">3.22</span><span class="op">);</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">double</span> torque_max_theta <span class="op">=</span> declare_parameter<span class="op">(</span><span class="st">"torque_max_theta"</span><span class="op">,</span> <span class="fl">2.22</span><span class="op">);</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">double</span> torque_max_psi   <span class="op">=</span> declare_parameter<span class="op">(</span><span class="st">"torque_max_psi"</span><span class="op">,</span>   <span class="fl">0.27</span><span class="op">);</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Normalize before publishing</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>thrust_msg<span class="op">.</span>xyz<span class="op">[</span><span class="dv">2</span><span class="op">]</span> <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">float</span><span class="op">&gt;(</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>clamp<span class="op">(-</span>T <span class="op">/</span> thrust_max_N<span class="op">,</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="fl">0.0</span><span class="op">));</span>          <span class="co">// upward only</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>torque_msg<span class="op">.</span>xyz<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">float</span><span class="op">&gt;(</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>clamp<span class="op">(</span>tau_phi   <span class="op">/</span> torque_max_phi<span class="op">,</span>   <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="fl">1.0</span><span class="op">));</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>torque_msg<span class="op">.</span>xyz<span class="op">[</span><span class="dv">1</span><span class="op">]</span> <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">float</span><span class="op">&gt;(</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>clamp<span class="op">(</span>tau_theta <span class="op">/</span> torque_max_theta<span class="op">,</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="fl">1.0</span><span class="op">));</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>torque_msg<span class="op">.</span>xyz<span class="op">[</span><span class="dv">2</span><span class="op">]</span> <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">float</span><span class="op">&gt;(</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>clamp<span class="op">(</span>tau_psi   <span class="op">/</span> torque_max_psi<span class="op">,</span>   <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="fl">1.0</span><span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Thrust <code>xyz[2]</code> is clamped to <code>[-1, 0]</code> — positive values (downward in NED) are rejected by PX4 for a multirotor. A common bug is forgetting to negate before clamping and saturating at 0 (zero thrust command).</p>
+</div>
+</div>
+<p>Find the x500 physical limits in <a href="../../docs/control/control-allocation.html">Control Allocation</a>.</p>
 <hr>
+</section>
 </section>
 <section id="mode-3-direct-actuator-commands" class="level2">
 <h2 class="anchored" data-anchor-id="mode-3-direct-actuator-commands">Mode 3: Direct actuator commands</h2>
 <p>Publish <code>ActuatorMotors</code> with per-motor throttles in [0, 1]. Unused slots must be <code>NaN</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>px4_msgs<span class="op">::</span>msg<span class="op">::</span>ActuatorMotors msg<span class="op">{};</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>msg<span class="op">.</span>control <span class="op">=</span> <span class="op">{</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">0</span><span class="op">],</span> <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">1</span><span class="op">],</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">2</span><span class="op">],</span> <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">3</span><span class="op">],</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">)</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>msg<span class="op">.</span>reversible_flags <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>msg<span class="op">.</span>timestamp <span class="op">=</span> msg<span class="op">.</span>timestamp_sample <span class="op">=</span> node<span class="op">-&gt;</span>get_clock<span class="op">()-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">/</span> <span class="dv">1000</span><span class="op">;</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>actuator_motors_pub<span class="op">-&gt;</span>publish<span class="op">(</span>msg<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>px4_msgs<span class="op">::</span>msg<span class="op">::</span>ActuatorMotors msg<span class="op">{};</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>msg<span class="op">.</span>control <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">0</span><span class="op">],</span> <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">1</span><span class="op">],</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">2</span><span class="op">],</span> <span class="op">(</span><span class="dt">float</span><span class="op">)</span> throttles<span class="op">[</span><span class="dv">3</span><span class="op">],</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">),</span> <span class="bu">std::</span>nanf<span class="op">(</span><span class="st">"1"</span><span class="op">)</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>msg<span class="op">.</span>reversible_flags <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>msg<span class="op">.</span>timestamp <span class="op">=</span> msg<span class="op">.</span>timestamp_sample <span class="op">=</span> node<span class="op">-&gt;</span>get_clock<span class="op">()-&gt;</span>now<span class="op">().</span>nanoseconds<span class="op">()</span> <span class="op">/</span> <span class="dv">1000</span><span class="op">;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>actuator_motors_pub<span class="op">-&gt;</span>publish<span class="op">(</span>msg<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -830,9 +876,9 @@ Warning
 <section id="switching-modes-at-runtime" class="level2">
 <h2 class="anchored" data-anchor-id="switching-modes-at-runtime">Switching modes at runtime</h2>
 <p>The control mode can be changed without restarting the node:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 2   <span class="co"># -&gt; thrust + torque</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 3   <span class="co"># -&gt; direct actuator</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 1   <span class="co"># -&gt; attitude (default)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 2   <span class="co"># -&gt; thrust + torque</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 3   <span class="co"># -&gt; direct actuator</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> param set /offboard_controller control_mode 1   <span class="co"># -&gt; attitude (default)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>OffboardControlMode</code> heartbeat automatically switches its active field on the next publish cycle.</p>
 
 

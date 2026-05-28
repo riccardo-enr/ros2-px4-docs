@@ -108,6 +108,114 @@
     ]
   },
   {
+    "objectID": "docs/control/control-loop.html",
+    "href": "docs/control/control-loop.html",
+    "title": "Control Loop Architecture",
+    "section": "",
+    "text": "This page documents the C++ patterns used across hosm_ros2_px4, uav_control, i_mppi_ros2_px4, and nmpc_ros2 for structuring the real-time control loop: timer setup, heartbeat separation, callback groups, state validity, and diagnostic logging.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#timer-setup",
+    "href": "docs/control/control-loop.html#timer-setup",
+    "title": "Control Loop Architecture",
+    "section": "Timer setup",
+    "text": "Timer setup\nThe control loop runs on a create_wall_timer at a fixed rate declared as a ROS parameter. Rate is loaded in the constructor after declare_parameter:\nclass ControllerNode : public rclcpp::Node {\npublic:\n    ControllerNode() : Node(\"controller\") {\n        declare_parameter(\"control_rate_hz\", 250.0);\n        const double rate = get_parameter(\"control_rate_hz\").as_double();\n\n        timer_ = create_wall_timer(\n            std::chrono::duration&lt;double&gt;(1.0 / rate),\n            [this]() { controlLoop(); });\n\n        RCLCPP_INFO(get_logger(), \"Control loop started at %.0f Hz\", rate);\n    }\n\nprivate:\n    void controlLoop() { /* ... */ }\n\n    rclcpp::TimerBase::SharedPtr timer_;\n};\nUse create_wall_timer (wall clock), not create_timer (ROS clock), for the control loop. The ROS clock pauses when use_sim_time:=true and the /clock topic stops — a paused timer will not tick, which can cause the offboard heartbeat to miss its deadline.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#separate-offboard-heartbeat-timer",
+    "href": "docs/control/control-loop.html#separate-offboard-heartbeat-timer",
+    "title": "Control Loop Architecture",
+    "section": "Separate offboard heartbeat timer",
+    "text": "Separate offboard heartbeat timer\nPX4 requires an OffboardControlMode message at &gt;= 2 Hz to stay in offboard mode. The control loop may run at 50–250 Hz, but publishing that message from inside controlLoop ties the heartbeat to control health. Use a separate timer running at ~10 Hz:\nControllerNode() : Node(\"controller\") {\n    // ... control timer setup ...\n\n    /* Heartbeat must arrive at &gt; 2 Hz — 10 Hz gives comfortable margin. */\n    heartbeat_timer_ = create_wall_timer(\n        std::chrono::milliseconds(100),\n        [this]() { publishOffboardControlMode(); });\n}\n\nvoid publishOffboardControlMode() {\n    px4_msgs::msg::OffboardControlMode msg;\n    msg.timestamp        = now().nanoseconds() / 1000;\n    msg.thrust_and_torque = true;   // set the flag for your control mode\n    offboard_pub_-&gt;publish(msg);\n}\n\nrclcpp::TimerBase::SharedPtr heartbeat_timer_;\nThis way the heartbeat continues even if controlLoop returns early due to a missing setpoint or invalid state.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#callback-groups-for-sensor-io",
+    "href": "docs/control/control-loop.html#callback-groups-for-sensor-io",
+    "title": "Control Loop Architecture",
+    "section": "Callback groups for sensor I/O",
+    "text": "Callback groups for sensor I/O\nBy default all callbacks run in a single-threaded executor. If a sensor callback takes too long it can delay the control timer. The pattern used in uav_control is a MutuallyExclusive callback group for sensor subscriptions, combined with a MultiThreadedExecutor in main:\nControllerNode() : Node(\"controller\") {\n    /* Sensor callbacks get their own group so they cannot block the timer. */\n    sensor_cbg_ = create_callback_group(\n        rclcpp::CallbackGroupType::MutuallyExclusive);\n\n    rclcpp::SubscriptionOptions sub_opts;\n    sub_opts.callback_group = sensor_cbg_;\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleLocalPosition&gt;(\n        \"/fmu/out/vehicle_local_position\",\n        rclcpp::QoS(5).best_effort(),\n        [this](const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {\n            state_manager_.update_position(*msg);\n        },\n        sub_opts);\n\n    // control timer uses the default callback group (single-threaded context)\n    timer_ = create_wall_timer(\n        std::chrono::milliseconds(4),\n        [this]() { controlLoop(); });\n}\n\nrclcpp::CallbackGroup::SharedPtr sensor_cbg_;\nmain.cpp with multi-threaded executor:\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    auto node = std::make_shared&lt;ControllerNode&gt;();\n\n    rclcpp::executors::MultiThreadedExecutor executor;\n    executor.add_node(node);\n    executor.spin();\n\n    rclcpp::shutdown();\n    return 0;\n}",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#state-validity-guard",
+    "href": "docs/control/control-loop.html#state-validity-guard",
+    "title": "Control Loop Architecture",
+    "section": "State validity guard",
+    "text": "State validity guard\nNever publish a setpoint before all state fields are populated and fresh. The StateManager pattern from uav_control/src/uav_px4_common guards both validity and staleness with a single is_valid() call:\ninclude/my_pkg/state_manager.hpp:\n#pragma once\n#include &lt;Eigen/Dense&gt;\n#include &lt;chrono&gt;\n#include &lt;mutex&gt;\n#include &lt;px4_msgs/msg/vehicle_local_position.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_attitude.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_angular_velocity.hpp&gt;\n\nclass StateManager {\npublic:\n    static constexpr int64_t STALE_THRESHOLD_MS = 500;\n\n    void update_position(const px4_msgs::msg::VehicleLocalPosition& msg) {\n        std::lock_guard&lt;std::mutex&gt; lock(mutex_);\n        if (msg.xy_valid && msg.z_valid) {\n            px_ = msg.x; py_ = msg.y; pz_ = msg.z;\n            pos_valid_ = true;\n        }\n        pos_time_ = Clock::now();\n    }\n\n    void update_attitude(const px4_msgs::msg::VehicleAttitude& msg) {\n        std::lock_guard&lt;std::mutex&gt; lock(mutex_);\n        /* PX4 VehicleAttitude.q: Hamilton [w, x, y, z] */\n        qw_ = msg.q[0]; qx_ = msg.q[1]; qy_ = msg.q[2]; qz_ = msg.q[3];\n        att_valid_ = true;\n        att_time_ = Clock::now();\n    }\n\n    bool is_valid() const {\n        std::lock_guard&lt;std::mutex&gt; lock(mutex_);\n        if (!pos_valid_ || !att_valid_) return false;\n\n        auto now = Clock::now();\n        auto ms = [&](TimePoint tp) {\n            return std::chrono::duration_cast&lt;std::chrono::milliseconds&gt;(\n                now - tp).count();\n        };\n        return ms(pos_time_) &lt; STALE_THRESHOLD_MS &&\n               ms(att_time_) &lt; STALE_THRESHOLD_MS;\n    }\n\nprivate:\n    using Clock     = std::chrono::steady_clock;\n    using TimePoint = Clock::time_point;\n\n    mutable std::mutex mutex_;\n    float px_ = 0, py_ = 0, pz_ = 0;\n    float qw_ = 1, qx_ = 0, qy_ = 0, qz_ = 0;\n    bool pos_valid_ = false, att_valid_ = false;\n    TimePoint pos_time_{}, att_time_{};\n};\nUse it at the top of controlLoop:\nvoid controlLoop() {\n    publishOffboardControlMode();  // heartbeat always runs\n\n    if (!state_manager_.is_valid()) return;\n    if (nav_state_ != px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD) return;\n\n    // safe to compute and publish setpoints here\n}\n\n\n\n\n\n\nNote\n\n\n\nVehicleLocalPosition carries PX4-internal validity flags (xy_valid, z_valid, v_xy_valid) that reflect EKF2 health. Respect them — position estimates can be numerically non-zero but still invalid after startup or a sensor dropout.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#throttled-logging",
+    "href": "docs/control/control-loop.html#throttled-logging",
+    "title": "Control Loop Architecture",
+    "section": "Throttled logging",
+    "text": "Throttled logging\nThree logging macros cover the control loop without spamming the terminal:\n// Once: print on the very first call (e.g. confirm first message arrived)\nRCLCPP_INFO_ONCE(get_logger(), \"First odometry received\");\n\n// On change: log state transitions without polling\nif (nav_state_ != prev_nav_state_) {\n    RCLCPP_INFO(get_logger(), \"nav_state changed: %u -&gt; %u\",\n                prev_nav_state_, nav_state_);\n    prev_nav_state_ = nav_state_;\n}\n\n// Throttled: telemetry at ~2 Hz from a 250 Hz loop (500 ms interval)\nRCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,\n    \"pos=(%.2f, %.2f, %.2f)  U=(%.3f, %.3f, %.3f, %.3f)\",\n    px_, py_, pz_, U[0], U[1], U[2], U[3]);\nThe 500 ms throttle interval gives ~2 Hz log output regardless of the control rate. Use 1000 ms for slower, less critical telemetry.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#debug-struct-pattern",
+    "href": "docs/control/control-loop.html#debug-struct-pattern",
+    "title": "Control Loop Architecture",
+    "section": "Debug struct pattern",
+    "text": "Debug struct pattern\nPass a debug struct by reference into computeControl instead of returning a large tuple or publishing individual topics:\nstruct ControlDebug {\n    double error_x = 0.0, error_y = 0.0, error_z = 0.0;\n    double surface_z = 0.0, surface_psi = 0.0;\n};\n\n// In controlLoop:\nControlDebug dbg;\nconst Eigen::Vector4d U = controller_-&gt;computeControl(state_, desired_, dbg);\n\nRCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,\n    \"err=(%.3f, %.3f, %.3f)  s=(%.3f, %.3f)\",\n    dbg.error_x, dbg.error_y, dbg.error_z,\n    dbg.surface_z, dbg.surface_psi);\nGate expensive debug output with a parameter:\ndeclare_parameter(\"debug_thrust_only\", false);\n\n// in controlLoop:\nif (get_parameter(\"debug_thrust_only\").as_bool()) {\n    torque_msg.xyz[0] = 0.0f;\n    torque_msg.xyz[1] = 0.0f;\n    torque_msg.xyz[2] = 0.0f;\n}",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#full-control-loop-skeleton",
+    "href": "docs/control/control-loop.html#full-control-loop-skeleton",
+    "title": "Control Loop Architecture",
+    "section": "Full control loop skeleton",
+    "text": "Full control loop skeleton\nPutting it all together — the pattern used in hosm_ros2_px4:\nvoid controlLoop() {\n    /* 1. Offboard heartbeat — always, even if we have no data. */\n    publishOffboardControlMode();\n\n    /* 2. Auto-arm state machine (optional). */\n    if (auto_arm_) updateArmStateMachine();\n\n    /* 3. Guard: wait for valid state and offboard mode. */\n    if (!odom_received_ || !setpoint_received_) return;\n    if (nav_state_ != px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD) return;\n\n    /* 4. Compute control output. */\n    ControlDebug dbg;\n    Eigen::Vector4d U_raw = controller_-&gt;computeControl(state_, desired_, dbg);\n\n    /* 5. Clamp to physical limits before normalizing. */\n    Eigen::Vector4d U;\n    U(0) = std::clamp(U_raw(0),  0.0, max_thrust_);\n    U(1) = std::clamp(U_raw(1), -max_torque_roll_,  max_torque_roll_);\n    U(2) = std::clamp(U_raw(2), -max_torque_pitch_, max_torque_pitch_);\n    U(3) = std::clamp(U_raw(3), -max_torque_yaw_,   max_torque_yaw_);\n\n    /* 6. Normalize to PX4 actuator range [-1, 1]. */\n    const float Tz  = static_cast&lt;float&gt;(-U(0) / max_thrust_);\n    const float tx  = static_cast&lt;float&gt;( U(1) / max_torque_roll_);\n    const float ty  = static_cast&lt;float&gt;( U(2) / max_torque_pitch_);\n    const float tz  = static_cast&lt;float&gt;( U(3) / max_torque_yaw_);\n\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,\n        \"U: T=%.2f  tau=(%.3f, %.3f, %.3f)  cmd: Tz=%.3f  t=(%.3f, %.3f, %.3f)\",\n        U(0), U(1), U(2), U(3), Tz, tx, ty, tz);\n\n    /* 7. Publish. Timestamp in microseconds (PX4 convention). */\n    auto thrust_msg = px4_msgs::msg::VehicleThrustSetpoint();\n    thrust_msg.timestamp = now().nanoseconds() / 1000;\n    thrust_msg.xyz[2]    = Tz;\n    thrust_pub_-&gt;publish(thrust_msg);\n\n    auto torque_msg = px4_msgs::msg::VehicleTorqueSetpoint();\n    torque_msg.timestamp = now().nanoseconds() / 1000;\n    torque_msg.xyz[0] = tx;\n    torque_msg.xyz[1] = ty;\n    torque_msg.xyz[2] = tz;\n    torque_pub_-&gt;publish(torque_msg);\n}\nSteps 1 and 3 are non-negotiable. Everything else adapts to your controller.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
+    "objectID": "docs/control/control-loop.html#ros-free-controller-architecture",
+    "href": "docs/control/control-loop.html#ros-free-controller-architecture",
+    "title": "Control Loop Architecture",
+    "section": "ROS-free controller architecture",
+    "text": "ROS-free controller architecture\nKeep your control algorithms in plain C++ classes with no ROS or px4_msgs headers. The ROS node becomes a thin wrapper that handles only I/O.\nThe rule: if a header needs #include &lt;rclcpp/rclcpp.hpp&gt;, it belongs in the node file, not in the algorithm.\nDirectory layout:\ninclude/my_pkg/\n  controller.hpp      // pure C++, no ROS\n  observer.hpp        // pure C++, no ROS\n  offboard_arm_fsm.hpp // pure C++, no ROS\nsrc/\n  controller.cpp\n  observer.cpp\n  controller_node.cpp  // only file with rclcpp includes\nWhat the algorithm class looks like:\n/* controller.hpp — no rclcpp, no px4_msgs */\n#pragma once\n#include &lt;Eigen/Dense&gt;\n\nstruct ControllerGains { double c, k1, k2; };\n\nclass MyController {\n public:\n  explicit MyController(ControllerGains g) : g_(g) {}\n\n  /* Returns SI output (force or torque, not normalized). */\n  double update(double x, double x_dot, double x_des, double x_dot_des,\n                double x_ddot_des, double dt);\n\n  void reset() { integrator_ = 0.0; }\n\n private:\n  ControllerGains g_;\n  double integrator_ = 0.0;\n};\nWhat the node does:\n/* controller_node.cpp — the only file with ROS includes */\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n// ...\n#include \"my_pkg/controller.hpp\"\n#include \"my_pkg/observer.hpp\"\n\nclass ControllerNode : public rclcpp::Node {\n public:\n  ControllerNode()\n      : Node(\"controller\"),\n        ctrl_(loadGains()),    // constructed from ROS params\n        obs_(loadObsGains()) {\n    // subscribe, advertise, create timer\n  }\n\n private:\n  MyController ctrl_;    // no ROS knowledge\n  MyObserver   obs_;\n\n  void controlLoop() {\n    // 1. unpack odometry into plain doubles\n    // 2. call ctrl_.update(...)\n    // 3. normalize and publish to PX4\n  }\n};\nWhy this pays off:\n\nUnit tests instantiate MyController directly — no rclcpp::init, no spinning, no mocked publishers. Run full convergence tests with hundreds of time steps in milliseconds.\nPortability — the same algorithm class compiles into a Gazebo plugin, a Python binding (via pybind11), or a micro-ROS node without changes.\nReadability — algorithm files contain only math; node files contain only plumbing. Neither is cluttered with the other.\n\nTesting without ROS:\n// test_controller.cpp — plain GTest, no rclcpp\n#include \"my_pkg/controller.hpp\"\n#include &lt;gtest/gtest.h&gt;\n\nTEST(ControllerTest, ConvergesOnConstantDisturbance) {\n  MyController ctrl({.c = 2.0, .k1 = 1.5, .k2 = 0.5});\n  double x = 0.0, xd = 1.0;\n  const double dt = 0.002;\n  for (int i = 0; i &lt; 5000; ++i) {\n    double u = ctrl.update(x, 0.0, xd, 0.0, 0.0, dt);\n    x += (u + 0.3) * dt;   // plant + constant disturbance\n  }\n  EXPECT_NEAR(x, xd, 0.01);\n}\nLink only the algorithm library in the test target — no ament_target_dependencies for rclcpp or px4_msgs needed.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Control Loop Architecture"
+    ]
+  },
+  {
     "objectID": "docs/control/low-level-control.html",
     "href": "docs/control/low-level-control.html",
     "title": "Low-Level Offboard Control",
@@ -160,7 +268,7 @@
     "href": "docs/control/low-level-control.html#mode-2-thrust-torque-setpoint",
     "title": "Low-Level Offboard Control",
     "section": "Mode 2: Thrust + torque setpoint",
-    "text": "Mode 2: Thrust + torque setpoint\nPublish separate VehicleThrustSetpoint and VehicleTorqueSetpoint messages. PX4 uses these directly — no attitude controller in the loop.\npx4_msgs::msg::VehicleThrustSetpoint thrust_msg{};\npx4_msgs::msg::VehicleTorqueSetpoint torque_msg{};\n\nuint64_t ts = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\nthrust_msg.timestamp = thrust_msg.timestamp_sample = ts;\ntorque_msg.timestamp = torque_msg.timestamp_sample = ts;\n\nthrust_msg.xyz[0] = 0.0;\nthrust_msg.xyz[1] = 0.0;\nthrust_msg.xyz[2] = -collective_thrust;   // NED sign\n\n// Rotate torque from controller FLU frame to FRD\nEigen::Vector3d tau_frd = rotateVectorFromToFRD_FLU(torque_flu);\ntorque_msg.xyz[0] = tau_frd.x();\ntorque_msg.xyz[1] = tau_frd.y();\ntorque_msg.xyz[2] = tau_frd.z();\n\nthrust_pub-&gt;publish(thrust_msg);\ntorque_pub-&gt;publish(torque_msg);",
+    "text": "Mode 2: Thrust + torque setpoint\nPublish separate VehicleThrustSetpoint and VehicleTorqueSetpoint messages. PX4 uses these directly — no attitude controller in the loop.\npx4_msgs::msg::VehicleThrustSetpoint thrust_msg{};\npx4_msgs::msg::VehicleTorqueSetpoint torque_msg{};\n\nuint64_t ts = node-&gt;get_clock()-&gt;now().nanoseconds() / 1000;\nthrust_msg.timestamp = thrust_msg.timestamp_sample = ts;\ntorque_msg.timestamp = torque_msg.timestamp_sample = ts;\n\nthrust_msg.xyz[0] = 0.0;\nthrust_msg.xyz[1] = 0.0;\nthrust_msg.xyz[2] = -collective_thrust;   // NED sign\n\n// Rotate torque from controller FLU frame to FRD\nEigen::Vector3d tau_frd = rotateVectorFromToFRD_FLU(torque_flu);\ntorque_msg.xyz[0] = tau_frd.x();\ntorque_msg.xyz[1] = tau_frd.y();\ntorque_msg.xyz[2] = tau_frd.z();\n\nthrust_pub-&gt;publish(thrust_msg);\ntorque_pub-&gt;publish(torque_msg);\n\nNormalizing thrust and torque\nVehicleThrustSetpoint and VehicleTorqueSetpoint expect values in [-1, 1] — they are fractions of the vehicle’s physical limits, not SI units. Divide by your platform’s maximum thrust and torque before publishing:\n// Physical limits (declare as ROS parameters, not magic numbers)\nconst double thrust_max_N     = declare_parameter(\"thrust_max_N\",  32.7);\nconst double torque_max_phi   = declare_parameter(\"torque_max_phi\",  3.22);\nconst double torque_max_theta = declare_parameter(\"torque_max_theta\", 2.22);\nconst double torque_max_psi   = declare_parameter(\"torque_max_psi\",   0.27);\n\n// Normalize before publishing\nthrust_msg.xyz[2] = static_cast&lt;float&gt;(\n    std::clamp(-T / thrust_max_N, -1.0, 0.0));          // upward only\n\ntorque_msg.xyz[0] = static_cast&lt;float&gt;(\n    std::clamp(tau_phi   / torque_max_phi,   -1.0, 1.0));\ntorque_msg.xyz[1] = static_cast&lt;float&gt;(\n    std::clamp(tau_theta / torque_max_theta, -1.0, 1.0));\ntorque_msg.xyz[2] = static_cast&lt;float&gt;(\n    std::clamp(tau_psi   / torque_max_psi,   -1.0, 1.0));\n\n\n\n\n\n\nWarning\n\n\n\nThrust xyz[2] is clamped to [-1, 0] — positive values (downward in NED) are rejected by PX4 for a multirotor. A common bug is forgetting to negate before clamping and saturating at 0 (zero thrust command).\n\n\nFind the x500 physical limits in Control Allocation.",
     "crumbs": [
       "Home",
       "Control",
@@ -408,6 +516,18 @@
     ]
   },
   {
+    "objectID": "docs/control/arming-offboard.html#production-fsm-pattern",
+    "href": "docs/control/arming-offboard.html#production-fsm-pattern",
+    "title": "Arming and Offboard Mode",
+    "section": "Production FSM pattern",
+    "text": "Production FSM pattern\nThe tick-counter approach above has two weaknesses: it fires the commands once and never retries, and it has no way to detect a mode flip or disarm after arming. A production controller should use a proper state machine.\nState sequence:\nWAITING_FOR_ODOM\n  -&gt; on first odometry:            PUBLISHING_OFFBOARD  (record t0)\nPUBLISHING_OFFBOARD\n  -&gt; after preamble (e.g. 2 s):   emit SetOffboardMode, REQUESTING_OFFBOARD\nREQUESTING_OFFBOARD\n  -&gt; nav_state == OFFBOARD:        emit ArmDisarm, REQUESTING_ARM\n  -&gt; every retry_s:                re-emit SetOffboardMode\nREQUESTING_ARM\n  -&gt; arming_state == ARMED:        ARMED\n  -&gt; every retry_s:                re-emit ArmDisarm\nARMED\n  -&gt; terminal\nWhy wait for odometry before publishing? PX4 will not enter offboard mode if it has not yet received a valid state estimate. Gating on first odometry receipt ensures EKF2 is up before the preamble starts.\nImplementation — keep the FSM ROS-free so it can be unit-tested without spinning a node. The node feeds it raw status fields; the FSM returns an action tag:\n/* offboard_arm_fsm.hpp — no rclcpp or px4_msgs includes */\nenum class ArmState {\n  WAITING_FOR_ODOM,\n  PUBLISHING_OFFBOARD,\n  REQUESTING_OFFBOARD,\n  REQUESTING_ARM,\n  ARMED,\n};\n\nenum class FsmAction { None, SetOffboardMode, ArmDisarm };\n\nclass OffboardArmFsm {\n public:\n  static constexpr uint8_t kNavStateOffboard  = 14;\n  static constexpr uint8_t kArmingStateArmed  = 2;\n\n  explicit OffboardArmFsm(double preamble_s = 2.0, double retry_s = 1.0)\n      : preamble_s_(preamble_s), retry_s_(retry_s) {}\n\n  FsmAction step(bool odom_received, uint8_t nav_state,\n                 uint8_t arming_state, double now_s) {\n    switch (state_) {\n      case ArmState::WAITING_FOR_ODOM:\n        if (odom_received) { state_ = ArmState::PUBLISHING_OFFBOARD;\n                             t0_ = now_s; }\n        return FsmAction::None;\n\n      case ArmState::PUBLISHING_OFFBOARD:\n        if (now_s - t0_ &gt;= preamble_s_) {\n          state_ = ArmState::REQUESTING_OFFBOARD;\n          last_req_ = now_s;\n          return FsmAction::SetOffboardMode;\n        }\n        return FsmAction::None;\n\n      case ArmState::REQUESTING_OFFBOARD:\n        if (nav_state == kNavStateOffboard) {\n          state_ = ArmState::REQUESTING_ARM;\n          last_req_ = now_s;\n          return FsmAction::ArmDisarm;\n        }\n        if (now_s - last_req_ &gt;= retry_s_) { last_req_ = now_s;\n                                              return FsmAction::SetOffboardMode; }\n        return FsmAction::None;\n\n      case ArmState::REQUESTING_ARM:\n        if (arming_state == kArmingStateArmed) {\n          state_ = ArmState::ARMED; return FsmAction::None;\n        }\n        if (now_s - last_req_ &gt;= retry_s_) { last_req_ = now_s;\n                                              return FsmAction::ArmDisarm; }\n        return FsmAction::None;\n\n      case ArmState::ARMED:\n        return FsmAction::None;\n    }\n    return FsmAction::None;\n  }\n\n  /* Use this as the gate for publishing actuator setpoints.\n   * Checks FSM state AND live status — a disarm or mode flip\n   * immediately closes the gate even if FSM is in ARMED. */\n  bool armedAndOffboard(uint8_t nav_state, uint8_t arming_state) const {\n    return state_ == ArmState::ARMED &&\n           nav_state    == kNavStateOffboard &&\n           arming_state == kArmingStateArmed;\n  }\n\n private:\n  double preamble_s_, retry_s_;\n  ArmState state_ = ArmState::WAITING_FOR_ODOM;\n  double t0_ = 0.0, last_req_ = 0.0;\n};\nNode integration:\n// In the control timer callback:\nconst double now_s = this-&gt;now().nanoseconds() * 1e-9;\nconst auto action = fsm_.step(odom_received_, nav_state_, arming_state_, now_s);\n\nswitch (action) {\n  case FsmAction::SetOffboardMode:\n    send_vehicle_command(cmd_pub_, this,\n        VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1.0f, 6.0f);\n    break;\n  case FsmAction::ArmDisarm:\n    send_vehicle_command(cmd_pub_, this,\n        VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0f, 21196.0f);\n    break;\n  case FsmAction::None: break;\n}\n\n// Gate actuator output on the dual check:\nif (fsm_.armedAndOffboard(nav_state_, arming_state_)) {\n    publish_actuator_setpoints();\n}\n\n\n\n\n\n\nNote\n\n\n\nparam2 = 21196.0f in the arm command is the force-arm magic number required when arming from a companion computer (bypasses some safety checks that require a physical RC switch). Use 0.0f if you want the standard safety checks.\n\n\nWarm-start observers on arm transition — run state estimators or observers open-loop while waiting for arm so they have converged state by the time the vehicle lifts off. Reset integrators from the current measurement on the first armed tick to avoid windup:\nif (fsm_.armedAndOffboard(nav_state_, arming_state_) && !was_armed_) {\n    reset_observers_from_current_state();\n    was_armed_ = true;\n}\nWhy keep the FSM ROS-free? The class only takes primitive types (uint8_t, double, bool). You can instantiate it in a plain GTest fixture with no rclcpp::init and drive it with synthetic status values — full branch coverage without a running ROS graph.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Arming and Offboard Mode"
+    ]
+  },
+  {
     "objectID": "docs/control/arming-offboard.html#takeoff-after-arming",
     "href": "docs/control/arming-offboard.html#takeoff-after-arming",
     "title": "Arming and Offboard Mode",
@@ -540,195 +660,159 @@
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html",
-    "href": "docs/setup/ros2-cpp-package.html",
-    "title": "C++ Node Package",
+    "objectID": "docs/setup/sitl-combined-launch.html",
+    "href": "docs/setup/sitl-combined-launch.html",
+    "title": "One-Command SITL Launch",
     "section": "",
-    "text": "A ROS 2 C++ package contains the compiled nodes that perform control, estimation, state machines, and any other compute-intensive logic. This page covers the minimal boilerplate to get a node building under colcon inside a pixi workspace.",
+    "text": "Every project needs a launch file that starts PX4 + the DDS agent + your ROS nodes in a single command. This page documents the pattern used across hosm_ros2_px4, i_mppi_ros2_px4, and uav_control.",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#directory-layout",
-    "href": "docs/setup/ros2-cpp-package.html#directory-layout",
-    "title": "C++ Node Package",
-    "section": "Directory layout",
-    "text": "Directory layout\nsrc/\n+-- my_pkg/\n    +-- include/\n    |   +-- my_pkg/\n    |       +-- controller.hpp\n    |       +-- estimator.hpp\n    +-- src/\n    |   +-- controller.cpp\n    |   +-- estimator.cpp\n    |   +-- main.cpp\n    +-- launch/\n    |   +-- node.launch.py          # minimal single-node launch\n    +-- CMakeLists.txt\n    +-- package.xml\nHeaders live under include/&lt;package_name&gt;/ so they resolve as #include \"my_pkg/controller.hpp\" from any downstream package.",
+    "objectID": "docs/setup/sitl-combined-launch.html#startup-sequence-and-why-order-matters",
+    "href": "docs/setup/sitl-combined-launch.html#startup-sequence-and-why-order-matters",
+    "title": "One-Command SITL Launch",
+    "section": "Startup sequence and why order matters",
+    "text": "Startup sequence and why order matters\nPX4 SITL takes 5–20 seconds to initialize EKF2 and advertise uORB topics. The DDS agent cannot subscribe to topics that PX4 has not yet announced. Your ROS nodes must not publish setpoints before the agent is connected.\nThe sequencing pattern used across repos:\nt=0s     PX4 SITL + Gazebo  (make px4_sitl &lt;model&gt;)\nt=5s     MicroXRCEAgent      (TimerAction)\nt=10s+   ROS controller node (TimerAction)\n\n\n\n\n\n\nWarning\n\n\n\nDo not use RegisterEventHandler(OnProcessStart) to trigger the agent after PX4 exits its startup function. PX4 prints its ready message before EKF2 and Gazebo finish initializing — the stdout signal is unreliable. Fixed delays are crude but they work consistently across machines.",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#package.xml",
-    "href": "docs/setup/ros2-cpp-package.html#package.xml",
-    "title": "C++ Node Package",
-    "section": "package.xml",
-    "text": "package.xml\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_pkg&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;Control and estimation nodes&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;!-- runtime + build: use &lt;depend&gt; for packages needed at both stages --&gt;\n  &lt;depend&gt;rclcpp&lt;/depend&gt;\n  &lt;depend&gt;rclcpp_components&lt;/depend&gt;\n  &lt;depend&gt;std_msgs&lt;/depend&gt;\n  &lt;depend&gt;geometry_msgs&lt;/depend&gt;\n  &lt;depend&gt;nav_msgs&lt;/depend&gt;\n  &lt;depend&gt;px4_msgs&lt;/depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;\nUse &lt;depend&gt; (not &lt;build_depend&gt; + &lt;exec_depend&gt;) for libraries needed at both build and runtime — which covers most ROS packages.",
+    "objectID": "docs/setup/sitl-combined-launch.html#minimal-combined-launch-file",
+    "href": "docs/setup/sitl-combined-launch.html#minimal-combined-launch-file",
+    "title": "One-Command SITL Launch",
+    "section": "Minimal combined launch file",
+    "text": "Minimal combined launch file\nlaunch/sitl.launch.py — used in hosm_ros2_px4 and i_mppi_ros2_px4:\nimport os\nimport yaml\nfrom ament_index_python.packages import get_package_share_directory\nfrom launch import LaunchDescription\nfrom launch.actions import (\n    DeclareLaunchArgument,\n    ExecuteProcess,\n    LogInfo,\n    TimerAction,\n)\nfrom launch.conditions import IfCondition\nfrom launch.substitutions import LaunchConfiguration\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    pkg_dir = get_package_share_directory(\"my_pkg\")\n    default_params = os.path.join(pkg_dir, \"config\", \"params.yaml\")\n\n    # ── Load defaults from sidecar YAML (see below) ─────────────────\n    cfg_path = os.path.join(pkg_dir, \"config\", \"sitl_launch.yaml\")\n    with open(cfg_path) as f:\n        cfg = yaml.safe_load(f)\n\n    def _s(key, fallback=\"\"):\n        v = cfg.get(key, fallback)\n        if isinstance(v, bool):\n            return \"true\" if v else \"false\"\n        return str(v)\n\n    px4_dir_default = os.path.expanduser(_s(\"px4_dir\", \"~/PX4-Autopilot\"))\n\n    # ── Arguments ────────────────────────────────────────────────────\n    args = [\n        DeclareLaunchArgument(\"params_file\",      default_value=default_params),\n        DeclareLaunchArgument(\"use_sim_time\",      default_value=_s(\"use_sim_time\", \"true\")),\n        DeclareLaunchArgument(\"px4_sitl\",          default_value=_s(\"px4_sitl\", \"true\")),\n        DeclareLaunchArgument(\"px4_dir\",           default_value=px4_dir_default),\n        DeclareLaunchArgument(\"px4_model\",         default_value=_s(\"px4_model\", \"gz_x500\")),\n        DeclareLaunchArgument(\"px4_world\",         default_value=_s(\"px4_world\", \"\")),\n        DeclareLaunchArgument(\"dds_agent\",         default_value=_s(\"dds_agent\", \"true\")),\n        DeclareLaunchArgument(\"dds_port\",          default_value=_s(\"dds_port\", \"8888\")),\n        DeclareLaunchArgument(\"delay_dds\",         default_value=_s(\"delay_dds\", \"5.0\")),\n        DeclareLaunchArgument(\"delay_controller\",  default_value=_s(\"delay_controller\", \"10.0\")),\n        DeclareLaunchArgument(\"rviz\",              default_value=_s(\"rviz\", \"false\")),\n    ]\n\n    # ── PX4 SITL + Gazebo ────────────────────────────────────────────\n    px4_sitl = ExecuteProcess(\n        cmd=[\"make\", \"px4_sitl\", LaunchConfiguration(\"px4_model\")],\n        cwd=LaunchConfiguration(\"px4_dir\"),\n        additional_env={\"PX4_GZ_WORLD\": LaunchConfiguration(\"px4_world\")},\n        output=\"screen\",\n        condition=IfCondition(LaunchConfiguration(\"px4_sitl\")),\n    )\n\n    # ── Micro XRCE-DDS Agent ─────────────────────────────────────────\n    dds_agent = TimerAction(\n        period=LaunchConfiguration(\"delay_dds\"),\n        actions=[\n            ExecuteProcess(\n                cmd=[\"MicroXRCEAgent\", \"udp4\", \"-p\", LaunchConfiguration(\"dds_port\")],\n                output=\"screen\",\n                condition=IfCondition(LaunchConfiguration(\"dds_agent\")),\n            ),\n        ],\n    )\n\n    # ── Controller node ───────────────────────────────────────────────\n    controller = TimerAction(\n        period=LaunchConfiguration(\"delay_controller\"),\n        actions=[\n            Node(\n                package=\"my_pkg\",\n                executable=\"controller_node\",\n                name=\"controller\",\n                output=\"screen\",\n                parameters=[\n                    LaunchConfiguration(\"params_file\"),\n                    {\"use_sim_time\": LaunchConfiguration(\"use_sim_time\")},\n                ],\n            ),\n        ],\n    )\n\n    return LaunchDescription([\n        *args,\n        LogInfo(msg=\"Starting PX4 SITL stack...\"),\n        px4_sitl,\n        dds_agent,\n        controller,\n    ])",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#cmakelists.txt",
-    "href": "docs/setup/ros2-cpp-package.html#cmakelists.txt",
-    "title": "C++ Node Package",
-    "section": "CMakeLists.txt",
-    "text": "CMakeLists.txt\ncmake_minimum_required(VERSION 3.8)\nproject(my_pkg)\n\nif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES \"Clang\")\n  add_compile_options(-Wall -Wextra -Wpedantic)\nendif()\n\n# --- dependencies ---\nfind_package(ament_cmake REQUIRED)\nfind_package(rclcpp REQUIRED)\nfind_package(rclcpp_components REQUIRED)\nfind_package(std_msgs REQUIRED)\nfind_package(geometry_msgs REQUIRED)\nfind_package(nav_msgs REQUIRED)\nfind_package(px4_msgs REQUIRED)\nfind_package(Eigen3 REQUIRED)\n\n# --- shared library (enables composable-node registration) ---\nadd_library(${PROJECT_NAME} SHARED\n  src/controller.cpp\n  src/estimator.cpp\n)\n\ntarget_include_directories(${PROJECT_NAME} PUBLIC\n  $&lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;\n  $&lt;INSTALL_INTERFACE:include&gt;\n  ${EIGEN3_INCLUDE_DIR}\n)\n\ntarget_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)\n\nament_target_dependencies(${PROJECT_NAME}\n  rclcpp\n  rclcpp_components\n  std_msgs\n  geometry_msgs\n  nav_msgs\n  px4_msgs\n)\n\n# --- register composable nodes ---\nrclcpp_components_register_node(${PROJECT_NAME}\n  PLUGIN \"my_pkg::Controller\"\n  EXECUTABLE controller_node\n)\n\nrclcpp_components_register_node(${PROJECT_NAME}\n  PLUGIN \"my_pkg::Estimator\"\n  EXECUTABLE estimator_node\n)\n\n# --- install ---\ninstall(TARGETS ${PROJECT_NAME}\n  ARCHIVE DESTINATION lib\n  LIBRARY DESTINATION lib\n  RUNTIME DESTINATION bin\n)\n\ninstall(DIRECTORY include/ DESTINATION include)\ninstall(DIRECTORY launch   DESTINATION share/${PROJECT_NAME})\n\nament_package()\n\n\n\n\n\n\nNote\n\n\n\nBuilding as a shared library and using rclcpp_components_register_node lets the bringup package load nodes in a ComponentContainer without spawning separate processes. The EXECUTABLE argument also produces a standalone binary for direct ros2 run use.",
+    "objectID": "docs/setup/sitl-combined-launch.html#sidecar-configuration-file",
+    "href": "docs/setup/sitl-combined-launch.html#sidecar-configuration-file",
+    "title": "One-Command SITL Launch",
+    "section": "Sidecar configuration file",
+    "text": "Sidecar configuration file\nKeep per-machine settings out of the launch file in a sidecar YAML. Launch arguments fall back to these values; any can be overridden on the CLI.\nconfig/sitl_launch.yaml — pattern from i_mppi_ros2_px4:\n# ── Simulation ──────────────────────────────────────────────────────\npx4_sitl: \"true\"\npx4_dir:  \"~/px4/my-px4\"\npx4_model: \"gz_x500\"\npx4_world: \"\"               # empty = PX4 default world\n\nuse_sim_time: \"true\"\n\n# ── Communication ───────────────────────────────────────────────────\ndds_agent: \"true\"\ndds_port:  \"8888\"\n\n# ── Startup delays (seconds) ────────────────────────────────────────\ndelay_dds:        \"5.0\"    # wait for PX4 to start uORB\ndelay_controller: \"10.0\"   # wait for DDS bridge to connect\n\n# ── Visualisation ───────────────────────────────────────────────────\nrviz: \"false\"",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#node-boilerplate-c",
-    "href": "docs/setup/ros2-cpp-package.html#node-boilerplate-c",
-    "title": "C++ Node Package",
-    "section": "Node boilerplate (C++)",
-    "text": "Node boilerplate (C++)\n\nHeader — include/my_pkg/controller.hpp\n#pragma once\n\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;geometry_msgs/msg/pose_stamped.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n#include &lt;px4_msgs/msg/trajectory_setpoint.hpp&gt;\n\nnamespace my_pkg {\n\nclass Controller : public rclcpp::Node {\npublic:\n    explicit Controller(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());\n\nprivate:\n    void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);\n    void setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);\n\n    rclcpp::Subscription&lt;px4_msgs::msg::VehicleOdometry&gt;::SharedPtr odom_sub_;\n    rclcpp::Subscription&lt;geometry_msgs::msg::PoseStamped&gt;::SharedPtr setpoint_sub_;\n    rclcpp::Publisher&lt;px4_msgs::msg::TrajectorySetpoint&gt;::SharedPtr cmd_pub_;\n    rclcpp::TimerBase::SharedPtr timer_;\n};\n\n}  // namespace my_pkg\n\n\nImplementation — src/controller.cpp\n#include \"my_pkg/controller.hpp\"\n#include &lt;rclcpp/qos.hpp&gt;\n\nnamespace my_pkg {\n\nController::Controller(const rclcpp::NodeOptions& options)\n: Node(\"controller\", options)\n{\n    /* PX4 uORB topics require BEST_EFFORT QoS -- see QoS Profiles page. */\n    auto px4_qos = rclcpp::QoS(10).best_effort();\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n        \"/fmu/out/vehicle_odometry\", px4_qos,\n        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {\n            odom_callback(msg);\n        });\n\n    setpoint_sub_ = create_subscription&lt;geometry_msgs::msg::PoseStamped&gt;(\n        \"~/setpoint\", rclcpp::QoS(1),\n        [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {\n            setpoint_callback(msg);\n        });\n\n    cmd_pub_ = create_publisher&lt;px4_msgs::msg::TrajectorySetpoint&gt;(\n        \"/fmu/in/trajectory_setpoint\", px4_qos);\n\n    /* declare parameters with defaults */\n    declare_parameter(\"control_rate_hz\", 50.0);\n    double rate = get_parameter(\"control_rate_hz\").as_double();\n\n    timer_ = create_wall_timer(\n        std::chrono::duration&lt;double&gt;(1.0 / rate),\n        [this]() { /* run control loop */ });\n}\n\nvoid Controller::odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)\n{\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,\n        \"pos: [%.2f, %.2f, %.2f]\",\n        msg-&gt;position[0], msg-&gt;position[1], msg-&gt;position[2]);\n}\n\nvoid Controller::setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr /*msg*/)\n{\n    /* store latest goal */\n}\n\n}  // namespace my_pkg\n\n/* composable-node entry point (used by ComponentContainer) */\n#include \"rclcpp_components/register_node_macro.hpp\"\nRCLCPP_COMPONENTS_REGISTER_NODE(my_pkg::Controller)\n\n\nStandalone entry point — src/main.cpp\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include \"my_pkg/controller.hpp\"\n\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    rclcpp::spin(std::make_shared&lt;my_pkg::Controller&gt;());\n    rclcpp::shutdown();\n    return 0;\n}",
+    "objectID": "docs/setup/sitl-combined-launch.html#environment-variables-for-px4-sitl",
+    "href": "docs/setup/sitl-combined-launch.html#environment-variables-for-px4-sitl",
+    "title": "One-Command SITL Launch",
+    "section": "Environment variables for PX4 SITL",
+    "text": "Environment variables for PX4 SITL\nPass Gazebo customization via additional_env — the full set used in uav_control/src/uav_bringup:\nfrom launch.substitutions import PythonExpression\n\npx4_sitl = ExecuteProcess(\n    cmd=[\"make\", \"px4_sitl\", LaunchConfiguration(\"px4_model\")],\n    cwd=LaunchConfiguration(\"px4_dir\"),\n    additional_env={\n        # Gazebo world (e.g. \"cyberzoo\", \"baylands\"). Empty = PX4 default.\n        \"PX4_GZ_WORLD\": LaunchConfiguration(\"px4_world\"),\n\n        # Spawn pose: \"x,y,z,roll,pitch,yaw\" in metres/radians.\n        \"PX4_GZ_MODEL_POSE\": LaunchConfiguration(\"px4_pose\"),\n\n        # Run Gazebo headless (no GUI).\n        \"HEADLESS\": PythonExpression(\n            [\"'1' if '\", LaunchConfiguration(\"headless\"), \"' == 'true' else '0'\"]\n        ),\n    },\n    output=\"screen\",\n    condition=IfCondition(LaunchConfiguration(\"px4_sitl\")),\n)\n\n\n\n\n\n\n\nVariable\nEffect\n\n\n\n\nPX4_GZ_WORLD\nGazebo world name (must exist under Tools/simulation/gz/worlds/)\n\n\nPX4_GZ_MODEL_POSE\nInitial spawn pose: x,y,z,roll,pitch,yaw\n\n\nHEADLESS\n1 disables the Gazebo GUI window\n\n\n\n\n\n\n\n\n\nTip\n\n\n\nTo use a custom world, symlink it into the PX4 worlds directory:\nln -sfn /path/to/my_world.sdf ~/px4/my-px4/Tools/simulation/gz/worlds/\nThe uav_control repo automates this with a pixi link-worlds task (see below).",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#minimal-launch-file",
-    "href": "docs/setup/ros2-cpp-package.html#minimal-launch-file",
-    "title": "C++ Node Package",
-    "section": "Minimal launch file",
-    "text": "Minimal launch file\nThis launch file lives in the node package itself and is only used for quick manual testing. For full system bringup see the Bringup Package page.\nlaunch/node.launch.py:\nfrom launch import LaunchDescription\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        Node(\n            package=\"my_pkg\",\n            executable=\"controller_node\",\n            name=\"controller\",\n            output=\"screen\",\n        ),\n    ])",
+    "objectID": "docs/setup/sitl-combined-launch.html#sitl-vs-sil-branching-with-opaquefunction",
+    "href": "docs/setup/sitl-combined-launch.html#sitl-vs-sil-branching-with-opaquefunction",
+    "title": "One-Command SITL Launch",
+    "section": "SITL vs SIL branching with OpaqueFunction",
+    "text": "SITL vs SIL branching with OpaqueFunction\nWhen a project supports both full SITL (PX4 + Gazebo) and a lightweight software-in-the-loop simulator, use OpaqueFunction to branch at launch time. Pattern from uav_control/src/uav_bringup/launch/sim_base.launch.py:\nfrom launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction\nfrom launch.launch_description_sources import PythonLaunchDescriptionSource\n\n\ndef _launch_setup(context):\n    simulator = context.launch_configurations[\"simulator\"]\n    bringup_dir = get_package_share_directory(\"my_bringup\")\n    actions = []\n\n    if simulator == \"sitl\":\n        actions.append(\n            IncludeLaunchDescription(\n                PythonLaunchDescriptionSource(\n                    os.path.join(bringup_dir, \"launch\", \"sitl.launch.py\")\n                ),\n                launch_arguments={\n                    \"px4_model\": context.launch_configurations.get(\"px4_model\", \"gz_x500\"),\n                    \"px4_world\": context.launch_configurations.get(\"px4_world\", \"\"),\n                    \"use_sim_time\": context.launch_configurations.get(\"use_sim_time\", \"true\"),\n                }.items(),\n            )\n        )\n    elif simulator == \"sil\":\n        # lightweight dynamics-only simulator — no PX4, no Gazebo\n        actions.append(\n            Node(package=\"uav_simulator\", executable=\"uav_simulator_node\", output=\"screen\")\n        )\n    else:\n        raise ValueError(f\"Unknown simulator '{simulator}'. Use 'sitl' or 'sil'.\")\n\n    return actions\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        DeclareLaunchArgument(\n            \"simulator\",\n            default_value=\"sitl\",\n            choices=[\"sitl\", \"sil\"],\n            description=\"Simulator backend\",\n        ),\n        OpaqueFunction(function=_launch_setup),\n    ])\nOpaqueFunction defers evaluation until after all arguments are resolved. The context.launch_configurations dict contains the fully-resolved string values of every declared argument.",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#building-and-running",
-    "href": "docs/setup/ros2-cpp-package.html#building-and-running",
-    "title": "C++ Node Package",
-    "section": "Building and running",
-    "text": "Building and running\n# build all packages under src/\npixi run build\n\n# standalone binary\npixi run -- ros2 run my_pkg controller_node\n\n# or via launch file\npixi run -- ros2 launch my_pkg node.launch.py\nAfter editing source files re-run pixi run build. Python and resource files installed with --symlink-install update without a rebuild; C++ sources always require a rebuild.",
+    "objectID": "docs/setup/sitl-combined-launch.html#topic-remappings",
+    "href": "docs/setup/sitl-combined-launch.html#topic-remappings",
+    "title": "One-Command SITL Launch",
+    "section": "Topic remappings",
+    "text": "Topic remappings\nROS node topics are wired up via remappings in the Node action rather than inside the C++ source. This lets the same binary work across different namespacing schemes:\nNode(\n    package=\"my_pkg\",\n    executable=\"controller_node\",\n    name=\"controller\",\n    parameters=[...],\n    remappings=[\n        # relative private topic -&gt; absolute FMU topic\n        (\"~/setpoint\",   \"/controller/trajectory_setpoint\"),\n        # absolute FMU topics (explicit, documents the interface)\n        (\"/fmu/in/trajectory_setpoint\",    \"/fmu/in/trajectory_setpoint\"),\n        (\"/fmu/in/offboard_control_mode\",  \"/fmu/in/offboard_control_mode\"),\n        (\"/fmu/in/vehicle_command\",        \"/fmu/in/vehicle_command\"),\n        (\"/fmu/out/vehicle_odometry\",      \"/fmu/out/vehicle_odometry\"),\n        (\"/fmu/out/vehicle_status_v1\",     \"/fmu/out/vehicle_status_v1\"),\n    ],\n)",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/ros2-cpp-package.html#adding-a-new-node",
-    "href": "docs/setup/ros2-cpp-package.html#adding-a-new-node",
-    "title": "C++ Node Package",
-    "section": "Adding a new node",
-    "text": "Adding a new node\n\nAdd the header under include/my_pkg/.\nAdd the source file under src/.\nRegister it in CMakeLists.txt with rclcpp_components_register_node.\nRun pixi run build.",
+    "objectID": "docs/setup/sitl-combined-launch.html#pixi-tasks",
+    "href": "docs/setup/sitl-combined-launch.html#pixi-tasks",
+    "title": "One-Command SITL Launch",
+    "section": "Pixi tasks",
+    "text": "Pixi tasks\nDefine tasks in pixi.toml so the full stack launches with one command. Pattern from hosm_ros2_px4 and uav_control:\n[tasks]\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\nclean = \"rm -rf build install log\"\n\n# Full stack: PX4 + DDS agent + controller\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\", depends-on = [\"build\"] }\n\n# ROS nodes only — run PX4 + DDS agent externally\nlaunch-node = { cmd = \"ros2 launch my_bringup sitl.launch.py px4_sitl:=false dds_agent:=false\", depends-on = [\"build\"] }\n\n# Lightweight simulator (no PX4)\nlaunch-sil = { cmd = \"ros2 launch my_bringup sitl.launch.py simulator:=sil\", depends-on = [\"build\"] }\n\n# Symlink custom Gazebo worlds/models into PX4 (run once after cloning)\nlink-worlds = \"\"\"\nbash -c '\nPX4_WORLDS=~/px4/my-px4/Tools/simulation/gz/worlds\nPX4_MODELS=~/px4/my-px4/Tools/simulation/gz/models\nmkdir -p \"$PX4_WORLDS\" \"$PX4_MODELS\"\nfor f in $(pwd)/extern/gz_scenes/worlds/*; do ln -sfn \"$f\" \"$PX4_WORLDS/$(basename $f)\"; done\nfor d in $(pwd)/extern/gz_scenes/models/*/; do ln -sfn \"$d\" \"$PX4_MODELS/$(basename $d)\"; done\n'\n\"\"\"\nUsage:\npixi run launch                          # full SITL stack\npixi run launch-node                     # nodes only (PX4 + agent already running)\npixi run launch -- px4_world:=cyberzoo  # override any launch arg\npixi run link-worlds                     # one-time world/model setup",
     "crumbs": [
       "Home",
       "Setup",
-      "C++ Node Package"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html",
-    "href": "docs/setup/workspace-setup.html",
-    "title": "Workspace Setup",
-    "section": "",
-    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "objectID": "docs/setup/sitl-combined-launch.html#common-cli-overrides",
+    "href": "docs/setup/sitl-combined-launch.html#common-cli-overrides",
+    "title": "One-Command SITL Launch",
+    "section": "Common CLI overrides",
+    "text": "Common CLI overrides\n# Custom world and spawn location\nros2 launch my_bringup sitl.launch.py \\\n  px4_world:=cyberzoo \\\n  px4_model:=gz_x500_depth \\\n  delay_controller:=20.0\n\n# Headless (CI / SSH)\nros2 launch my_bringup sitl.launch.py headless:=true rviz:=false\n\n# Separate terminals workflow: PX4 and DDS agent already running\nros2 launch my_bringup sitl.launch.py px4_sitl:=false dds_agent:=false",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#project-structure",
-    "href": "docs/setup/workspace-setup.html#project-structure",
-    "title": "Workspace Setup",
-    "section": "Project structure",
-    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "objectID": "docs/setup/sitl-combined-launch.html#scenario-yaml-override",
+    "href": "docs/setup/sitl-combined-launch.html#scenario-yaml-override",
+    "title": "One-Command SITL Launch",
+    "section": "Scenario YAML override",
+    "text": "Scenario YAML override\nWhen running parameter sweeps or multiple trajectory experiments, bake each configuration into a YAML file and load it at launch time with an OpaqueFunction. This lets a single launch file support many scenarios without extra arguments.\nconfig/scenarios/circular.yaml:\ncontroller: hosm\nparams_file: \"\"          # empty = use per-controller default\nduration: 120.0\ntrajectory:\n  type: circular\n  amplitude: 2.0\n  omega: 0.2\n  z: -4.0\n  yaw: 0.0\n  yaw_mode: forward\nLaunch file snippet:\nfrom launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration\nimport yaml\n\ndef _load_scenario(context, *_):\n    path = context.launch_configurations.get(\"scenario\", \"\")\n    if not path:\n        return []\n    with open(path) as f:\n        cfg = yaml.safe_load(f)\n    traj = cfg.get(\"trajectory\", {})\n    overrides = {\n        \"controller\":      cfg.get(\"controller\"),\n        \"params_file\":     cfg.get(\"params_file\"),\n        \"duration\":        cfg.get(\"duration\"),\n        \"trajectory_type\": traj.get(\"type\"),\n        \"amplitude\":       traj.get(\"amplitude\"),\n        \"omega\":           traj.get(\"omega\"),\n        \"z\":               traj.get(\"z\"),\n        \"yaw_mode\":        traj.get(\"yaw_mode\"),\n    }\n    return [\n        SetLaunchConfiguration(k, str(v))\n        for k, v in overrides.items()\n        if v is not None\n    ]\n\n# In generate_launch_description():\nDeclareLaunchArgument(\"scenario\", default_value=\"\",\n    description=\"Path to a scenario YAML. Overrides all trajectory args.\"),\nOpaqueFunction(function=_load_scenario),\nSetLaunchConfiguration overwrites an existing argument value at runtime. It must be evaluated before any action that reads those configurations, so place the OpaqueFunction early in the LaunchDescription list.\nUsage:\nros2 launch my_bringup sitl.launch.py \\\n    scenario:=config/scenarios/circular.yaml",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
-    "href": "docs/setup/workspace-setup.html#pixi.toml",
-    "title": "Workspace Setup",
-    "section": "pixi.toml",
-    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "objectID": "docs/setup/sitl-combined-launch.html#auto-shutdown-with-timed-duration",
+    "href": "docs/setup/sitl-combined-launch.html#auto-shutdown-with-timed-duration",
+    "title": "One-Command SITL Launch",
+    "section": "Auto-shutdown with timed duration",
+    "text": "Auto-shutdown with timed duration\nFor automated evaluation runs, add a duration argument that shuts down the entire launch after a fixed number of seconds:\nfrom launch.actions import EmitEvent, TimerAction\nfrom launch.conditions import IfCondition\nfrom launch.events import Shutdown\nfrom launch.substitutions import LaunchConfiguration, PythonExpression\n\nDeclareLaunchArgument(\"duration\", default_value=\"0.0\",\n    description=\"If &gt; 0, shut down after this many seconds\"),\n\nauto_shutdown = TimerAction(\n    period=LaunchConfiguration(\"duration\"),\n    actions=[EmitEvent(event=Shutdown(reason=\"duration elapsed\"))],\n    condition=IfCondition(\n        PythonExpression([\"float('\", LaunchConfiguration(\"duration\"), \"') &gt; 0.0\"])\n    ),\n)\nEmitEvent(Shutdown) triggers a clean ROS 2 shutdown, which fires all OnShutdown handlers (bag recording, post-processing, process cleanup) before the launch exits.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
-    "href": "docs/setup/workspace-setup.html#workspace-activation",
-    "title": "Workspace Setup",
-    "section": "Workspace activation",
-    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "objectID": "docs/setup/sitl-combined-launch.html#shutdown-cleanup-for-px4-and-gazebo",
+    "href": "docs/setup/sitl-combined-launch.html#shutdown-cleanup-for-px4-and-gazebo",
+    "title": "One-Command SITL Launch",
+    "section": "Shutdown cleanup for PX4 and Gazebo",
+    "text": "Shutdown cleanup for PX4 and Gazebo\nPX4, Gazebo, and the DDS agent do not terminate when the launch file exits — they leave zombie processes that block ports and prevent the next run. Register an OnShutdown handler to kill them:\nfrom launch.actions import ExecuteProcess, RegisterEventHandler\nfrom launch.event_handlers import OnShutdown\n\ngz_cleanup = RegisterEventHandler(\n    OnShutdown(\n        on_shutdown=[\n            ExecuteProcess(\n                cmd=[\n                    \"bash\", \"-c\",\n                    \"pkill -9 -f px4; \"\n                    \"pkill -9 -f gz-server; \"\n                    \"pkill -9 -f gz-sim; \"\n                    \"pkill -9 -f gzserver; \"\n                    \"pkill -9 -f MicroXRCEAgent; \"\n                    \"true\",   # suppress non-zero exit if processes are not running\n                ],\n                output=\"screen\",\n            )\n        ]\n    )\n)\nAlways add gz_cleanup to the LaunchDescription. The true at the end ensures the cleanup ExecuteProcess exits 0 even when some processes were not running.",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
+      "One-Command SITL Launch"
     ]
   },
   {
-    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
-    "title": "Workspace Setup",
-    "section": "PX4 message definitions (submodule)",
-    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.\n\n\n\n\nVersioned topic names\nFrom PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is VehicleStatus, which moved from:\n/fmu/out/vehicle_status      # pre-v1.14\n/fmu/out/vehicle_status_v1   # v1.14+\nIf your subscriber listens on the wrong topic name it receives no data at all — the subscription simply never fires. Auto-arming logic that waits for arming_state == ARMING_STATE_ARMED blocks forever, and the vehicle never arms.\nThe fix is to subscribe to the versioned topic:\n// px4_interface.cpp / px4_manager_node.cpp\nstatus_sub_ = node_-&gt;create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos, callback);\nCheck which topics are actually being published by the running firmware:\nros2 topic list | grep vehicle_status\nUse whichever name appears — it tells you exactly what the firmware is advertising.\n\n\nDiagnosing version mismatches\nIf the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:\n# commit that your workspace px4_msgs is pinned to\ngit -C src/px4_msgs rev-parse HEAD\n\n# PX4 version string printed at SITL startup, e.g. \"PX4 v1.15.2\"\n# must correspond to the same release branch\nTo fix, update the submodule to the branch matching your firmware:\ncd src/px4_msgs\ngit fetch\ngit checkout release/1.16   # match PX4 firmware version\ncd ../..\ncolcon build --symlink-install\ngit add src/px4_msgs\ngit commit -m \"chore: pin px4_msgs to release/1.16\"",
+    "objectID": "docs/setup/sitl-combined-launch.html#bag-recording-and-post-processing",
+    "href": "docs/setup/sitl-combined-launch.html#bag-recording-and-post-processing",
+    "title": "One-Command SITL Launch",
+    "section": "Bag recording and post-processing",
+    "text": "Bag recording and post-processing\nRecord a bag during the run and trigger analysis on shutdown in the same OnShutdown handler:\nimport shutil\nfrom launch.actions import ExecuteProcess\n\ndef _bag_actions(context, *_):\n    if context.launch_configurations.get(\"record_bag\", \"true\").lower() != \"true\":\n        return []\n    bag_dir = \"results/bag_tmp\"\n    shutil.rmtree(bag_dir, ignore_errors=True)\n    return [\n        ExecuteProcess(\n            cmd=[\n                \"ros2\", \"bag\", \"record\", \"-s\", \"mcap\", \"-o\", bag_dir,\n                \"/fmu/out/vehicle_odometry\",\n                \"/my_controller/trajectory_setpoint\",\n            ],\n            output=\"screen\",\n        ),\n    ]\n\npost_process = RegisterEventHandler(\n    OnShutdown(\n        on_shutdown=[\n            ExecuteProcess(\n                cmd=[\n                    \"bash\", \"-c\",\n                    PythonExpression([\n                        \"'python3 scripts/plot_tracking.py results/bag_tmp\"\n                        \" --out results/{c}/plots && rm -rf results/bag_tmp'\"\n                        \".format(c='\",\n                        LaunchConfiguration(\"controller\"),\n                        \"')\",\n                    ]),\n                ],\n                output=\"screen\",\n                condition=IfCondition(LaunchConfiguration(\"record_bag\")),\n            )\n        ]\n    )\n)\n\n\n\n\n\n\nNote\n\n\n\nOnShutdown handlers run in registration order. Register post_process before gz_cleanup so the bag writer has a chance to flush before the agent is killed. ros2 bag record exits when it receives SIGTERM, which pkill issues before the kill -9 fallback.\n\n\n\n\n\n\n\n\nWarning\n\n\n\nPythonExpression inside OnShutdown uses the launch configurations as they were at shutdown time. Make sure LaunchConfiguration(\"controller\") and similar substitutions are resolvable before shutdown triggers (they are if declared as DeclareLaunchArgument).",
     "crumbs": [
       "Home",
       "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#build-tasks",
-    "href": "docs/setup/workspace-setup.html#build-tasks",
-    "title": "Workspace Setup",
-    "section": "Build tasks",
-    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
-    "href": "docs/setup/workspace-setup.html#daily-workflow",
-    "title": "Workspace Setup",
-    "section": "Daily workflow",
-    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
-    ]
-  },
-  {
-    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
-    "href": "docs/setup/workspace-setup.html#troubleshooting",
-    "title": "Workspace Setup",
-    "section": "Troubleshooting",
-    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
-    "crumbs": [
-      "Home",
-      "Setup",
-      "Workspace Setup"
+      "One-Command SITL Launch"
     ]
   },
   {
@@ -849,6 +933,198 @@
       "Home",
       "Setup",
       "PX4 SITL Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html",
+    "href": "docs/setup/workspace-setup.html",
+    "title": "Workspace Setup",
+    "section": "",
+    "text": "This guide covers how to set up a self-contained ROS 2 (Jazzy) workspace targeting PX4 SITL using pixi as the environment and package manager.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#project-structure",
+    "href": "docs/setup/workspace-setup.html#project-structure",
+    "title": "Workspace Setup",
+    "section": "Project structure",
+    "text": "Project structure\nmy_ros2_ws/\n+-- src/\n|   +-- my_package/             # your ROS 2 packages\n|   +-- px4_msgs/               # git submodule (PX4 message definitions)\n+-- pixi.toml                   # environment + task definitions\n+-- pixi.lock                   # committed; pins all resolved versions\n+-- activate.sh                 # sources install/setup.bash on shell entry\n+-- pyrightconfig.json          # basedpyright config (see Type Checking)\n+-- install/                    # colcon output     (gitignored)\n+-- build/                      # colcon build tree (gitignored)\n+-- log/                        # colcon logs       (gitignored)",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#pixi.toml",
+    "href": "docs/setup/workspace-setup.html#pixi.toml",
+    "title": "Workspace Setup",
+    "section": "pixi.toml",
+    "text": "pixi.toml\n\nWorkspace metadata\n[workspace]\nname     = \"my_ros2_ws\"\nversion  = \"0.1.0\"\nchannels = [\"robostack-jazzy\", \"conda-forge\"]\nplatforms = [\"linux-64\"]\n\n\n\n\n\n\nWarning\n\n\n\nChannel order matters. robostack-jazzy must come before conda-forge. Reversing the order causes the solver to pick incompatible libstdc++ builds and break ROS package resolution.\n\n\n\n\nDependencies\n[dependencies]\n# --- ROS 2 Jazzy ---\nros-jazzy-ros-base             = \"*\"\nros-jazzy-ament-cmake          = \"*\"\nros-jazzy-rclcpp               = \"*\"\nros-jazzy-std-msgs             = \"*\"\nros-jazzy-geometry-msgs        = \"*\"\nros-jazzy-sensor-msgs          = \"*\"\nros-jazzy-nav-msgs             = \"*\"\nros-jazzy-tf2                  = \"*\"\nros-jazzy-tf2-ros              = \"*\"\nros-jazzy-tf2-geometry-msgs    = \"*\"\nros-jazzy-ros2launch           = \"*\"\nros-jazzy-launch-ros           = \"*\"\nros-jazzy-rosbag2              = \"*\"\nros-jazzy-rosbag2-storage-mcap = \"*\"\nros-jazzy-plotjuggler-ros      = \"*\"\n\n# --- Build tooling ---\ncolcon-common-extensions = \"*\"\ncmake                    = \"*\"\nninja                    = \"*\"\ncompilers                = \"*\"\n\n# --- C++ libraries ---\neigen    = \"*\"\nyaml-cpp = \"*\"\n\n# --- Python ---\npython     = \"&gt;=3.11\"\nnumpy      = \"*\"\nscipy      = \"*\"\nmatplotlib = \"*\"\n\n\n\n\n\n\nNote\n\n\n\nGPU-accelerated nodes (optional): add cuda-toolkit = \"&gt;=12.0,&lt;13\" under [dependencies] if your workspace includes CUDA nodes. The host driver must already be installed (nvidia-smi should report &gt;= 525 for CUDA 12).\n\n\n\n\nPyPI-only packages\nFor packages not on conda channels, use [pypi-dependencies]:\n[pypi-dependencies]\nscienceplots = \"*\"\n\n\nActivation script\n[activation]\nscripts = [\"activate.sh\"]",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#workspace-activation",
+    "href": "docs/setup/workspace-setup.html#workspace-activation",
+    "title": "Workspace Setup",
+    "section": "Workspace activation",
+    "text": "Workspace activation\nEvery time pixi launches a shell or runs a task it sources the scripts listed under [activation]. Use this to overlay the colcon install tree.\nactivate.sh (project root):\nINSTALL_DIR=\"${PIXI_PROJECT_ROOT}/install\"\n\nif [ -f \"${INSTALL_DIR}/setup.bash\" ]; then\n  source \"${INSTALL_DIR}/setup.bash\"\nfi\nPIXI_PROJECT_ROOT is set automatically to the directory containing pixi.toml. The if guard prevents errors on a clean checkout before the first build.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "href": "docs/setup/workspace-setup.html#px4-message-definitions-submodule",
+    "title": "Workspace Setup",
+    "section": "PX4 message definitions (submodule)",
+    "text": "PX4 message definitions (submodule)\npx4_msgs must be built with colcon as a standard ROS 2 package. It is tracked as a git submodule so that the version is pinned to the exact PX4 firmware release you are flying against.\n\nAdding the submodule\ngit submodule add -b release/1.16 \\\n    https://github.com/PX4/px4_msgs.git src/px4_msgs\n\n\nRestoring on a fresh clone\ngit clone --recurse-submodules &lt;repo-url&gt;\n# or, after a plain clone:\ngit submodule update --init --recursive\n\n\n.gitmodules entry\n[submodule \"src/px4_msgs\"]\n    path   = src/px4_msgs\n    url    = https://github.com/PX4/px4_msgs.git\n    branch = release/1.16\n\n\n\n\n\n\nWarning\n\n\n\nAlways pin px4_msgs to the same release branch as the PX4 firmware used for SITL (release/1.14, release/1.15, release/1.16, …). A mismatch produces silent serialization errors: topics publish but subscribers receive garbage.\n\n\n\n\nVersioned topic names\nFrom PX4 v1.14 onward, some topics are published under a versioned name to signal a breaking message-definition change. The most common case is VehicleStatus, which moved from:\n/fmu/out/vehicle_status      # pre-v1.14\n/fmu/out/vehicle_status_v1   # v1.14+\nIf your subscriber listens on the wrong topic name it receives no data at all — the subscription simply never fires. Auto-arming logic that waits for arming_state == ARMING_STATE_ARMED blocks forever, and the vehicle never arms.\nThe fix is to subscribe to the versioned topic:\n// px4_interface.cpp / px4_manager_node.cpp\nstatus_sub_ = node_-&gt;create_subscription&lt;px4_msgs::msg::VehicleStatus&gt;(\n    \"/fmu/out/vehicle_status_v1\", qos, callback);\nCheck which topics are actually being published by the running firmware:\nros2 topic list | grep vehicle_status\nUse whichever name appears — it tells you exactly what the firmware is advertising.\n\n\nDiagnosing version mismatches\nIf the topic name is correct but arming still fails, the submodule and firmware are on different releases (fields added/removed between releases cause silent deserialization errors). Check alignment:\n# commit that your workspace px4_msgs is pinned to\ngit -C src/px4_msgs rev-parse HEAD\n\n# PX4 version string printed at SITL startup, e.g. \"PX4 v1.15.2\"\n# must correspond to the same release branch\nTo fix, update the submodule to the branch matching your firmware:\ncd src/px4_msgs\ngit fetch\ngit checkout release/1.16   # match PX4 firmware version\ncd ../..\ncolcon build --symlink-install\ngit add src/px4_msgs\ngit commit -m \"chore: pin px4_msgs to release/1.16\"",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#build-tasks",
+    "href": "docs/setup/workspace-setup.html#build-tasks",
+    "title": "Workspace Setup",
+    "section": "Build tasks",
+    "text": "Build tasks\nDefine all build and launch operations as pixi tasks. Every task runs inside the activated environment, so ros2, colcon, cmake, and nvcc are all on PATH.\n[tasks]\n# Build all packages with symlink install and compile commands export\nbuild = \"colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1\"\n\n# Remove all colcon output\nclean = \"rm -rf build install log\"\n\n# Run all tests with live console output\ntest = \"colcon test --event-handlers console_direct+\"\n\n# Launch control nodes only (PX4 running externally)\nlaunch = { cmd = \"ros2 launch my_bringup sitl.launch.py\",\n           depends-on = [\"build\"] }\n\n# Full SITL stack: PX4 + micro-XRCE-DDS agent + control nodes\npx4-sitl = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                     launch_px4:=true launch_agent:=true record_bag:=false\",\n             depends-on = [\"build\"] }\n\n# Canned trajectories\nhover = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                 launch_px4:=true launch_agent:=true \\\n                 trajectory_type:=hover z:=2.0 duration:=90.0\",\n          depends-on = [\"build\"] }\n\nlemniscate = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                      launch_px4:=true launch_agent:=true \\\n                      trajectory_type:=lemniscate A:=3.0 omega:=0.2 z:=2.0\",\n               depends-on = [\"build\"] }\n\ncircular = { cmd = \"ros2 launch my_bringup px4_sitl.launch.py \\\n                    launch_px4:=true launch_agent:=true \\\n                    trajectory_type:=circular A:=3.0 omega:=0.2 z:=2.0\",\n             depends-on = [\"build\"] }\nRun any task with:\npixi run build\npixi run px4-sitl\npixi run hover\nThe depends-on field guarantees the workspace is rebuilt before launching.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#daily-workflow",
+    "href": "docs/setup/workspace-setup.html#daily-workflow",
+    "title": "Workspace Setup",
+    "section": "Daily workflow",
+    "text": "Daily workflow\n# After adding or updating packages in pixi.toml\npixi install\n\n# Build all ROS 2 packages\npixi run build\n\n# Run tests\npixi run test\n\n# Interactive shell with the full environment active\npixi shell\n\n# Clean rebuild\npixi run clean\npixi run build",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/workspace-setup.html#troubleshooting",
+    "href": "docs/setup/workspace-setup.html#troubleshooting",
+    "title": "Workspace Setup",
+    "section": "Troubleshooting",
+    "text": "Troubleshooting\n\npackage 'xxx' not found after adding a new ROS package\nThe colcon install overlay is stale. Run pixi run build.\n\n\nros2: command not found inside pixi shell\nThe activation script did not run. Verify:\n\nactivate.sh exists at the project root.\npixi.toml contains [activation] scripts = [\"activate.sh\"].\nYou entered the environment with pixi shell or pixi run &lt;task&gt;.\n\n\n\nCUDA compiler (nvcc) not found\nOnly needed if your workspace has GPU-accelerated nodes.\n\nAdd cuda-toolkit = \"&gt;=12.0,&lt;13\" to [dependencies] in pixi.toml.\nRun pixi install to fetch it.\nInside pixi shell, which nvcc should resolve to .pixi/envs/default/bin/nvcc.\n\n\n\ncolcon picks up system Python instead of pixi Python\npixi prepends its environment to PATH, but a stale shell may still resolve system Python. Exit and re-enter with pixi shell.\n\n\npixi.lock conflicts on git pull\npixi.lock is a committed file. If it conflicts, accept the incoming version and run pixi install to re-sync your local environment.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "Workspace Setup"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html",
+    "href": "docs/setup/ros2-cpp-package.html",
+    "title": "C++ Node Package",
+    "section": "",
+    "text": "A ROS 2 C++ package contains the compiled nodes that perform control, estimation, state machines, and any other compute-intensive logic. This page covers the minimal boilerplate to get a node building under colcon inside a pixi workspace.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#directory-layout",
+    "href": "docs/setup/ros2-cpp-package.html#directory-layout",
+    "title": "C++ Node Package",
+    "section": "Directory layout",
+    "text": "Directory layout\nsrc/\n+-- my_pkg/\n    +-- include/\n    |   +-- my_pkg/\n    |       +-- controller.hpp\n    |       +-- estimator.hpp\n    +-- src/\n    |   +-- controller.cpp\n    |   +-- estimator.cpp\n    |   +-- main.cpp\n    +-- launch/\n    |   +-- node.launch.py          # minimal single-node launch\n    +-- CMakeLists.txt\n    +-- package.xml\nHeaders live under include/&lt;package_name&gt;/ so they resolve as #include \"my_pkg/controller.hpp\" from any downstream package.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#package.xml",
+    "href": "docs/setup/ros2-cpp-package.html#package.xml",
+    "title": "C++ Node Package",
+    "section": "package.xml",
+    "text": "package.xml\n&lt;?xml version=\"1.0\"?&gt;\n&lt;?xml-model href=\"http://download.ros.org/schema/package_format3.xsd\"\n            schematypens=\"http://www.w3.org/2001/XMLSchema\"?&gt;\n&lt;package format=\"3\"&gt;\n  &lt;name&gt;my_pkg&lt;/name&gt;\n  &lt;version&gt;0.1.0&lt;/version&gt;\n  &lt;description&gt;Control and estimation nodes&lt;/description&gt;\n  &lt;maintainer email=\"you@example.com\"&gt;Your Name&lt;/maintainer&gt;\n  &lt;license&gt;MIT&lt;/license&gt;\n\n  &lt;buildtool_depend&gt;ament_cmake&lt;/buildtool_depend&gt;\n\n  &lt;!-- runtime + build: use &lt;depend&gt; for packages needed at both stages --&gt;\n  &lt;depend&gt;rclcpp&lt;/depend&gt;\n  &lt;depend&gt;rclcpp_components&lt;/depend&gt;\n  &lt;depend&gt;std_msgs&lt;/depend&gt;\n  &lt;depend&gt;geometry_msgs&lt;/depend&gt;\n  &lt;depend&gt;nav_msgs&lt;/depend&gt;\n  &lt;depend&gt;px4_msgs&lt;/depend&gt;\n\n  &lt;export&gt;\n    &lt;build_type&gt;ament_cmake&lt;/build_type&gt;\n  &lt;/export&gt;\n&lt;/package&gt;\nUse &lt;depend&gt; (not &lt;build_depend&gt; + &lt;exec_depend&gt;) for libraries needed at both build and runtime — which covers most ROS packages.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#cmakelists.txt",
+    "href": "docs/setup/ros2-cpp-package.html#cmakelists.txt",
+    "title": "C++ Node Package",
+    "section": "CMakeLists.txt",
+    "text": "CMakeLists.txt\ncmake_minimum_required(VERSION 3.8)\nproject(my_pkg)\n\nif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES \"Clang\")\n  add_compile_options(-Wall -Wextra -Wpedantic)\nendif()\n\n# --- dependencies ---\nfind_package(ament_cmake REQUIRED)\nfind_package(rclcpp REQUIRED)\nfind_package(rclcpp_components REQUIRED)\nfind_package(std_msgs REQUIRED)\nfind_package(geometry_msgs REQUIRED)\nfind_package(nav_msgs REQUIRED)\nfind_package(px4_msgs REQUIRED)\nfind_package(Eigen3 REQUIRED)\n\n# --- shared library (enables composable-node registration) ---\nadd_library(${PROJECT_NAME} SHARED\n  src/controller.cpp\n  src/estimator.cpp\n)\n\ntarget_include_directories(${PROJECT_NAME} PUBLIC\n  $&lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;\n  $&lt;INSTALL_INTERFACE:include&gt;\n  ${EIGEN3_INCLUDE_DIR}\n)\n\ntarget_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)\n\nament_target_dependencies(${PROJECT_NAME}\n  rclcpp\n  rclcpp_components\n  std_msgs\n  geometry_msgs\n  nav_msgs\n  px4_msgs\n)\n\n# --- register composable nodes ---\nrclcpp_components_register_node(${PROJECT_NAME}\n  PLUGIN \"my_pkg::Controller\"\n  EXECUTABLE controller_node\n)\n\nrclcpp_components_register_node(${PROJECT_NAME}\n  PLUGIN \"my_pkg::Estimator\"\n  EXECUTABLE estimator_node\n)\n\n# --- install ---\ninstall(TARGETS ${PROJECT_NAME}\n  ARCHIVE DESTINATION lib\n  LIBRARY DESTINATION lib\n  RUNTIME DESTINATION bin\n)\n\ninstall(DIRECTORY include/ DESTINATION include)\ninstall(DIRECTORY launch   DESTINATION share/${PROJECT_NAME})\n\nament_package()\n\n\n\n\n\n\nNote\n\n\n\nBuilding as a shared library and using rclcpp_components_register_node lets the bringup package load nodes in a ComponentContainer without spawning separate processes. The EXECUTABLE argument also produces a standalone binary for direct ros2 run use.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#node-boilerplate-c",
+    "href": "docs/setup/ros2-cpp-package.html#node-boilerplate-c",
+    "title": "C++ Node Package",
+    "section": "Node boilerplate (C++)",
+    "text": "Node boilerplate (C++)\n\nHeader — include/my_pkg/controller.hpp\n#pragma once\n\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include &lt;geometry_msgs/msg/pose_stamped.hpp&gt;\n#include &lt;px4_msgs/msg/vehicle_odometry.hpp&gt;\n#include &lt;px4_msgs/msg/trajectory_setpoint.hpp&gt;\n\nnamespace my_pkg {\n\nclass Controller : public rclcpp::Node {\npublic:\n    explicit Controller(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());\n\nprivate:\n    void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);\n    void setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);\n\n    rclcpp::Subscription&lt;px4_msgs::msg::VehicleOdometry&gt;::SharedPtr odom_sub_;\n    rclcpp::Subscription&lt;geometry_msgs::msg::PoseStamped&gt;::SharedPtr setpoint_sub_;\n    rclcpp::Publisher&lt;px4_msgs::msg::TrajectorySetpoint&gt;::SharedPtr cmd_pub_;\n    rclcpp::TimerBase::SharedPtr timer_;\n};\n\n}  // namespace my_pkg\n\n\nImplementation — src/controller.cpp\n#include \"my_pkg/controller.hpp\"\n#include &lt;rclcpp/qos.hpp&gt;\n\nnamespace my_pkg {\n\nController::Controller(const rclcpp::NodeOptions& options)\n: Node(\"controller\", options)\n{\n    /* PX4 uORB topics require BEST_EFFORT QoS -- see QoS Profiles page. */\n    auto px4_qos = rclcpp::QoS(10).best_effort();\n\n    odom_sub_ = create_subscription&lt;px4_msgs::msg::VehicleOdometry&gt;(\n        \"/fmu/out/vehicle_odometry\", px4_qos,\n        [this](const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {\n            odom_callback(msg);\n        });\n\n    setpoint_sub_ = create_subscription&lt;geometry_msgs::msg::PoseStamped&gt;(\n        \"~/setpoint\", rclcpp::QoS(1),\n        [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {\n            setpoint_callback(msg);\n        });\n\n    cmd_pub_ = create_publisher&lt;px4_msgs::msg::TrajectorySetpoint&gt;(\n        \"/fmu/in/trajectory_setpoint\", px4_qos);\n\n    /* declare parameters with defaults */\n    declare_parameter(\"control_rate_hz\", 50.0);\n    double rate = get_parameter(\"control_rate_hz\").as_double();\n\n    timer_ = create_wall_timer(\n        std::chrono::duration&lt;double&gt;(1.0 / rate),\n        [this]() { /* run control loop */ });\n}\n\nvoid Controller::odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)\n{\n    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,\n        \"pos: [%.2f, %.2f, %.2f]\",\n        msg-&gt;position[0], msg-&gt;position[1], msg-&gt;position[2]);\n}\n\nvoid Controller::setpoint_callback(const geometry_msgs::msg::PoseStamped::SharedPtr /*msg*/)\n{\n    /* store latest goal */\n}\n\n}  // namespace my_pkg\n\n/* composable-node entry point (used by ComponentContainer) */\n#include \"rclcpp_components/register_node_macro.hpp\"\nRCLCPP_COMPONENTS_REGISTER_NODE(my_pkg::Controller)\n\n\nStandalone entry point — src/main.cpp\n#include &lt;rclcpp/rclcpp.hpp&gt;\n#include \"my_pkg/controller.hpp\"\n\nint main(int argc, char* argv[])\n{\n    rclcpp::init(argc, argv);\n    rclcpp::spin(std::make_shared&lt;my_pkg::Controller&gt;());\n    rclcpp::shutdown();\n    return 0;\n}",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#minimal-launch-file",
+    "href": "docs/setup/ros2-cpp-package.html#minimal-launch-file",
+    "title": "C++ Node Package",
+    "section": "Minimal launch file",
+    "text": "Minimal launch file\nThis launch file lives in the node package itself and is only used for quick manual testing. For full system bringup see the Bringup Package page.\nlaunch/node.launch.py:\nfrom launch import LaunchDescription\nfrom launch_ros.actions import Node\n\n\ndef generate_launch_description():\n    return LaunchDescription([\n        Node(\n            package=\"my_pkg\",\n            executable=\"controller_node\",\n            name=\"controller\",\n            output=\"screen\",\n        ),\n    ])",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#building-and-running",
+    "href": "docs/setup/ros2-cpp-package.html#building-and-running",
+    "title": "C++ Node Package",
+    "section": "Building and running",
+    "text": "Building and running\n# build all packages under src/\npixi run build\n\n# standalone binary\npixi run -- ros2 run my_pkg controller_node\n\n# or via launch file\npixi run -- ros2 launch my_pkg node.launch.py\nAfter editing source files re-run pixi run build. Python and resource files installed with --symlink-install update without a rebuild; C++ sources always require a rebuild.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
+    ]
+  },
+  {
+    "objectID": "docs/setup/ros2-cpp-package.html#adding-a-new-node",
+    "href": "docs/setup/ros2-cpp-package.html#adding-a-new-node",
+    "title": "C++ Node Package",
+    "section": "Adding a new node",
+    "text": "Adding a new node\n\nAdd the header under include/my_pkg/.\nAdd the source file under src/.\nRegister it in CMakeLists.txt with rclcpp_components_register_node.\nRun pixi run build.",
+    "crumbs": [
+      "Home",
+      "Setup",
+      "C++ Node Package"
     ]
   },
   {
@@ -1241,6 +1517,78 @@
       "Home",
       "Control",
       "QoS Profiles for PX4 Topics"
+    ]
+  },
+  {
+    "objectID": "docs/control/ros-parameters.html",
+    "href": "docs/control/ros-parameters.html",
+    "title": "Node Parameters",
+    "section": "",
+    "text": "This page documents the parameter patterns used across hosm_ros2_px4, uav_control, and px4_offboard_lowlevel: how to declare and load them in C++, how to structure the YAML files, how to support runtime updates, and how to pass them from launch files without type errors.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Node Parameters"
+    ]
+  },
+  {
+    "objectID": "docs/control/ros-parameters.html#declare-load-pattern",
+    "href": "docs/control/ros-parameters.html#declare-load-pattern",
+    "title": "Node Parameters",
+    "section": "Declare → load pattern",
+    "text": "Declare → load pattern\nSplit parameter handling into two private methods: declareParameters() and loadParameters(). Call both from the constructor, before any timer or publisher is created.\nclass ControllerNode : public rclcpp::Node {\npublic:\n    ControllerNode() : Node(\"controller\") {\n        declareParameters();\n        loadParameters();\n        // timers, subscribers, publishers ...\n    }\n\nprivate:\n    void declareParameters() {\n        /* Physical model */\n        declare_parameter(\"mass\",    2.0);\n        declare_parameter(\"gravity\", 9.81);\n\n        /* Nested gains use dotted names */\n        declare_parameter(\"smc.lambda_z\", 5.0);\n        declare_parameter(\"smc.epsilon\",  0.1);\n\n        /* Control */\n        declare_parameter(\"control_rate_hz\", 250.0);\n        declare_parameter(\"auto_arm\",        true);\n        declare_parameter(\"debug_thrust_only\", false);\n\n        /* Normalization */\n        declare_parameter(\"max_thrust\",       32.7);\n        declare_parameter(\"max_torque_roll\",   3.22);\n    }\n\n    void loadParameters() {\n        params_.mass    = get_parameter(\"mass\").as_double();\n        params_.gravity = get_parameter(\"gravity\").as_double();\n\n        smc_.lambda_z = get_parameter(\"smc.lambda_z\").as_double();\n        smc_.epsilon  = get_parameter(\"smc.epsilon\").as_double();\n\n        control_rate_hz_  = get_parameter(\"control_rate_hz\").as_double();\n        auto_arm_         = get_parameter(\"auto_arm\").as_bool();\n        debug_thrust_only_ = get_parameter(\"debug_thrust_only\").as_bool();\n\n        max_thrust_      = get_parameter(\"max_thrust\").as_double();\n        max_torque_roll_ = get_parameter(\"max_torque_roll\").as_double();\n    }\n};\n\n\n\n\n\n\nNote\n\n\n\nSeparating declare and load makes it easy to add add_on_set_parameters_callback (see below) without scattering declare_parameter calls throughout the class.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Node Parameters"
+    ]
+  },
+  {
+    "objectID": "docs/control/ros-parameters.html#yaml-parameter-file-structure",
+    "href": "docs/control/ros-parameters.html#yaml-parameter-file-structure",
+    "title": "Node Parameters",
+    "section": "YAML parameter file structure",
+    "text": "YAML parameter file structure\nROS 2 parameter files follow &lt;node_name&gt;: ros__parameters: &lt;key&gt;: &lt;value&gt;. Dotted C++ names (smc.lambda_z) expand into nested YAML maps.\ncontroller:\n  ros__parameters:\n    # physical model\n    mass:    2.064\n    gravity: 9.81\n\n    # SMC gains — expressed as nested map matching the dotted C++ names\n    smc:\n      lambda_z:  5.0\n      epsilon:   0.1\n\n    # control\n    control_rate_hz: 250.0\n    auto_arm:        true\n    debug_thrust_only: false\n\n    # PX4 normalization (compute from motor characterization)\n    max_thrust:      32.7\n    max_torque_roll:  3.22\n\nWildcard node name\nUse /** to apply a block to every node in the process. Useful for shared topic remapping conventions (e.g. FMU topic names) that should not need repeating per-node:\n/**:\n  ros__parameters:\n    sitl_mode: true\n    topics:\n      odometry:  \"/fmu/out/vehicle_odometry\"\n      status:    \"/fmu/out/vehicle_status_v1\"",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Node Parameters"
+    ]
+  },
+  {
+    "objectID": "docs/control/ros-parameters.html#dynamic-parameter-callback",
+    "href": "docs/control/ros-parameters.html#dynamic-parameter-callback",
+    "title": "Node Parameters",
+    "section": "Dynamic parameter callback",
+    "text": "Dynamic parameter callback\nAllow runtime parameter updates (e.g. gain tuning via ros2 param set) by registering a callback in the constructor:\nControllerNode() : Node(\"controller\") {\n    declareParameters();\n    loadParameters();\n\n    param_cb_handle_ = add_on_set_parameters_callback(\n        [this](const std::vector&lt;rclcpp::Parameter&gt;& params) {\n            return onParameterChange(params);\n        });\n}\n\nrcl_interfaces::msg::SetParametersResult\nonParameterChange(const std::vector&lt;rclcpp::Parameter&gt;& params) {\n    rcl_interfaces::msg::SetParametersResult result;\n    result.successful = true;\n\n    for (const auto& p : params) {\n        if (p.get_name() == \"smc.lambda_z\") {\n            smc_.lambda_z = p.as_double();\n            RCLCPP_INFO(get_logger(), \"smc.lambda_z -&gt; %.3f\", smc_.lambda_z);\n        } else if (p.get_name() == \"auto_arm\") {\n            auto_arm_ = p.as_bool();\n        } else if (p.get_name() == \"debug_thrust_only\") {\n            debug_thrust_only_ = p.as_bool();\n        }\n    }\n    return result;\n}\n\nrclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;\nThen at runtime:\nros2 param set /controller smc.lambda_z 8.0\nros2 param set /controller debug_thrust_only true",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Node Parameters"
+    ]
+  },
+  {
+    "objectID": "docs/control/ros-parameters.html#loading-parameters-from-a-launch-file",
+    "href": "docs/control/ros-parameters.html#loading-parameters-from-a-launch-file",
+    "title": "Node Parameters",
+    "section": "Loading parameters from a launch file",
+    "text": "Loading parameters from a launch file\n\nLayer YAML + runtime overrides\nPass the YAML file as the first entry in parameters=[] and add a dict of runtime values afterwards. Later entries override earlier ones:\nNode(\n    package=\"my_pkg\",\n    executable=\"controller_node\",\n    name=\"controller\",\n    output=\"screen\",\n    parameters=[\n        LaunchConfiguration(\"params_file\"),          # YAML file\n        {\n            \"use_sim_time\":   LaunchConfiguration(\"use_sim_time\"),\n            \"auto_arm\":       LaunchConfiguration(\"auto_arm\"),\n        },\n    ],\n)\n\n\nParameterValue type casting\nLaunch configuration values are always strings. Without explicit casting, float and int parameters arrive at the node as strings and cause a ParameterTypeMismatch error at runtime:\nfrom launch_ros.parameter_descriptions import ParameterValue\nfrom launch.substitutions import LaunchConfiguration\n\nNode(\n    package=\"my_pkg\",\n    executable=\"reference_publisher\",\n    parameters=[{\n        \"height\":  ParameterValue(LaunchConfiguration(\"z\"),     value_type=float),\n        \"speed\":   ParameterValue(LaunchConfiguration(\"speed\"), value_type=float),\n        \"samples\": ParameterValue(LaunchConfiguration(\"n\"),     value_type=int),\n    }],\n)\nUse ParameterValue whenever a node expects a non-string parameter that comes directly from a LaunchConfiguration rather than a Python literal.",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Node Parameters"
+    ]
+  },
+  {
+    "objectID": "docs/control/ros-parameters.html#dumping-and-inspecting-parameters-at-runtime",
+    "href": "docs/control/ros-parameters.html#dumping-and-inspecting-parameters-at-runtime",
+    "title": "Node Parameters",
+    "section": "Dumping and inspecting parameters at runtime",
+    "text": "Dumping and inspecting parameters at runtime\n# List all parameters for a node\nros2 param list /controller\n\n# Get one value\nros2 param get /controller smc.lambda_z\n\n# Dump all to YAML (useful for capturing a tuned config)\nros2 param dump /controller &gt; tuned_params.yaml\n\n# Load a file into a running node\nros2 param load /controller /path/to/tuned_params.yaml",
+    "crumbs": [
+      "Home",
+      "Control",
+      "Node Parameters"
     ]
   },
   {

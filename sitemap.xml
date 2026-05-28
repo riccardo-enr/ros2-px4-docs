@@ -2,62 +2,74 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/index.html</loc>
-    <lastmod>2026-05-27T08:58:09.929Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.222Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/tooling/testing.html</loc>
-    <lastmod>2026-05-27T08:58:09.929Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.222Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/control-loop.html</loc>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/low-level-control.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/control-allocation.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/arming-offboard.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.220Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/uxrce-dds-agent.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/ros2-cpp-package.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
-  </url>
-  <url>
-    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/workspace-setup.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/sitl-combined-launch.html</loc>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/sitl-setup.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/workspace-setup.html</loc>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/ros2-cpp-package.html</loc>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/ros2-bringup-package.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/setup/ros2-package.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/frame-conventions.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/qos-profiles.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
+  </url>
+  <url>
+    <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/control/ros-parameters.html</loc>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/tooling/basedpyright.html</loc>
-    <lastmod>2026-05-27T08:58:09.928Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.221Z</lastmod>
   </url>
   <url>
     <loc>https://riccardo-enr.github.io/ros2-px4-docs/docs/tooling/clangd.html</loc>
-    <lastmod>2026-05-27T08:58:09.929Z</lastmod>
+    <lastmod>2026-05-28T08:18:04.222Z</lastmod>
   </url>
 </urlset>
