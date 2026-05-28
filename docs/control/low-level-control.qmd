@@ -120,6 +120,39 @@ thrust_pub->publish(thrust_msg);
 torque_pub->publish(torque_msg);
 ```
 
+### Normalizing thrust and torque
+
+`VehicleThrustSetpoint` and `VehicleTorqueSetpoint` expect values in
+**[-1, 1]** — they are fractions of the vehicle's physical limits, not SI
+units. Divide by your platform's maximum thrust and torque before publishing:
+
+```cpp
+// Physical limits (declare as ROS parameters, not magic numbers)
+const double thrust_max_N     = declare_parameter("thrust_max_N",  32.7);
+const double torque_max_phi   = declare_parameter("torque_max_phi",  3.22);
+const double torque_max_theta = declare_parameter("torque_max_theta", 2.22);
+const double torque_max_psi   = declare_parameter("torque_max_psi",   0.27);
+
+// Normalize before publishing
+thrust_msg.xyz[2] = static_cast<float>(
+    std::clamp(-T / thrust_max_N, -1.0, 0.0));          // upward only
+
+torque_msg.xyz[0] = static_cast<float>(
+    std::clamp(tau_phi   / torque_max_phi,   -1.0, 1.0));
+torque_msg.xyz[1] = static_cast<float>(
+    std::clamp(tau_theta / torque_max_theta, -1.0, 1.0));
+torque_msg.xyz[2] = static_cast<float>(
+    std::clamp(tau_psi   / torque_max_psi,   -1.0, 1.0));
+```
+
+::: {.callout-warning}
+Thrust `xyz[2]` is clamped to `[-1, 0]` — positive values (downward in NED)
+are rejected by PX4 for a multirotor. A common bug is forgetting to negate
+before clamping and saturating at 0 (zero thrust command).
+:::
+
+Find the x500 physical limits in [Control Allocation](control-allocation.qmd).
+
 ---
 
 ## Mode 3: Direct actuator commands

@@ -157,6 +157,163 @@ switch is requested.
 
 ---
 
+## Production FSM pattern
+
+The tick-counter approach above has two weaknesses: it fires the commands once
+and never retries, and it has no way to detect a mode flip or disarm after
+arming. A production controller should use a proper state machine.
+
+**State sequence:**
+
+```
+WAITING_FOR_ODOM
+  -> on first odometry:            PUBLISHING_OFFBOARD  (record t0)
+PUBLISHING_OFFBOARD
+  -> after preamble (e.g. 2 s):   emit SetOffboardMode, REQUESTING_OFFBOARD
+REQUESTING_OFFBOARD
+  -> nav_state == OFFBOARD:        emit ArmDisarm, REQUESTING_ARM
+  -> every retry_s:                re-emit SetOffboardMode
+REQUESTING_ARM
+  -> arming_state == ARMED:        ARMED
+  -> every retry_s:                re-emit ArmDisarm
+ARMED
+  -> terminal
+```
+
+**Why wait for odometry before publishing?** PX4 will not enter offboard mode
+if it has not yet received a valid state estimate. Gating on first odometry
+receipt ensures EKF2 is up before the preamble starts.
+
+**Implementation** — keep the FSM ROS-free so it can be unit-tested without
+spinning a node. The node feeds it raw status fields; the FSM returns an action
+tag:
+
+```cpp
+/* offboard_arm_fsm.hpp — no rclcpp or px4_msgs includes */
+enum class ArmState {
+  WAITING_FOR_ODOM,
+  PUBLISHING_OFFBOARD,
+  REQUESTING_OFFBOARD,
+  REQUESTING_ARM,
+  ARMED,
+};
+
+enum class FsmAction { None, SetOffboardMode, ArmDisarm };
+
+class OffboardArmFsm {
+ public:
+  static constexpr uint8_t kNavStateOffboard  = 14;
+  static constexpr uint8_t kArmingStateArmed  = 2;
+
+  explicit OffboardArmFsm(double preamble_s = 2.0, double retry_s = 1.0)
+      : preamble_s_(preamble_s), retry_s_(retry_s) {}
+
+  FsmAction step(bool odom_received, uint8_t nav_state,
+                 uint8_t arming_state, double now_s) {
+    switch (state_) {
+      case ArmState::WAITING_FOR_ODOM:
+        if (odom_received) { state_ = ArmState::PUBLISHING_OFFBOARD;
+                             t0_ = now_s; }
+        return FsmAction::None;
+
+      case ArmState::PUBLISHING_OFFBOARD:
+        if (now_s - t0_ >= preamble_s_) {
+          state_ = ArmState::REQUESTING_OFFBOARD;
+          last_req_ = now_s;
+          return FsmAction::SetOffboardMode;
+        }
+        return FsmAction::None;
+
+      case ArmState::REQUESTING_OFFBOARD:
+        if (nav_state == kNavStateOffboard) {
+          state_ = ArmState::REQUESTING_ARM;
+          last_req_ = now_s;
+          return FsmAction::ArmDisarm;
+        }
+        if (now_s - last_req_ >= retry_s_) { last_req_ = now_s;
+                                              return FsmAction::SetOffboardMode; }
+        return FsmAction::None;
+
+      case ArmState::REQUESTING_ARM:
+        if (arming_state == kArmingStateArmed) {
+          state_ = ArmState::ARMED; return FsmAction::None;
+        }
+        if (now_s - last_req_ >= retry_s_) { last_req_ = now_s;
+                                              return FsmAction::ArmDisarm; }
+        return FsmAction::None;
+
+      case ArmState::ARMED:
+        return FsmAction::None;
+    }
+    return FsmAction::None;
+  }
+
+  /* Use this as the gate for publishing actuator setpoints.
+   * Checks FSM state AND live status — a disarm or mode flip
+   * immediately closes the gate even if FSM is in ARMED. */
+  bool armedAndOffboard(uint8_t nav_state, uint8_t arming_state) const {
+    return state_ == ArmState::ARMED &&
+           nav_state    == kNavStateOffboard &&
+           arming_state == kArmingStateArmed;
+  }
+
+ private:
+  double preamble_s_, retry_s_;
+  ArmState state_ = ArmState::WAITING_FOR_ODOM;
+  double t0_ = 0.0, last_req_ = 0.0;
+};
+```
+
+**Node integration:**
+
+```cpp
+// In the control timer callback:
+const double now_s = this->now().nanoseconds() * 1e-9;
+const auto action = fsm_.step(odom_received_, nav_state_, arming_state_, now_s);
+
+switch (action) {
+  case FsmAction::SetOffboardMode:
+    send_vehicle_command(cmd_pub_, this,
+        VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1.0f, 6.0f);
+    break;
+  case FsmAction::ArmDisarm:
+    send_vehicle_command(cmd_pub_, this,
+        VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0f, 21196.0f);
+    break;
+  case FsmAction::None: break;
+}
+
+// Gate actuator output on the dual check:
+if (fsm_.armedAndOffboard(nav_state_, arming_state_)) {
+    publish_actuator_setpoints();
+}
+```
+
+::: {.callout-note}
+`param2 = 21196.0f` in the arm command is the force-arm magic number required
+when arming from a companion computer (bypasses some safety checks that require
+a physical RC switch). Use `0.0f` if you want the standard safety checks.
+:::
+
+**Warm-start observers on arm transition** — run state estimators or observers
+open-loop while waiting for arm so they have converged state by the time the
+vehicle lifts off. Reset integrators from the current measurement on the first
+armed tick to avoid windup:
+
+```cpp
+if (fsm_.armedAndOffboard(nav_state_, arming_state_) && !was_armed_) {
+    reset_observers_from_current_state();
+    was_armed_ = true;
+}
+```
+
+**Why keep the FSM ROS-free?** The class only takes primitive types
+(`uint8_t`, `double`, `bool`). You can instantiate it in a plain GTest fixture
+with no `rclcpp::init` and drive it with synthetic status values — full branch
+coverage without a running ROS graph.
+
+---
+
 ## Takeoff after arming
 
 After arming, the vehicle is on the ground with motors spinning at idle. Command

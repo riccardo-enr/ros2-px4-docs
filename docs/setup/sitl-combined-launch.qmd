@@ -1,0 +1,550 @@
+---
+title: "One-Command SITL Launch"
+---
+
+Every project needs a launch file that starts PX4 + the DDS agent + your ROS
+nodes in a single command. This page documents the pattern used across
+hosm_ros2_px4, i_mppi_ros2_px4, and uav_control.
+
+---
+
+## Startup sequence and why order matters
+
+PX4 SITL takes 5–20 seconds to initialize EKF2 and advertise uORB topics.
+The DDS agent cannot subscribe to topics that PX4 has not yet announced.
+Your ROS nodes must not publish setpoints before the agent is connected.
+
+The sequencing pattern used across repos:
+
+```
+t=0s     PX4 SITL + Gazebo  (make px4_sitl <model>)
+t=5s     MicroXRCEAgent      (TimerAction)
+t=10s+   ROS controller node (TimerAction)
+```
+
+::: {.callout-warning}
+Do not use `RegisterEventHandler(OnProcessStart)` to trigger the agent after
+PX4 exits its startup function. PX4 prints its ready message before EKF2 and
+Gazebo finish initializing — the stdout signal is unreliable. Fixed delays
+are crude but they work consistently across machines.
+:::
+
+---
+
+## Minimal combined launch file
+
+**`launch/sitl.launch.py`** — used in hosm_ros2_px4 and i_mppi_ros2_px4:
+
+```python
+import os
+import yaml
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    LogInfo,
+    TimerAction,
+)
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    pkg_dir = get_package_share_directory("my_pkg")
+    default_params = os.path.join(pkg_dir, "config", "params.yaml")
+
+    # ── Load defaults from sidecar YAML (see below) ─────────────────
+    cfg_path = os.path.join(pkg_dir, "config", "sitl_launch.yaml")
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f)
+
+    def _s(key, fallback=""):
+        v = cfg.get(key, fallback)
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        return str(v)
+
+    px4_dir_default = os.path.expanduser(_s("px4_dir", "~/PX4-Autopilot"))
+
+    # ── Arguments ────────────────────────────────────────────────────
+    args = [
+        DeclareLaunchArgument("params_file",      default_value=default_params),
+        DeclareLaunchArgument("use_sim_time",      default_value=_s("use_sim_time", "true")),
+        DeclareLaunchArgument("px4_sitl",          default_value=_s("px4_sitl", "true")),
+        DeclareLaunchArgument("px4_dir",           default_value=px4_dir_default),
+        DeclareLaunchArgument("px4_model",         default_value=_s("px4_model", "gz_x500")),
+        DeclareLaunchArgument("px4_world",         default_value=_s("px4_world", "")),
+        DeclareLaunchArgument("dds_agent",         default_value=_s("dds_agent", "true")),
+        DeclareLaunchArgument("dds_port",          default_value=_s("dds_port", "8888")),
+        DeclareLaunchArgument("delay_dds",         default_value=_s("delay_dds", "5.0")),
+        DeclareLaunchArgument("delay_controller",  default_value=_s("delay_controller", "10.0")),
+        DeclareLaunchArgument("rviz",              default_value=_s("rviz", "false")),
+    ]
+
+    # ── PX4 SITL + Gazebo ────────────────────────────────────────────
+    px4_sitl = ExecuteProcess(
+        cmd=["make", "px4_sitl", LaunchConfiguration("px4_model")],
+        cwd=LaunchConfiguration("px4_dir"),
+        additional_env={"PX4_GZ_WORLD": LaunchConfiguration("px4_world")},
+        output="screen",
+        condition=IfCondition(LaunchConfiguration("px4_sitl")),
+    )
+
+    # ── Micro XRCE-DDS Agent ─────────────────────────────────────────
+    dds_agent = TimerAction(
+        period=LaunchConfiguration("delay_dds"),
+        actions=[
+            ExecuteProcess(
+                cmd=["MicroXRCEAgent", "udp4", "-p", LaunchConfiguration("dds_port")],
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("dds_agent")),
+            ),
+        ],
+    )
+
+    # ── Controller node ───────────────────────────────────────────────
+    controller = TimerAction(
+        period=LaunchConfiguration("delay_controller"),
+        actions=[
+            Node(
+                package="my_pkg",
+                executable="controller_node",
+                name="controller",
+                output="screen",
+                parameters=[
+                    LaunchConfiguration("params_file"),
+                    {"use_sim_time": LaunchConfiguration("use_sim_time")},
+                ],
+            ),
+        ],
+    )
+
+    return LaunchDescription([
+        *args,
+        LogInfo(msg="Starting PX4 SITL stack..."),
+        px4_sitl,
+        dds_agent,
+        controller,
+    ])
+```
+
+---
+
+## Sidecar configuration file
+
+Keep per-machine settings out of the launch file in a sidecar YAML. Launch
+arguments fall back to these values; any can be overridden on the CLI.
+
+**`config/sitl_launch.yaml`** — pattern from i_mppi_ros2_px4:
+
+```yaml
+# ── Simulation ──────────────────────────────────────────────────────
+px4_sitl: "true"
+px4_dir:  "~/px4/my-px4"
+px4_model: "gz_x500"
+px4_world: ""               # empty = PX4 default world
+
+use_sim_time: "true"
+
+# ── Communication ───────────────────────────────────────────────────
+dds_agent: "true"
+dds_port:  "8888"
+
+# ── Startup delays (seconds) ────────────────────────────────────────
+delay_dds:        "5.0"    # wait for PX4 to start uORB
+delay_controller: "10.0"   # wait for DDS bridge to connect
+
+# ── Visualisation ───────────────────────────────────────────────────
+rviz: "false"
+```
+
+---
+
+## Environment variables for PX4 SITL
+
+Pass Gazebo customization via `additional_env` — the full set used in
+uav_control/src/uav_bringup:
+
+```python
+from launch.substitutions import PythonExpression
+
+px4_sitl = ExecuteProcess(
+    cmd=["make", "px4_sitl", LaunchConfiguration("px4_model")],
+    cwd=LaunchConfiguration("px4_dir"),
+    additional_env={
+        # Gazebo world (e.g. "cyberzoo", "baylands"). Empty = PX4 default.
+        "PX4_GZ_WORLD": LaunchConfiguration("px4_world"),
+
+        # Spawn pose: "x,y,z,roll,pitch,yaw" in metres/radians.
+        "PX4_GZ_MODEL_POSE": LaunchConfiguration("px4_pose"),
+
+        # Run Gazebo headless (no GUI).
+        "HEADLESS": PythonExpression(
+            ["'1' if '", LaunchConfiguration("headless"), "' == 'true' else '0'"]
+        ),
+    },
+    output="screen",
+    condition=IfCondition(LaunchConfiguration("px4_sitl")),
+)
+```
+
+| Variable | Effect |
+|---|---|
+| `PX4_GZ_WORLD` | Gazebo world name (must exist under `Tools/simulation/gz/worlds/`) |
+| `PX4_GZ_MODEL_POSE` | Initial spawn pose: `x,y,z,roll,pitch,yaw` |
+| `HEADLESS` | `1` disables the Gazebo GUI window |
+
+::: {.callout-tip}
+To use a custom world, symlink it into the PX4 worlds directory:
+
+```bash
+ln -sfn /path/to/my_world.sdf ~/px4/my-px4/Tools/simulation/gz/worlds/
+```
+
+The uav_control repo automates this with a pixi `link-worlds` task (see below).
+:::
+
+---
+
+## SITL vs SIL branching with OpaqueFunction
+
+When a project supports both full SITL (PX4 + Gazebo) and a lightweight
+software-in-the-loop simulator, use `OpaqueFunction` to branch at launch time.
+Pattern from uav_control/src/uav_bringup/launch/sim_base.launch.py:
+
+```python
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
+
+def _launch_setup(context):
+    simulator = context.launch_configurations["simulator"]
+    bringup_dir = get_package_share_directory("my_bringup")
+    actions = []
+
+    if simulator == "sitl":
+        actions.append(
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(bringup_dir, "launch", "sitl.launch.py")
+                ),
+                launch_arguments={
+                    "px4_model": context.launch_configurations.get("px4_model", "gz_x500"),
+                    "px4_world": context.launch_configurations.get("px4_world", ""),
+                    "use_sim_time": context.launch_configurations.get("use_sim_time", "true"),
+                }.items(),
+            )
+        )
+    elif simulator == "sil":
+        # lightweight dynamics-only simulator — no PX4, no Gazebo
+        actions.append(
+            Node(package="uav_simulator", executable="uav_simulator_node", output="screen")
+        )
+    else:
+        raise ValueError(f"Unknown simulator '{simulator}'. Use 'sitl' or 'sil'.")
+
+    return actions
+
+
+def generate_launch_description():
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            "simulator",
+            default_value="sitl",
+            choices=["sitl", "sil"],
+            description="Simulator backend",
+        ),
+        OpaqueFunction(function=_launch_setup),
+    ])
+```
+
+`OpaqueFunction` defers evaluation until after all arguments are resolved.
+The `context.launch_configurations` dict contains the fully-resolved string
+values of every declared argument.
+
+---
+
+## Topic remappings
+
+ROS node topics are wired up via `remappings` in the `Node` action rather
+than inside the C++ source. This lets the same binary work across different
+namespacing schemes:
+
+```python
+Node(
+    package="my_pkg",
+    executable="controller_node",
+    name="controller",
+    parameters=[...],
+    remappings=[
+        # relative private topic -> absolute FMU topic
+        ("~/setpoint",   "/controller/trajectory_setpoint"),
+        # absolute FMU topics (explicit, documents the interface)
+        ("/fmu/in/trajectory_setpoint",    "/fmu/in/trajectory_setpoint"),
+        ("/fmu/in/offboard_control_mode",  "/fmu/in/offboard_control_mode"),
+        ("/fmu/in/vehicle_command",        "/fmu/in/vehicle_command"),
+        ("/fmu/out/vehicle_odometry",      "/fmu/out/vehicle_odometry"),
+        ("/fmu/out/vehicle_status_v1",     "/fmu/out/vehicle_status_v1"),
+    ],
+)
+```
+
+---
+
+## Pixi tasks
+
+Define tasks in `pixi.toml` so the full stack launches with one command.
+Pattern from hosm_ros2_px4 and uav_control:
+
+```toml
+[tasks]
+build = "colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1"
+clean = "rm -rf build install log"
+
+# Full stack: PX4 + DDS agent + controller
+launch = { cmd = "ros2 launch my_bringup sitl.launch.py", depends-on = ["build"] }
+
+# ROS nodes only — run PX4 + DDS agent externally
+launch-node = { cmd = "ros2 launch my_bringup sitl.launch.py px4_sitl:=false dds_agent:=false", depends-on = ["build"] }
+
+# Lightweight simulator (no PX4)
+launch-sil = { cmd = "ros2 launch my_bringup sitl.launch.py simulator:=sil", depends-on = ["build"] }
+
+# Symlink custom Gazebo worlds/models into PX4 (run once after cloning)
+link-worlds = """
+bash -c '
+PX4_WORLDS=~/px4/my-px4/Tools/simulation/gz/worlds
+PX4_MODELS=~/px4/my-px4/Tools/simulation/gz/models
+mkdir -p "$PX4_WORLDS" "$PX4_MODELS"
+for f in $(pwd)/extern/gz_scenes/worlds/*; do ln -sfn "$f" "$PX4_WORLDS/$(basename $f)"; done
+for d in $(pwd)/extern/gz_scenes/models/*/; do ln -sfn "$d" "$PX4_MODELS/$(basename $d)"; done
+'
+"""
+```
+
+Usage:
+
+```bash
+pixi run launch                          # full SITL stack
+pixi run launch-node                     # nodes only (PX4 + agent already running)
+pixi run launch -- px4_world:=cyberzoo  # override any launch arg
+pixi run link-worlds                     # one-time world/model setup
+```
+
+---
+
+## Common CLI overrides
+
+```bash
+# Custom world and spawn location
+ros2 launch my_bringup sitl.launch.py \
+  px4_world:=cyberzoo \
+  px4_model:=gz_x500_depth \
+  delay_controller:=20.0
+
+# Headless (CI / SSH)
+ros2 launch my_bringup sitl.launch.py headless:=true rviz:=false
+
+# Separate terminals workflow: PX4 and DDS agent already running
+ros2 launch my_bringup sitl.launch.py px4_sitl:=false dds_agent:=false
+```
+
+---
+
+## Scenario YAML override
+
+When running parameter sweeps or multiple trajectory experiments, bake each
+configuration into a YAML file and load it at launch time with an
+`OpaqueFunction`. This lets a single launch file support many scenarios without
+extra arguments.
+
+**`config/scenarios/circular.yaml`:**
+
+```yaml
+controller: hosm
+params_file: ""          # empty = use per-controller default
+duration: 120.0
+trajectory:
+  type: circular
+  amplitude: 2.0
+  omega: 0.2
+  z: -4.0
+  yaw: 0.0
+  yaw_mode: forward
+```
+
+**Launch file snippet:**
+
+```python
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration
+import yaml
+
+def _load_scenario(context, *_):
+    path = context.launch_configurations.get("scenario", "")
+    if not path:
+        return []
+    with open(path) as f:
+        cfg = yaml.safe_load(f)
+    traj = cfg.get("trajectory", {})
+    overrides = {
+        "controller":      cfg.get("controller"),
+        "params_file":     cfg.get("params_file"),
+        "duration":        cfg.get("duration"),
+        "trajectory_type": traj.get("type"),
+        "amplitude":       traj.get("amplitude"),
+        "omega":           traj.get("omega"),
+        "z":               traj.get("z"),
+        "yaw_mode":        traj.get("yaw_mode"),
+    }
+    return [
+        SetLaunchConfiguration(k, str(v))
+        for k, v in overrides.items()
+        if v is not None
+    ]
+
+# In generate_launch_description():
+DeclareLaunchArgument("scenario", default_value="",
+    description="Path to a scenario YAML. Overrides all trajectory args."),
+OpaqueFunction(function=_load_scenario),
+```
+
+`SetLaunchConfiguration` overwrites an existing argument value at runtime.
+It must be evaluated before any action that reads those configurations, so
+place the `OpaqueFunction` early in the `LaunchDescription` list.
+
+Usage:
+
+```bash
+ros2 launch my_bringup sitl.launch.py \
+    scenario:=config/scenarios/circular.yaml
+```
+
+---
+
+## Auto-shutdown with timed duration
+
+For automated evaluation runs, add a `duration` argument that shuts down the
+entire launch after a fixed number of seconds:
+
+```python
+from launch.actions import EmitEvent, TimerAction
+from launch.conditions import IfCondition
+from launch.events import Shutdown
+from launch.substitutions import LaunchConfiguration, PythonExpression
+
+DeclareLaunchArgument("duration", default_value="0.0",
+    description="If > 0, shut down after this many seconds"),
+
+auto_shutdown = TimerAction(
+    period=LaunchConfiguration("duration"),
+    actions=[EmitEvent(event=Shutdown(reason="duration elapsed"))],
+    condition=IfCondition(
+        PythonExpression(["float('", LaunchConfiguration("duration"), "') > 0.0"])
+    ),
+)
+```
+
+`EmitEvent(Shutdown)` triggers a clean ROS 2 shutdown, which fires all
+`OnShutdown` handlers (bag recording, post-processing, process cleanup) before
+the launch exits.
+
+---
+
+## Shutdown cleanup for PX4 and Gazebo
+
+PX4, Gazebo, and the DDS agent do not terminate when the launch file exits —
+they leave zombie processes that block ports and prevent the next run. Register
+an `OnShutdown` handler to kill them:
+
+```python
+from launch.actions import ExecuteProcess, RegisterEventHandler
+from launch.event_handlers import OnShutdown
+
+gz_cleanup = RegisterEventHandler(
+    OnShutdown(
+        on_shutdown=[
+            ExecuteProcess(
+                cmd=[
+                    "bash", "-c",
+                    "pkill -9 -f px4; "
+                    "pkill -9 -f gz-server; "
+                    "pkill -9 -f gz-sim; "
+                    "pkill -9 -f gzserver; "
+                    "pkill -9 -f MicroXRCEAgent; "
+                    "true",   # suppress non-zero exit if processes are not running
+                ],
+                output="screen",
+            )
+        ]
+    )
+)
+```
+
+Always add `gz_cleanup` to the `LaunchDescription`. The `true` at the end
+ensures the cleanup `ExecuteProcess` exits 0 even when some processes were
+not running.
+
+---
+
+## Bag recording and post-processing
+
+Record a bag during the run and trigger analysis on shutdown in the same
+`OnShutdown` handler:
+
+```python
+import shutil
+from launch.actions import ExecuteProcess
+
+def _bag_actions(context, *_):
+    if context.launch_configurations.get("record_bag", "true").lower() != "true":
+        return []
+    bag_dir = "results/bag_tmp"
+    shutil.rmtree(bag_dir, ignore_errors=True)
+    return [
+        ExecuteProcess(
+            cmd=[
+                "ros2", "bag", "record", "-s", "mcap", "-o", bag_dir,
+                "/fmu/out/vehicle_odometry",
+                "/my_controller/trajectory_setpoint",
+            ],
+            output="screen",
+        ),
+    ]
+
+post_process = RegisterEventHandler(
+    OnShutdown(
+        on_shutdown=[
+            ExecuteProcess(
+                cmd=[
+                    "bash", "-c",
+                    PythonExpression([
+                        "'python3 scripts/plot_tracking.py results/bag_tmp"
+                        " --out results/{c}/plots && rm -rf results/bag_tmp'"
+                        ".format(c='",
+                        LaunchConfiguration("controller"),
+                        "')",
+                    ]),
+                ],
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("record_bag")),
+            )
+        ]
+    )
+)
+```
+
+::: {.callout-note}
+`OnShutdown` handlers run in registration order. Register `post_process`
+**before** `gz_cleanup` so the bag writer has a chance to flush before the
+agent is killed. `ros2 bag record` exits when it receives SIGTERM, which
+`pkill` issues before the `kill -9` fallback.
+:::
+
+::: {.callout-warning}
+`PythonExpression` inside `OnShutdown` uses the launch configurations as
+they were at shutdown time. Make sure `LaunchConfiguration("controller")`
+and similar substitutions are resolvable before shutdown triggers (they are
+if declared as `DeclareLaunchArgument`).
+:::

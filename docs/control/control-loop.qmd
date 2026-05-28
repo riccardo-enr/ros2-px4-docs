@@ -1,0 +1,439 @@
+---
+title: "Control Loop Architecture"
+---
+
+This page documents the C++ patterns used across hosm_ros2_px4, uav_control,
+i_mppi_ros2_px4, and nmpc_ros2 for structuring the real-time control loop:
+timer setup, heartbeat separation, callback groups, state validity, and
+diagnostic logging.
+
+---
+
+## Timer setup
+
+The control loop runs on a `create_wall_timer` at a fixed rate declared as a
+ROS parameter. Rate is loaded in the constructor after `declare_parameter`:
+
+```cpp
+class ControllerNode : public rclcpp::Node {
+public:
+    ControllerNode() : Node("controller") {
+        declare_parameter("control_rate_hz", 250.0);
+        const double rate = get_parameter("control_rate_hz").as_double();
+
+        timer_ = create_wall_timer(
+            std::chrono::duration<double>(1.0 / rate),
+            [this]() { controlLoop(); });
+
+        RCLCPP_INFO(get_logger(), "Control loop started at %.0f Hz", rate);
+    }
+
+private:
+    void controlLoop() { /* ... */ }
+
+    rclcpp::TimerBase::SharedPtr timer_;
+};
+```
+
+Use `create_wall_timer` (wall clock), not `create_timer` (ROS clock), for the
+control loop. The ROS clock pauses when `use_sim_time:=true` and the `/clock`
+topic stops — a paused timer will not tick, which can cause the offboard
+heartbeat to miss its deadline.
+
+---
+
+## Separate offboard heartbeat timer
+
+PX4 requires an `OffboardControlMode` message at **>= 2 Hz** to stay in
+offboard mode. The control loop may run at 50–250 Hz, but publishing that
+message from inside `controlLoop` ties the heartbeat to control health. Use a
+separate timer running at ~10 Hz:
+
+```cpp
+ControllerNode() : Node("controller") {
+    // ... control timer setup ...
+
+    /* Heartbeat must arrive at > 2 Hz — 10 Hz gives comfortable margin. */
+    heartbeat_timer_ = create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this]() { publishOffboardControlMode(); });
+}
+
+void publishOffboardControlMode() {
+    px4_msgs::msg::OffboardControlMode msg;
+    msg.timestamp        = now().nanoseconds() / 1000;
+    msg.thrust_and_torque = true;   // set the flag for your control mode
+    offboard_pub_->publish(msg);
+}
+
+rclcpp::TimerBase::SharedPtr heartbeat_timer_;
+```
+
+This way the heartbeat continues even if `controlLoop` returns early due to a
+missing setpoint or invalid state.
+
+---
+
+## Callback groups for sensor I/O
+
+By default all callbacks run in a single-threaded executor. If a sensor
+callback takes too long it can delay the control timer. The pattern used in
+uav_control is a `MutuallyExclusive` callback group for sensor subscriptions,
+combined with a `MultiThreadedExecutor` in `main`:
+
+```cpp
+ControllerNode() : Node("controller") {
+    /* Sensor callbacks get their own group so they cannot block the timer. */
+    sensor_cbg_ = create_callback_group(
+        rclcpp::CallbackGroupType::MutuallyExclusive);
+
+    rclcpp::SubscriptionOptions sub_opts;
+    sub_opts.callback_group = sensor_cbg_;
+
+    odom_sub_ = create_subscription<px4_msgs::msg::VehicleLocalPosition>(
+        "/fmu/out/vehicle_local_position",
+        rclcpp::QoS(5).best_effort(),
+        [this](const px4_msgs::msg::VehicleLocalPosition::SharedPtr msg) {
+            state_manager_.update_position(*msg);
+        },
+        sub_opts);
+
+    // control timer uses the default callback group (single-threaded context)
+    timer_ = create_wall_timer(
+        std::chrono::milliseconds(4),
+        [this]() { controlLoop(); });
+}
+
+rclcpp::CallbackGroup::SharedPtr sensor_cbg_;
+```
+
+**`main.cpp`** with multi-threaded executor:
+
+```cpp
+int main(int argc, char* argv[])
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<ControllerNode>();
+
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
+
+    rclcpp::shutdown();
+    return 0;
+}
+```
+
+---
+
+## State validity guard
+
+Never publish a setpoint before all state fields are populated and fresh.
+The `StateManager` pattern from uav_control/src/uav_px4_common guards both
+validity and staleness with a single `is_valid()` call:
+
+**`include/my_pkg/state_manager.hpp`**:
+
+```cpp
+#pragma once
+#include <Eigen/Dense>
+#include <chrono>
+#include <mutex>
+#include <px4_msgs/msg/vehicle_local_position.hpp>
+#include <px4_msgs/msg/vehicle_attitude.hpp>
+#include <px4_msgs/msg/vehicle_angular_velocity.hpp>
+
+class StateManager {
+public:
+    static constexpr int64_t STALE_THRESHOLD_MS = 500;
+
+    void update_position(const px4_msgs::msg::VehicleLocalPosition& msg) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (msg.xy_valid && msg.z_valid) {
+            px_ = msg.x; py_ = msg.y; pz_ = msg.z;
+            pos_valid_ = true;
+        }
+        pos_time_ = Clock::now();
+    }
+
+    void update_attitude(const px4_msgs::msg::VehicleAttitude& msg) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        /* PX4 VehicleAttitude.q: Hamilton [w, x, y, z] */
+        qw_ = msg.q[0]; qx_ = msg.q[1]; qy_ = msg.q[2]; qz_ = msg.q[3];
+        att_valid_ = true;
+        att_time_ = Clock::now();
+    }
+
+    bool is_valid() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!pos_valid_ || !att_valid_) return false;
+
+        auto now = Clock::now();
+        auto ms = [&](TimePoint tp) {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - tp).count();
+        };
+        return ms(pos_time_) < STALE_THRESHOLD_MS &&
+               ms(att_time_) < STALE_THRESHOLD_MS;
+    }
+
+private:
+    using Clock     = std::chrono::steady_clock;
+    using TimePoint = Clock::time_point;
+
+    mutable std::mutex mutex_;
+    float px_ = 0, py_ = 0, pz_ = 0;
+    float qw_ = 1, qx_ = 0, qy_ = 0, qz_ = 0;
+    bool pos_valid_ = false, att_valid_ = false;
+    TimePoint pos_time_{}, att_time_{};
+};
+```
+
+Use it at the top of `controlLoop`:
+
+```cpp
+void controlLoop() {
+    publishOffboardControlMode();  // heartbeat always runs
+
+    if (!state_manager_.is_valid()) return;
+    if (nav_state_ != px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD) return;
+
+    // safe to compute and publish setpoints here
+}
+```
+
+::: {.callout-note}
+`VehicleLocalPosition` carries PX4-internal validity flags (`xy_valid`,
+`z_valid`, `v_xy_valid`) that reflect EKF2 health. Respect them — position
+estimates can be numerically non-zero but still invalid after startup or a
+sensor dropout.
+:::
+
+---
+
+## Throttled logging
+
+Three logging macros cover the control loop without spamming the terminal:
+
+```cpp
+// Once: print on the very first call (e.g. confirm first message arrived)
+RCLCPP_INFO_ONCE(get_logger(), "First odometry received");
+
+// On change: log state transitions without polling
+if (nav_state_ != prev_nav_state_) {
+    RCLCPP_INFO(get_logger(), "nav_state changed: %u -> %u",
+                prev_nav_state_, nav_state_);
+    prev_nav_state_ = nav_state_;
+}
+
+// Throttled: telemetry at ~2 Hz from a 250 Hz loop (500 ms interval)
+RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
+    "pos=(%.2f, %.2f, %.2f)  U=(%.3f, %.3f, %.3f, %.3f)",
+    px_, py_, pz_, U[0], U[1], U[2], U[3]);
+```
+
+The 500 ms throttle interval gives ~2 Hz log output regardless of the control
+rate. Use 1000 ms for slower, less critical telemetry.
+
+---
+
+## Debug struct pattern
+
+Pass a debug struct by reference into `computeControl` instead of returning
+a large tuple or publishing individual topics:
+
+```cpp
+struct ControlDebug {
+    double error_x = 0.0, error_y = 0.0, error_z = 0.0;
+    double surface_z = 0.0, surface_psi = 0.0;
+};
+
+// In controlLoop:
+ControlDebug dbg;
+const Eigen::Vector4d U = controller_->computeControl(state_, desired_, dbg);
+
+RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
+    "err=(%.3f, %.3f, %.3f)  s=(%.3f, %.3f)",
+    dbg.error_x, dbg.error_y, dbg.error_z,
+    dbg.surface_z, dbg.surface_psi);
+```
+
+Gate expensive debug output with a parameter:
+
+```cpp
+declare_parameter("debug_thrust_only", false);
+
+// in controlLoop:
+if (get_parameter("debug_thrust_only").as_bool()) {
+    torque_msg.xyz[0] = 0.0f;
+    torque_msg.xyz[1] = 0.0f;
+    torque_msg.xyz[2] = 0.0f;
+}
+```
+
+---
+
+## Full control loop skeleton
+
+Putting it all together — the pattern used in hosm_ros2_px4:
+
+```cpp
+void controlLoop() {
+    /* 1. Offboard heartbeat — always, even if we have no data. */
+    publishOffboardControlMode();
+
+    /* 2. Auto-arm state machine (optional). */
+    if (auto_arm_) updateArmStateMachine();
+
+    /* 3. Guard: wait for valid state and offboard mode. */
+    if (!odom_received_ || !setpoint_received_) return;
+    if (nav_state_ != px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD) return;
+
+    /* 4. Compute control output. */
+    ControlDebug dbg;
+    Eigen::Vector4d U_raw = controller_->computeControl(state_, desired_, dbg);
+
+    /* 5. Clamp to physical limits before normalizing. */
+    Eigen::Vector4d U;
+    U(0) = std::clamp(U_raw(0),  0.0, max_thrust_);
+    U(1) = std::clamp(U_raw(1), -max_torque_roll_,  max_torque_roll_);
+    U(2) = std::clamp(U_raw(2), -max_torque_pitch_, max_torque_pitch_);
+    U(3) = std::clamp(U_raw(3), -max_torque_yaw_,   max_torque_yaw_);
+
+    /* 6. Normalize to PX4 actuator range [-1, 1]. */
+    const float Tz  = static_cast<float>(-U(0) / max_thrust_);
+    const float tx  = static_cast<float>( U(1) / max_torque_roll_);
+    const float ty  = static_cast<float>( U(2) / max_torque_pitch_);
+    const float tz  = static_cast<float>( U(3) / max_torque_yaw_);
+
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
+        "U: T=%.2f  tau=(%.3f, %.3f, %.3f)  cmd: Tz=%.3f  t=(%.3f, %.3f, %.3f)",
+        U(0), U(1), U(2), U(3), Tz, tx, ty, tz);
+
+    /* 7. Publish. Timestamp in microseconds (PX4 convention). */
+    auto thrust_msg = px4_msgs::msg::VehicleThrustSetpoint();
+    thrust_msg.timestamp = now().nanoseconds() / 1000;
+    thrust_msg.xyz[2]    = Tz;
+    thrust_pub_->publish(thrust_msg);
+
+    auto torque_msg = px4_msgs::msg::VehicleTorqueSetpoint();
+    torque_msg.timestamp = now().nanoseconds() / 1000;
+    torque_msg.xyz[0] = tx;
+    torque_msg.xyz[1] = ty;
+    torque_msg.xyz[2] = tz;
+    torque_pub_->publish(torque_msg);
+}
+```
+
+Steps 1 and 3 are non-negotiable. Everything else adapts to your controller.
+
+---
+
+## ROS-free controller architecture
+
+Keep your control algorithms in plain C++ classes with no ROS or px4_msgs
+headers. The ROS node becomes a thin wrapper that handles only I/O.
+
+**The rule:** if a header needs `#include <rclcpp/rclcpp.hpp>`, it belongs in
+the node file, not in the algorithm.
+
+**Directory layout:**
+
+```
+include/my_pkg/
+  controller.hpp      // pure C++, no ROS
+  observer.hpp        // pure C++, no ROS
+  offboard_arm_fsm.hpp // pure C++, no ROS
+src/
+  controller.cpp
+  observer.cpp
+  controller_node.cpp  // only file with rclcpp includes
+```
+
+**What the algorithm class looks like:**
+
+```cpp
+/* controller.hpp — no rclcpp, no px4_msgs */
+#pragma once
+#include <Eigen/Dense>
+
+struct ControllerGains { double c, k1, k2; };
+
+class MyController {
+ public:
+  explicit MyController(ControllerGains g) : g_(g) {}
+
+  /* Returns SI output (force or torque, not normalized). */
+  double update(double x, double x_dot, double x_des, double x_dot_des,
+                double x_ddot_des, double dt);
+
+  void reset() { integrator_ = 0.0; }
+
+ private:
+  ControllerGains g_;
+  double integrator_ = 0.0;
+};
+```
+
+**What the node does:**
+
+```cpp
+/* controller_node.cpp — the only file with ROS includes */
+#include <rclcpp/rclcpp.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
+// ...
+#include "my_pkg/controller.hpp"
+#include "my_pkg/observer.hpp"
+
+class ControllerNode : public rclcpp::Node {
+ public:
+  ControllerNode()
+      : Node("controller"),
+        ctrl_(loadGains()),    // constructed from ROS params
+        obs_(loadObsGains()) {
+    // subscribe, advertise, create timer
+  }
+
+ private:
+  MyController ctrl_;    // no ROS knowledge
+  MyObserver   obs_;
+
+  void controlLoop() {
+    // 1. unpack odometry into plain doubles
+    // 2. call ctrl_.update(...)
+    // 3. normalize and publish to PX4
+  }
+};
+```
+
+**Why this pays off:**
+
+- **Unit tests** instantiate `MyController` directly — no `rclcpp::init`,
+  no spinning, no mocked publishers. Run full convergence tests with hundreds
+  of time steps in milliseconds.
+- **Portability** — the same algorithm class compiles into a Gazebo plugin,
+  a Python binding (via pybind11), or a micro-ROS node without changes.
+- **Readability** — algorithm files contain only math; node files contain only
+  plumbing. Neither is cluttered with the other.
+
+**Testing without ROS:**
+
+```cpp
+// test_controller.cpp — plain GTest, no rclcpp
+#include "my_pkg/controller.hpp"
+#include <gtest/gtest.h>
+
+TEST(ControllerTest, ConvergesOnConstantDisturbance) {
+  MyController ctrl({.c = 2.0, .k1 = 1.5, .k2 = 0.5});
+  double x = 0.0, xd = 1.0;
+  const double dt = 0.002;
+  for (int i = 0; i < 5000; ++i) {
+    double u = ctrl.update(x, 0.0, xd, 0.0, 0.0, dt);
+    x += (u + 0.3) * dt;   // plant + constant disturbance
+  }
+  EXPECT_NEAR(x, xd, 0.01);
+}
+```
+
+Link only the algorithm library in the test target — no `ament_target_dependencies`
+for `rclcpp` or `px4_msgs` needed.

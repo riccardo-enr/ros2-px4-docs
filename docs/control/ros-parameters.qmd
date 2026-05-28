@@ -1,0 +1,224 @@
+---
+title: "Node Parameters"
+---
+
+This page documents the parameter patterns used across hosm_ros2_px4,
+uav_control, and px4_offboard_lowlevel: how to declare and load them in C++,
+how to structure the YAML files, how to support runtime updates, and how to
+pass them from launch files without type errors.
+
+---
+
+## Declare → load pattern
+
+Split parameter handling into two private methods: `declareParameters()` and
+`loadParameters()`. Call both from the constructor, before any timer or
+publisher is created.
+
+```cpp
+class ControllerNode : public rclcpp::Node {
+public:
+    ControllerNode() : Node("controller") {
+        declareParameters();
+        loadParameters();
+        // timers, subscribers, publishers ...
+    }
+
+private:
+    void declareParameters() {
+        /* Physical model */
+        declare_parameter("mass",    2.0);
+        declare_parameter("gravity", 9.81);
+
+        /* Nested gains use dotted names */
+        declare_parameter("smc.lambda_z", 5.0);
+        declare_parameter("smc.epsilon",  0.1);
+
+        /* Control */
+        declare_parameter("control_rate_hz", 250.0);
+        declare_parameter("auto_arm",        true);
+        declare_parameter("debug_thrust_only", false);
+
+        /* Normalization */
+        declare_parameter("max_thrust",       32.7);
+        declare_parameter("max_torque_roll",   3.22);
+    }
+
+    void loadParameters() {
+        params_.mass    = get_parameter("mass").as_double();
+        params_.gravity = get_parameter("gravity").as_double();
+
+        smc_.lambda_z = get_parameter("smc.lambda_z").as_double();
+        smc_.epsilon  = get_parameter("smc.epsilon").as_double();
+
+        control_rate_hz_  = get_parameter("control_rate_hz").as_double();
+        auto_arm_         = get_parameter("auto_arm").as_bool();
+        debug_thrust_only_ = get_parameter("debug_thrust_only").as_bool();
+
+        max_thrust_      = get_parameter("max_thrust").as_double();
+        max_torque_roll_ = get_parameter("max_torque_roll").as_double();
+    }
+};
+```
+
+::: {.callout-note}
+Separating declare and load makes it easy to add `add_on_set_parameters_callback`
+(see below) without scattering `declare_parameter` calls throughout the class.
+:::
+
+---
+
+## YAML parameter file structure
+
+ROS 2 parameter files follow `<node_name>: ros__parameters: <key>: <value>`.
+Dotted C++ names (`smc.lambda_z`) expand into nested YAML maps.
+
+```yaml
+controller:
+  ros__parameters:
+    # physical model
+    mass:    2.064
+    gravity: 9.81
+
+    # SMC gains — expressed as nested map matching the dotted C++ names
+    smc:
+      lambda_z:  5.0
+      epsilon:   0.1
+
+    # control
+    control_rate_hz: 250.0
+    auto_arm:        true
+    debug_thrust_only: false
+
+    # PX4 normalization (compute from motor characterization)
+    max_thrust:      32.7
+    max_torque_roll:  3.22
+```
+
+### Wildcard node name
+
+Use `/**` to apply a block to every node in the process. Useful for shared
+topic remapping conventions (e.g. FMU topic names) that should not need
+repeating per-node:
+
+```yaml
+/**:
+  ros__parameters:
+    sitl_mode: true
+    topics:
+      odometry:  "/fmu/out/vehicle_odometry"
+      status:    "/fmu/out/vehicle_status_v1"
+```
+
+---
+
+## Dynamic parameter callback
+
+Allow runtime parameter updates (e.g. gain tuning via `ros2 param set`) by
+registering a callback in the constructor:
+
+```cpp
+ControllerNode() : Node("controller") {
+    declareParameters();
+    loadParameters();
+
+    param_cb_handle_ = add_on_set_parameters_callback(
+        [this](const std::vector<rclcpp::Parameter>& params) {
+            return onParameterChange(params);
+        });
+}
+
+rcl_interfaces::msg::SetParametersResult
+onParameterChange(const std::vector<rclcpp::Parameter>& params) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+
+    for (const auto& p : params) {
+        if (p.get_name() == "smc.lambda_z") {
+            smc_.lambda_z = p.as_double();
+            RCLCPP_INFO(get_logger(), "smc.lambda_z -> %.3f", smc_.lambda_z);
+        } else if (p.get_name() == "auto_arm") {
+            auto_arm_ = p.as_bool();
+        } else if (p.get_name() == "debug_thrust_only") {
+            debug_thrust_only_ = p.as_bool();
+        }
+    }
+    return result;
+}
+
+rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
+```
+
+Then at runtime:
+
+```bash
+ros2 param set /controller smc.lambda_z 8.0
+ros2 param set /controller debug_thrust_only true
+```
+
+---
+
+## Loading parameters from a launch file
+
+### Layer YAML + runtime overrides
+
+Pass the YAML file as the first entry in `parameters=[]` and add a dict of
+runtime values afterwards. Later entries override earlier ones:
+
+```python
+Node(
+    package="my_pkg",
+    executable="controller_node",
+    name="controller",
+    output="screen",
+    parameters=[
+        LaunchConfiguration("params_file"),          # YAML file
+        {
+            "use_sim_time":   LaunchConfiguration("use_sim_time"),
+            "auto_arm":       LaunchConfiguration("auto_arm"),
+        },
+    ],
+)
+```
+
+### ParameterValue type casting
+
+Launch configuration values are always strings. Without explicit casting,
+float and int parameters arrive at the node as strings and cause a
+`ParameterTypeMismatch` error at runtime:
+
+```python
+from launch_ros.parameter_descriptions import ParameterValue
+from launch.substitutions import LaunchConfiguration
+
+Node(
+    package="my_pkg",
+    executable="reference_publisher",
+    parameters=[{
+        "height":  ParameterValue(LaunchConfiguration("z"),     value_type=float),
+        "speed":   ParameterValue(LaunchConfiguration("speed"), value_type=float),
+        "samples": ParameterValue(LaunchConfiguration("n"),     value_type=int),
+    }],
+)
+```
+
+Use `ParameterValue` whenever a node expects a non-string parameter that comes
+directly from a `LaunchConfiguration` rather than a Python literal.
+
+---
+
+## Dumping and inspecting parameters at runtime
+
+```bash
+# List all parameters for a node
+ros2 param list /controller
+
+# Get one value
+ros2 param get /controller smc.lambda_z
+
+# Dump all to YAML (useful for capturing a tuned config)
+ros2 param dump /controller > tuned_params.yaml
+
+# Load a file into a running node
+ros2 param load /controller /path/to/tuned_params.yaml
+```
