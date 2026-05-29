@@ -21,11 +21,11 @@ Python type checking. No system-level ROS install required.
 
 ```{mermaid}
 graph LR
-    pixi["pixi\n(env manager)"] --> ros["ROS 2 Jazzy\n(robostack-jazzy)"]
-    pixi --> python["Python 3.11+\n(conda-forge)"]
+    pixi["pixi<br/>(env manager)"] --> ros["ROS 2 Jazzy<br/>(robostack-jazzy)"]
+    pixi --> python["Python 3.11+<br/>(conda-forge)"]
     ros --> colcon["colcon build"]
-    colcon --> ws["install/\n(ROS overlay)"]
-    ws --> px4["px4_msgs\n(git submodule)"]
+    colcon --> ws["install/<br/>(ROS overlay)"]
+    ws --> px4["px4_msgs<br/>(git submodule)"]
 ```
 
 ## Prerequisites
