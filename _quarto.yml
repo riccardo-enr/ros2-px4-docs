@@ -36,6 +36,8 @@ website:
             text: QoS Profiles
           - href: docs/control/control-loop.qmd
             text: Control Loop Architecture
+          - href: docs/control/composition.qmd
+            text: Node Composition
           - href: docs/control/ros-parameters.qmd
             text: Node Parameters
           - href: docs/control/frame-conventions.qmd
@@ -69,6 +71,7 @@ website:
         contents:
           - docs/control/qos-profiles.qmd
           - docs/control/control-loop.qmd
+          - docs/control/composition.qmd
           - docs/control/ros-parameters.qmd
           - docs/control/frame-conventions.qmd
           - docs/control/arming-offboard.qmd

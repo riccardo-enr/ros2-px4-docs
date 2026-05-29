@@ -1,0 +1,156 @@
+---
+title: "Node Composition"
+---
+
+Composition lets you decide **at deploy time** — not compile time — whether the
+pieces of your control stack run as separate processes or share a single one.
+The same node binary can run standalone via `ros2 run` or be loaded into a
+shared container alongside other nodes, with no change to the node code. This is
+what makes a "composable control stack" possible: controller, estimator, and
+allocator can be co-located for low latency in production, yet still launched
+individually for debugging.
+
+---
+
+## Why it matters for a control stack
+
+A control stack passes high-rate data along a chain: estimator -> controller ->
+allocator, with odometry and setpoints flowing every loop iteration. When these
+nodes live in separate processes, every message crosses a DDS boundary and is
+serialized, copied, and deserialized.
+
+Loading them into one **component container** enables intra-process
+communication: messages are passed by shared pointer with no serialization. On
+the hot path this removes a source of latency and jitter that directly affects
+control quality.
+
+::: {.callout-note}
+Intra-process transport only kicks in when both endpoints are in the same
+container *and* the node is built with `use_intra_process_comms`. QoS still has
+to match — see [QoS Profiles](qos-profiles.qmd). PX4 `/fmu/*` topics cross the
+DDS bridge regardless, so zero-copy only helps for traffic *between your own
+nodes*.
+:::
+
+---
+
+## Three ways to compose
+
+| Style | How | When |
+|-------|-----|------|
+| Manual | A custom executable that instantiates several components by `#include` | Fixed, known-at-compile-time set of nodes |
+| Runtime | Start a generic container, then `ros2 component load` nodes into it | Interactive bring-up, experimentation |
+| Launch-time | `ComposableNodeContainer` describes the container and its nodes in a launch file | Production deployment |
+
+Launch-time composition is what the bringup package uses. See the full
+`ComposableNodeContainer` example in
+[Bringup Package](../setup/ros2-bringup-package.qmd).
+
+---
+
+## Writing a node as a component
+
+A node needs two things to be loadable into a container.
+
+**1. A constructor that accepts `NodeOptions`** and forwards them to the base
+`Node`:
+
+```cpp
+namespace my_pkg {
+
+class Controller : public rclcpp::Node {
+public:
+    explicit Controller(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
+    : Node("controller", options) {
+        // ... subscriptions, publishers, timer ...
+    }
+};
+
+}  // namespace my_pkg
+```
+
+The `options` argument is how the container injects parameters, remappings, and
+intra-process settings at load time. A node that hardcodes `Node("controller")`
+without forwarding options cannot be composed.
+
+**2. Registration with the component factory:**
+
+```cpp
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(my_pkg::Controller)
+```
+
+plus the matching `rclcpp_components_register_node` call in CMake. The full
+package layout — `package.xml` depend, CMake target, and the standalone
+`main.cpp` entry point — is on the
+[C++ Node Package](../setup/ros2-cpp-package.qmd) page.
+
+---
+
+## Container variants
+
+The container you launch picks the executor model for everything loaded into it:
+
+| Container | Executor | Use for |
+|-----------|----------|---------|
+| `component_container` | One `SingleThreadedExecutor` shared by all components | Simple stacks; callbacks never run in parallel |
+| `component_container_mt` | One `MultiThreadedExecutor` shared by all components | Parallel callbacks; pair with callback groups |
+| `component_container_isolated` | One executor per component | Strong isolation between nodes |
+
+For a real-time loop, `component_container_mt` plus callback groups is how you
+keep a slow subscription from starving the control timer — the timer runs in a
+`MutuallyExclusive` group on its own thread while other callbacks proceed
+independently. See the callback-group discussion in
+[Control Loop Architecture](control-loop.qmd).
+
+---
+
+## The constructor gotcha
+
+::: {.callout-warning}
+A component **must not block or do long-running work in its constructor**. The
+container loads components synchronously: anything that blocks in the
+constructor stalls the load (and any other node loaded after it). Do not wait
+for the first odometry message, sleep, or spin in the constructor.
+:::
+
+Defer that work to a timer or a callback. A control node that needs an initial
+state should arm a one-shot `create_wall_timer`, or simply guard its control
+loop with a "have I received state yet?" check — the same state-validity guard
+used in [Control Loop Architecture](control-loop.qmd) — rather than waiting in
+the constructor.
+
+---
+
+## Verifying composition
+
+List the containers and the components loaded in them:
+
+```bash
+# Show running containers
+ros2 component list
+
+# Example output:
+# /my_container
+#   1  /controller
+#   2  /estimator
+```
+
+Load a component into a running container by hand (runtime composition):
+
+```bash
+ros2 component load /my_container my_pkg my_pkg::Controller
+```
+
+To confirm two nodes really share a process, check that they report the same
+PID:
+
+```bash
+ros2 node info /controller   # then /estimator -- both map to one container PID
+ps -ef | grep component_container
+```
+
+If the nodes show different PIDs, they did not compose — check that each node is
+registered with `RCLCPP_COMPONENTS_REGISTER_NODE`, that the workspace is sourced
+in the launching shell, and that the `plugin` name in the launch file matches
+the registered class exactly.

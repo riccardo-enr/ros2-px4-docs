@@ -138,7 +138,9 @@ ament_package()
 Building as a shared library and using `rclcpp_components_register_node`
 lets the bringup package load nodes in a `ComponentContainer` without
 spawning separate processes. The `EXECUTABLE` argument also produces a
-standalone binary for direct `ros2 run` use.
+standalone binary for direct `ros2 run` use. See
+[Node Composition](../control/composition.qmd) for why this matters and the
+container trade-offs.
 :::
 
 ---

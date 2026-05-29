@@ -217,7 +217,8 @@ def generate_launch_description():
 ::: {.callout-note}
 `ComposableNode` requires that the node package registers its plugin with
 `rclcpp_components_register_node` in CMakeLists.txt — see the
-[C++ Node Package](ros2-cpp-package.qmd) page.
+[C++ Node Package](ros2-cpp-package.qmd) page. For the why behind composition
+and the container variants, see [Node Composition](../control/composition.qmd).
 :::
 
 ---
