@@ -28,7 +28,7 @@
     "href": "index.html#stack-overview",
     "title": "ROS 2 + PX4 Dev Guide",
     "section": "Stack overview",
-    "text": "Stack overview\n\n\n\n\n\ngraph LR\n    pixi[\"pixi\\n(env manager)\"] --&gt; ros[\"ROS 2 Jazzy\\n(robostack-jazzy)\"]\n    pixi --&gt; python[\"Python 3.11+\\n(conda-forge)\"]\n    ros --&gt; colcon[\"colcon build\"]\n    colcon --&gt; ws[\"install/\\n(ROS overlay)\"]\n    ws --&gt; px4[\"px4_msgs\\n(git submodule)\"]",
+    "text": "Stack overview\n\n\n\n\n\ngraph LR\n    pixi[\"pixi&lt;br/&gt;(env manager)\"] --&gt; ros[\"ROS 2 Jazzy&lt;br/&gt;(robostack-jazzy)\"]\n    pixi --&gt; python[\"Python 3.11+&lt;br/&gt;(conda-forge)\"]\n    ros --&gt; colcon[\"colcon build\"]\n    colcon --&gt; ws[\"install/&lt;br/&gt;(ROS overlay)\"]\n    ws --&gt; px4[\"px4_msgs&lt;br/&gt;(git submodule)\"]",
     "crumbs": [
       "Home",
       "Getting Started",
