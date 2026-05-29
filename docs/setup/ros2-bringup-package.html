@@ -360,6 +360,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Control Loop Architecture</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../../docs/control/composition.html">
+ <span class="dropdown-text">Node Composition</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../../docs/control/ros-parameters.html">
  <span class="dropdown-text">Node Parameters</span></a>
   </li>  
@@ -517,6 +521,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../../docs/control/control-loop.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Control Loop Architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/control/composition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Node Composition</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -789,7 +799,7 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>ComposableNode</code> requires that the node package registers its plugin with <code>rclcpp_components_register_node</code> in CMakeLists.txt — see the <a href="../../docs/setup/ros2-cpp-package.html">C++ Node Package</a> page.</p>
+<p><code>ComposableNode</code> requires that the node package registers its plugin with <code>rclcpp_components_register_node</code> in CMakeLists.txt — see the <a href="../../docs/setup/ros2-cpp-package.html">C++ Node Package</a> page. For the why behind composition and the container variants, see <a href="../../docs/control/composition.html">Node Composition</a>.</p>
 </div>
 </div>
 <hr>

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>micro-XRCE-DDS Agent – ROS 2 + PX4 Dev Guide</title>
+<title>Node Composition – ROS 2 + PX4 Dev Guide</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -397,7 +397,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/uxrce-dds-agent.html">micro-XRCE-DDS Agent</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/control/qos-profiles.html">Control</a></li><li class="breadcrumb-item"><a href="../../docs/control/composition.html">Node Composition</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -449,7 +449,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/setup/uxrce-dds-agent.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../docs/setup/uxrce-dds-agent.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">micro-XRCE-DDS Agent</span></a>
   </div>
 </li>
@@ -525,7 +525,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../docs/control/composition.html" class="sidebar-item-text sidebar-link">
+  <a href="../../docs/control/composition.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Node Composition</span></a>
   </div>
 </li>
@@ -571,23 +571,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#how-it-works" id="toc-how-it-works" class="nav-link active" data-scroll-target="#how-it-works">How it works</a></li>
-  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a>
-  <ul class="collapse">
-  <li><a href="#option-a-snap-recommended-for-sitl-on-ubuntu" id="toc-option-a-snap-recommended-for-sitl-on-ubuntu" class="nav-link" data-scroll-target="#option-a-snap-recommended-for-sitl-on-ubuntu">Option A – Snap (recommended for SITL on Ubuntu)</a></li>
-  <li><a href="#option-b-build-from-source" id="toc-option-b-build-from-source" class="nav-link" data-scroll-target="#option-b-build-from-source">Option B – Build from source</a></li>
-  <li><a href="#option-c-pixi-task-sitl-only" id="toc-option-c-pixi-task-sitl-only" class="nav-link" data-scroll-target="#option-c-pixi-task-sitl-only">Option C – pixi task (SITL-only)</a></li>
-  </ul></li>
-  <li><a href="#transport-options" id="toc-transport-options" class="nav-link" data-scroll-target="#transport-options">Transport options</a></li>
-  <li><a href="#px4-side-configuration-sitl" id="toc-px4-side-configuration-sitl" class="nav-link" data-scroll-target="#px4-side-configuration-sitl">PX4-side configuration (SITL)</a></li>
-  <li><a href="#verifying-the-bridge" id="toc-verifying-the-bridge" class="nav-link" data-scroll-target="#verifying-the-bridge">Verifying the bridge</a></li>
-  <li><a href="#namespace-isolation-multiple-vehicles" id="toc-namespace-isolation-multiple-vehicles" class="nav-link" data-scroll-target="#namespace-isolation-multiple-vehicles">Namespace isolation (multiple vehicles)</a></li>
-  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a>
-  <ul class="collapse">
-  <li><a href="#microxrceagent-command-not-found" id="toc-microxrceagent-command-not-found" class="nav-link" data-scroll-target="#microxrceagent-command-not-found"><code>MicroXRCEAgent: command not found</code></a></li>
-  <li><a href="#agent-connects-but-topics-stop-after-a-few-seconds" id="toc-agent-connects-but-topics-stop-after-a-few-seconds" class="nav-link" data-scroll-target="#agent-connects-but-topics-stop-after-a-few-seconds">Agent connects but topics stop after a few seconds</a></li>
-  <li><a href="#topics-appear-but-subscriber-callbacks-never-fire" id="toc-topics-appear-but-subscriber-callbacks-never-fire" class="nav-link" data-scroll-target="#topics-appear-but-subscriber-callbacks-never-fire">Topics appear but subscriber callbacks never fire</a></li>
-  </ul></li>
+  <li><a href="#why-it-matters-for-a-control-stack" id="toc-why-it-matters-for-a-control-stack" class="nav-link active" data-scroll-target="#why-it-matters-for-a-control-stack">Why it matters for a control stack</a></li>
+  <li><a href="#three-ways-to-compose" id="toc-three-ways-to-compose" class="nav-link" data-scroll-target="#three-ways-to-compose">Three ways to compose</a></li>
+  <li><a href="#writing-a-node-as-a-component" id="toc-writing-a-node-as-a-component" class="nav-link" data-scroll-target="#writing-a-node-as-a-component">Writing a node as a component</a></li>
+  <li><a href="#container-variants" id="toc-container-variants" class="nav-link" data-scroll-target="#container-variants">Container variants</a></li>
+  <li><a href="#the-constructor-gotcha" id="toc-the-constructor-gotcha" class="nav-link" data-scroll-target="#the-constructor-gotcha">The constructor gotcha</a></li>
+  <li><a href="#verifying-composition" id="toc-verifying-composition" class="nav-link" data-scroll-target="#verifying-composition">Verifying composition</a></li>
   </ul>
 </nav>
     </div>
@@ -595,9 +584,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/setup/workspace-setup.html">Setup</a></li><li class="breadcrumb-item"><a href="../../docs/setup/uxrce-dds-agent.html">micro-XRCE-DDS Agent</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/control/qos-profiles.html">Control</a></li><li class="breadcrumb-item"><a href="../../docs/control/composition.html">Node Composition</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">micro-XRCE-DDS Agent</h1>
+<h1 class="title">Node Composition</h1>
 </div>
 
 
@@ -614,191 +603,158 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>The <strong>micro-XRCE-DDS agent</strong> (also called the <strong>uXRCE-DDS agent</strong> or <strong>MicroXRCEAgent</strong>) is the bridge between PX4 and ROS 2. PX4 runs a micro-XRCE-DDS <strong>client</strong> internally; the agent runs on the companion computer (or SITL host) and forwards messages to the ROS 2 DDS middleware.</p>
-<p>Without the agent, no <code>/fmu/*</code> topics appear and all ROS 2 subscribers receive nothing.</p>
+<p>Composition lets you decide <strong>at deploy time</strong> — not compile time — whether the pieces of your control stack run as separate processes or share a single one. The same node binary can run standalone via <code>ros2 run</code> or be loaded into a shared container alongside other nodes, with no change to the node code. This is what makes a “composable control stack” possible: controller, estimator, and allocator can be co-located for low latency in production, yet still launched individually for debugging.</p>
 <hr>
-<section id="how-it-works" class="level2">
-<h2 class="anchored" data-anchor-id="how-it-works">How it works</h2>
-<pre><code>PX4 (SITL or hardware)           Companion / workstation
-+------------------------+        +---------------------------+
-| micro-XRCE-DDS client  | &lt;----&gt; | micro-XRCE-DDS agent      |
-| (runs in PX4 firmware) |  UDP   | (MicroXRCEAgent binary)   |
-+------------------------+        +-----------+---------------+
-                                              |
-                                       ROS 2 DDS (rmw)
-                                              |
-                                    +---------+---------+
-                                    | /fmu/out/* topics |
-                                    | /fmu/in/*  topics |
-                                    +-------------------+</code></pre>
-<p>The agent converts between the XRCE wire protocol and native DDS. It is stateless — restart it freely without restarting PX4 or your ROS 2 nodes.</p>
-<hr>
-</section>
-<section id="installation" class="level2">
-<h2 class="anchored" data-anchor-id="installation">Installation</h2>
-<section id="option-a-snap-recommended-for-sitl-on-ubuntu" class="level3">
-<h3 class="anchored" data-anchor-id="option-a-snap-recommended-for-sitl-on-ubuntu">Option A – Snap (recommended for SITL on Ubuntu)</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> snap install micro-xrce-dds-agent <span class="at">--edge</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Run:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">MicroXRCEAgent</span> udp4 <span class="at">-p</span> 8888</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="option-b-build-from-source" class="level3">
-<h3 class="anchored" data-anchor-id="option-b-build-from-source">Option B – Build from source</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> Micro-XRCE-DDS-Agent</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> build <span class="kw">&amp;&amp;</span> <span class="bu">cd</span> build</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cmake</span> ..</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> <span class="at">-j</span><span class="va">$(</span><span class="fu">nproc</span><span class="va">)</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Run:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">MicroXRCEAgent</span> udp4 <span class="at">-p</span> 8888</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="option-c-pixi-task-sitl-only" class="level3">
-<h3 class="anchored" data-anchor-id="option-c-pixi-task-sitl-only">Option C – pixi task (SITL-only)</h3>
-<p>Add the snap binary as a pixi task so it starts with the full SITL stack:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[tasks]</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">agent</span> <span class="op">=</span> <span class="st">"MicroXRCEAgent udp4 -p 8888"</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="dt">px4-sitl</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">cmd</span><span class="op"> =</span> <span class="st">"ros2 launch my_bringup px4_sitl.launch.py \</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="op">                    </span><span class="dt">launch_px4</span><span class="op">:=</span><span class="cn">true</span><span class="op"> </span><span class="dt">launch_agent</span><span class="op">:=</span><span class="cn">true</span><span class="dt">",</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="op">             </span><span class="dt">depends-on</span><span class="op"> =</span> <span class="op">[</span><span class="st">"build"</span><span class="op">] }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The launch file is responsible for starting the agent subprocess — the <code>agent</code> task is kept separate for manual use.</p>
+<section id="why-it-matters-for-a-control-stack" class="level2">
+<h2 class="anchored" data-anchor-id="why-it-matters-for-a-control-stack">Why it matters for a control stack</h2>
+<p>A control stack passes high-rate data along a chain: estimator -&gt; controller -&gt; allocator, with odometry and setpoints flowing every loop iteration. When these nodes live in separate processes, every message crosses a DDS boundary and is serialized, copied, and deserialized.</p>
+<p>Loading them into one <strong>component container</strong> enables intra-process communication: messages are passed by shared pointer with no serialization. On the hot path this removes a source of latency and jitter that directly affects control quality.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Intra-process transport only kicks in when both endpoints are in the same container <em>and</em> the node is built with <code>use_intra_process_comms</code>. QoS still has to match — see <a href="../../docs/control/qos-profiles.html">QoS Profiles</a>. PX4 <code>/fmu/*</code> topics cross the DDS bridge regardless, so zero-copy only helps for traffic <em>between your own nodes</em>.</p>
+</div>
+</div>
 <hr>
 </section>
-</section>
-<section id="transport-options" class="level2">
-<h2 class="anchored" data-anchor-id="transport-options">Transport options</h2>
+<section id="three-ways-to-compose" class="level2">
+<h2 class="anchored" data-anchor-id="three-ways-to-compose">Three ways to compose</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 36%">
-<col style="width: 20%">
-<col style="width: 43%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Transport</th>
-<th>Flag</th>
-<th>Typical use</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>UDP IPv4</td>
-<td><code>udp4 -p 8888</code></td>
-<td>SITL on localhost or LAN</td>
-</tr>
-<tr class="even">
-<td>UDP IPv6</td>
-<td><code>udp6 -p 8888</code></td>
-<td>IPv6 networks</td>
-</tr>
-<tr class="odd">
-<td>Serial</td>
-<td><code>serial -D /dev/ttyUSB0 -b 921600</code></td>
-<td>Pixhawk via UART</td>
-</tr>
-<tr class="even">
-<td>Serial (pseudo-TTY)</td>
-<td><code>serial -D /dev/ttyACM0 -b 57600</code></td>
-<td>Pixhawk via USB</td>
-</tr>
-</tbody>
-</table>
-<p>For SITL, always use <code>udp4 -p 8888</code>. PX4’s default client config targets <code>localhost:8888</code> on UDP.</p>
-<hr>
-</section>
-<section id="px4-side-configuration-sitl" class="level2">
-<h2 class="anchored" data-anchor-id="px4-side-configuration-sitl">PX4-side configuration (SITL)</h2>
-<p>PX4 SITL already has the uXRCE-DDS client enabled by default. No parameter changes are needed. On real hardware, ensure these parameters are set:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 40%">
-<col style="width: 25%">
+<col style="width: 38%">
+<col style="width: 27%">
 <col style="width: 33%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>Parameter</th>
-<th>Value</th>
-<th>Meaning</th>
+<th>Style</th>
+<th>How</th>
+<th>When</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>UXRCE_DDS_CFG</code></td>
-<td><code>1002</code> (TELEM2) or <code>0</code> (disabled)</td>
-<td>Serial port for client</td>
+<td>Manual</td>
+<td>A custom executable that instantiates several components by <code>#include</code></td>
+<td>Fixed, known-at-compile-time set of nodes</td>
 </tr>
 <tr class="even">
-<td><code>UXRCE_DDS_AG_IP</code></td>
-<td><code>192.168.x.x</code></td>
-<td>Agent IP (ethernet)</td>
+<td>Runtime</td>
+<td>Start a generic container, then <code>ros2 component load</code> nodes into it</td>
+<td>Interactive bring-up, experimentation</td>
 </tr>
 <tr class="odd">
-<td><code>UXRCE_DDS_PRT</code></td>
-<td><code>8888</code></td>
-<td>Agent UDP port</td>
+<td>Launch-time</td>
+<td><code>ComposableNodeContainer</code> describes the container and its nodes in a launch file</td>
+<td>Production deployment</td>
 </tr>
 </tbody>
 </table>
-<p>After changing parameters, reboot PX4.</p>
+<p>Launch-time composition is what the bringup package uses. See the full <code>ComposableNodeContainer</code> example in <a href="../../docs/setup/ros2-bringup-package.html">Bringup Package</a>.</p>
 <hr>
 </section>
-<section id="verifying-the-bridge" class="level2">
-<h2 class="anchored" data-anchor-id="verifying-the-bridge">Verifying the bridge</h2>
-<p>With PX4 SITL running and the agent started, open a new terminal inside the pixi environment and check that topics appear:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pixi</span> shell</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic list <span class="kw">|</span> <span class="fu">grep</span> fmu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Expected output (subset):</p>
-<pre><code>/fmu/in/actuator_motors
-/fmu/in/offboard_control_mode
-/fmu/in/vehicle_attitude_setpoint
-/fmu/in/vehicle_command
-/fmu/in/vehicle_thrust_setpoint
-/fmu/in/vehicle_torque_setpoint
-/fmu/out/vehicle_angular_velocity
-/fmu/out/vehicle_attitude
-/fmu/out/vehicle_local_position
-/fmu/out/vehicle_odometry
-/fmu/out/vehicle_status_v1</code></pre>
-<p>If the list is empty, the agent is not connected. Check:</p>
-<ol type="1">
-<li>The agent process is running (<code>ps aux | grep MicroXRCE</code>).</li>
-<li>Port 8888 is not blocked (<code>ss -u -l -n | grep 8888</code>).</li>
-<li>PX4 printed <code>INFO [uxrce_dds_client] synchronized with agent</code> at startup.</li>
-</ol>
-<p>Check publish rate on a key topic:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> topic hz /fmu/out/vehicle_odometry</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Expected: ~50 Hz. If rate is 0, the QoS profile is mismatched — see <a href="../../docs/control/qos-profiles.html">QoS Profiles</a>.</p>
+<section id="writing-a-node-as-a-component" class="level2">
+<h2 class="anchored" data-anchor-id="writing-a-node-as-a-component">Writing a node as a component</h2>
+<p>A node needs two things to be loadable into a container.</p>
+<p><strong>1. A constructor that accepts <code>NodeOptions</code></strong> and forwards them to the base <code>Node</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> my_pkg <span class="op">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Controller <span class="op">:</span> <span class="kw">public</span> rclcpp<span class="op">::</span>Node <span class="op">{</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">explicit</span> Controller<span class="op">(</span><span class="at">const</span> rclcpp<span class="op">::</span>NodeOptions<span class="op">&amp;</span> options <span class="op">=</span> rclcpp<span class="op">::</span>NodeOptions<span class="op">())</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">:</span> Node<span class="op">(</span><span class="st">"controller"</span><span class="op">,</span> options<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        <span class="co">// ... subscriptions, publishers, timer ...</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>  <span class="co">// namespace my_pkg</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>options</code> argument is how the container injects parameters, remappings, and intra-process settings at load time. A node that hardcodes <code>Node("controller")</code> without forwarding options cannot be composed.</p>
+<p><strong>2. Registration with the component factory:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">"rclcpp_components/register_node_macro.hpp"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>RCLCPP_COMPONENTS_REGISTER_NODE<span class="op">(</span>my_pkg<span class="op">::</span>Controller<span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>plus the matching <code>rclcpp_components_register_node</code> call in CMake. The full package layout — <code>package.xml</code> depend, CMake target, and the standalone <code>main.cpp</code> entry point — is on the <a href="../../docs/setup/ros2-cpp-package.html">C++ Node Package</a> page.</p>
 <hr>
 </section>
-<section id="namespace-isolation-multiple-vehicles" class="level2">
-<h2 class="anchored" data-anchor-id="namespace-isolation-multiple-vehicles">Namespace isolation (multiple vehicles)</h2>
-<p>To run multiple SITL instances on the same machine, start each PX4 instance on a different port and run a separate agent for each:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Vehicle 1</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">MicroXRCEAgent</span> udp4 <span class="at">-p</span> 8888 <span class="at">-n</span> uav0</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Vehicle 2</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">MicroXRCEAgent</span> udp4 <span class="at">-p</span> 8889 <span class="at">-n</span> uav1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>-n</code> flag sets a ROS 2 namespace prefix. Topics appear as <code>/uav0/fmu/out/...</code> and <code>/uav1/fmu/out/...</code>.</p>
+<section id="container-variants" class="level2">
+<h2 class="anchored" data-anchor-id="container-variants">Container variants</h2>
+<p>The container you launch picks the executor model for everything loaded into it:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 36%">
+<col style="width: 33%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Container</th>
+<th>Executor</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>component_container</code></td>
+<td>One <code>SingleThreadedExecutor</code> shared by all components</td>
+<td>Simple stacks; callbacks never run in parallel</td>
+</tr>
+<tr class="even">
+<td><code>component_container_mt</code></td>
+<td>One <code>MultiThreadedExecutor</code> shared by all components</td>
+<td>Parallel callbacks; pair with callback groups</td>
+</tr>
+<tr class="odd">
+<td><code>component_container_isolated</code></td>
+<td>One executor per component</td>
+<td>Strong isolation between nodes</td>
+</tr>
+</tbody>
+</table>
+<p>For a real-time loop, <code>component_container_mt</code> plus callback groups is how you keep a slow subscription from starving the control timer — the timer runs in a <code>MutuallyExclusive</code> group on its own thread while other callbacks proceed independently. See the callback-group discussion in <a href="../../docs/control/control-loop.html">Control Loop Architecture</a>.</p>
 <hr>
 </section>
-<section id="troubleshooting" class="level2">
-<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<section id="microxrceagent-command-not-found" class="level3">
-<h3 class="anchored" data-anchor-id="microxrceagent-command-not-found"><code>MicroXRCEAgent: command not found</code></h3>
-<p>The snap is not on <code>PATH</code>. Try <code>/snap/bin/MicroXRCEAgent</code>, or add <code>/snap/bin</code> to <code>PATH</code> in <code>~/.zshrc</code>.</p>
+<section id="the-constructor-gotcha" class="level2">
+<h2 class="anchored" data-anchor-id="the-constructor-gotcha">The constructor gotcha</h2>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>A component <strong>must not block or do long-running work in its constructor</strong>. The container loads components synchronously: anything that blocks in the constructor stalls the load (and any other node loaded after it). Do not wait for the first odometry message, sleep, or spin in the constructor.</p>
+</div>
+</div>
+<p>Defer that work to a timer or a callback. A control node that needs an initial state should arm a one-shot <code>create_wall_timer</code>, or simply guard its control loop with a “have I received state yet?” check — the same state-validity guard used in <a href="../../docs/control/control-loop.html">Control Loop Architecture</a> — rather than waiting in the constructor.</p>
+<hr>
 </section>
-<section id="agent-connects-but-topics-stop-after-a-few-seconds" class="level3">
-<h3 class="anchored" data-anchor-id="agent-connects-but-topics-stop-after-a-few-seconds">Agent connects but topics stop after a few seconds</h3>
-<p>PX4 SITL exited or crashed. The agent streams data only while the PX4 client is alive. Check the PX4 terminal for errors.</p>
-</section>
-<section id="topics-appear-but-subscriber-callbacks-never-fire" class="level3">
-<h3 class="anchored" data-anchor-id="topics-appear-but-subscriber-callbacks-never-fire">Topics appear but subscriber callbacks never fire</h3>
-<p>QoS mismatch. PX4 publishes with <code>BEST_EFFORT</code> reliability. See <a href="../../docs/control/qos-profiles.html">QoS Profiles</a>.</p>
+<section id="verifying-composition" class="level2">
+<h2 class="anchored" data-anchor-id="verifying-composition">Verifying composition</h2>
+<p>List the containers and the components loaded in them:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show running containers</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> component list</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Example output:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># /my_container</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   1  /controller</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   2  /estimator</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Load a component into a running container by hand (runtime composition):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> component load /my_container my_pkg my_pkg::Controller</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To confirm two nodes really share a process, check that they report the same PID:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ros2</span> node info /controller   <span class="co"># then /estimator -- both map to one container PID</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> <span class="at">-ef</span> <span class="kw">|</span> <span class="fu">grep</span> component_container</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If the nodes show different PIDs, they did not compose — check that each node is registered with <code>RCLCPP_COMPONENTS_REGISTER_NODE</code>, that the workspace is sourced in the launching shell, and that the <code>plugin</code> name in the launch file matches the registered class exactly.</p>
 
 
-</section>
 </section>
 
 </main> <!-- /main -->
