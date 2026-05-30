@@ -8,7 +8,7 @@ system-level ROS install is needed.
 The site is built with [Quarto](https://quarto.org) and deployed to GitHub
 Pages on every push to `main`:
 
-**<https://riccardo.github.io/ros2-px4-docs>**
+The website can be found at: **<https://riccardo-enr.github.io/ros2-px4-docs>**
 
 ## What's inside
 
