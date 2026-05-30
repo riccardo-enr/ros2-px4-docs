@@ -1,7 +1,7 @@
 ---
 title: "ROS 2 + PX4 Dev Guide"
 website:
-  repo-url: https://github.com/riccardo/ros2-px4-docs
+  repo-url: https://github.com/riccardo-enr/ros2-px4-docs
 ---
 
 A self-contained reference for setting up a ROS 2 (Jazzy) workspace targeting

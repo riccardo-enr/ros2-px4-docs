@@ -5,6 +5,10 @@ project:
 website:
   title: "ROS 2 + PX4 Dev Guide"
   navbar:
+    right:
+      - icon: github
+        href: https://github.com/riccardo-enr/ros2-px4-docs
+        aria-label: GitHub
     left:
       - href: index.qmd
         text: Home
